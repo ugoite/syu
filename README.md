@@ -30,7 +30,9 @@ See the detailed guides:
 
 ## Install from GitHub Packages
 
-`syu` publishes repository-scoped GHCR packages under `ghcr.io/ugoite/syu`.
+`syu` publishes repository-scoped GHCR packages under `ghcr.io/ugoite/syu` and
+falls back to matching GitHub release assets if anonymous package pulls are not
+available yet.
 
 Latest published package for your platform:
 

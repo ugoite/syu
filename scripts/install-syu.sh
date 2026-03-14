@@ -167,7 +167,7 @@ fetch_registry_token() {
   response="$(
     curl -fsSL \
       "${package_scheme}://${package_host}/token?scope=repository:${package_repository}:pull&service=${service}"
-  )"
+  )" || return 1
 
   printf '%s' "$response" | "$python_bin" -c '
 import json
@@ -195,7 +195,7 @@ resolve_package_tag() {
     curl -fsSL \
       -H "Authorization: Bearer $token" \
       "${package_scheme}://${package_host}/v2/${package_repository}/tags/list"
-  )"
+  )" || return 1
 
   printf '%s' "$response" | "$python_bin" -c '
 import json
@@ -284,7 +284,7 @@ download_package_archive() {
       -H "Authorization: Bearer $token" \
       -H "Accept: application/vnd.oci.image.manifest.v1+json, application/vnd.oci.artifact.manifest.v1+json, application/vnd.oras.artifact.manifest.v1+json" \
       "${package_scheme}://${package_host}/v2/${package_repository}/manifests/${package_tag}"
-  )"
+  )" || return 1
   digest="$(
     printf '%s' "$manifest" | "$python_bin" -c '
 import json
@@ -319,6 +319,134 @@ raise SystemExit(f"unable to find archive layer for {archive_name}")
     -H "Authorization: Bearer $token" \
     "${package_scheme}://${package_host}/v2/${package_repository}/blobs/${digest}" \
     -o "$archive_path"
+}
+
+fetch_release_catalog() {
+  local repository="$1"
+
+  curl -fsSL \
+    -H "Accept: application/vnd.github+json" \
+    "https://api.github.com/repos/${repository}/releases?per_page=100"
+}
+
+resolve_release_asset_url() {
+  local repository="$1"
+  local archive_name="$2"
+  local python_bin release_catalog selector
+
+  python_bin="$(find_python)"
+  selector="$(normalize_version_selector)"
+  release_catalog="$(fetch_release_catalog "$repository")"
+
+  printf '%s' "$release_catalog" | "$python_bin" -c '
+import json
+import re
+import sys
+
+selector, archive_name = sys.argv[1], sys.argv[2]
+releases = json.load(sys.stdin)
+version_pattern = re.compile(r"^v(\d+)\.(\d+)\.(\d+)(?:-(alpha|beta)\.(\d+))?$")
+
+candidates = []
+for release in releases:
+    if release.get("draft"):
+        continue
+    tag = release.get("tag_name")
+    if not tag:
+        continue
+
+    match = version_pattern.fullmatch(tag)
+    if not match:
+        continue
+
+    major, minor, patch = (int(match.group(index)) for index in (1, 2, 3))
+    prerelease_type = match.group(4)
+    prerelease_number = int(match.group(5) or 0)
+    prerelease_rank = {"alpha": 0, "beta": 1, None: 2}[prerelease_type]
+    candidates.append(
+        (
+            major,
+            minor,
+            patch,
+            prerelease_rank,
+            prerelease_number,
+            prerelease_type,
+            tag,
+            release,
+        )
+    )
+
+if selector.startswith("v"):
+    filtered = [candidate for candidate in candidates if candidate[6] == selector]
+elif selector == "latest":
+    filtered = candidates
+elif selector == "stable":
+    filtered = [candidate for candidate in candidates if candidate[5] is None]
+elif selector == "alpha":
+    filtered = [candidate for candidate in candidates if candidate[5] == "alpha"]
+elif selector == "beta":
+    filtered = [candidate for candidate in candidates if candidate[5] == "beta"]
+else:
+    raise SystemExit(f"unsupported version selector: {selector}")
+
+if not filtered:
+    raise SystemExit(f"no release matched selector {selector!r}")
+
+filtered.sort(key=lambda candidate: candidate[:5], reverse=True)
+release = filtered[0][7]
+
+for asset in release.get("assets") or []:
+    if asset.get("name") == archive_name:
+        print(asset["browser_download_url"])
+        raise SystemExit(0)
+
+raise SystemExit(f"release asset not found: {archive_name}")
+' "$selector" "$archive_name"
+}
+
+download_release_archive() {
+  local repository="$1"
+  local archive_name="$2"
+  local archive_path="$3"
+  local asset_url
+
+  asset_url="$(resolve_release_asset_url "$repository" "$archive_name")"
+
+  curl -fsSL "$asset_url" -o "$archive_path"
+}
+
+download_distribution_archive() {
+  local repository="$1"
+  local package_host="$2"
+  local package_scheme="$3"
+  local package_repository="$4"
+  local target="$5"
+  local archive_name="$6"
+  local archive_path="$7"
+  local package_error_log package_tag
+
+  package_error_log="${tmp_dir}/package-download.log"
+
+  if package_tag="$(
+    resolve_package_tag "$package_host" "$package_scheme" "$package_repository" "$target" 2>"$package_error_log"
+  )"; then
+    if download_package_archive \
+      "$package_host" \
+      "$package_scheme" \
+      "$package_repository" \
+      "$package_tag" \
+      "$archive_name" \
+      "$archive_path" \
+      2>>"$package_error_log"; then
+      return 0
+    fi
+  fi
+
+  if [[ -s "$package_error_log" ]]; then
+    cat "$package_error_log" >&2
+  fi
+  echo "package download unavailable, falling back to GitHub release assets" >&2
+  download_release_archive "$repository" "$archive_name" "$archive_path"
 }
 
 extract_archive() {
@@ -395,7 +523,6 @@ install_syu() {
   local archive_name
   local archive_path
   local extracted_dir
-  local package_tag
 
   require_command curl
 
@@ -407,7 +534,6 @@ install_syu() {
   install_dir="$(resolve_install_dir)"
   binary_name="$(resolve_binary_name "$target")"
   archive_name="$(resolve_archive_name "$target")"
-  package_tag="$(resolve_package_tag "$package_host" "$package_scheme" "$package_repository" "$target")"
 
   tmp_dir="$(mktemp -d)"
   extracted_dir="${tmp_dir}/extract"
@@ -415,11 +541,12 @@ install_syu() {
 
   trap cleanup_tmp_dir EXIT
 
-  download_package_archive \
+  download_distribution_archive \
+    "$repository" \
     "$package_host" \
     "$package_scheme" \
     "$package_repository" \
-    "$package_tag" \
+    "$target" \
     "$archive_name" \
     "$archive_path"
   extract_archive "$archive_path" "$extracted_dir"
