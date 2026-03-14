@@ -8,6 +8,7 @@ import hashlib
 import io
 import json
 import tarfile
+import threading
 import zipfile
 from dataclasses import dataclass
 from http import HTTPStatus
@@ -115,22 +116,34 @@ def build_artifacts(
     return artifacts
 
 
-def build_handler(package_repository: str, artifacts: Dict[str, Artifact]):
+def build_handler(package_repository: str, mode: str, target_filter: str | None):
     repository_prefix = f"/v2/{package_repository}"
+    artifacts: Dict[str, Artifact] | None = None
+    artifact_lock = threading.Lock()
+
+    def get_artifacts() -> Dict[str, Artifact]:
+        nonlocal artifacts
+        if artifacts is None:
+            with artifact_lock:
+                if artifacts is None:
+                    artifacts = build_artifacts(package_repository, mode, target_filter)
+        return artifacts
 
     class RegistryHandler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:  # noqa: N802
+            current_artifacts = get_artifacts()
+
             if self.path.startswith("/token?scope=repository:"):
                 self.respond_json({"token": "mock-token"})
                 return
 
             if self.path == f"{repository_prefix}/tags/list":
-                self.respond_json({"name": package_repository, "tags": sorted(artifacts)})
+                self.respond_json({"name": package_repository, "tags": sorted(current_artifacts)})
                 return
 
             if self.path.startswith(f"{repository_prefix}/manifests/"):
                 tag = self.path.removeprefix(f"{repository_prefix}/manifests/")
-                artifact = artifacts.get(tag)
+                artifact = current_artifacts.get(tag)
                 if artifact is None:
                     self.send_error(HTTPStatus.NOT_FOUND)
                     return
@@ -142,7 +155,7 @@ def build_handler(package_repository: str, artifacts: Dict[str, Artifact]):
 
             if self.path.startswith(f"{repository_prefix}/blobs/"):
                 digest = self.path.removeprefix(f"{repository_prefix}/blobs/")
-                for artifact in artifacts.values():
+                for artifact in current_artifacts.values():
                     if digest == artifact.archive_digest:
                         self.respond_bytes(artifact.archive_bytes, "application/octet-stream")
                         return
@@ -178,8 +191,7 @@ def main() -> None:
     parser.add_argument("--target")
     args = parser.parse_args()
 
-    artifacts = build_artifacts(args.package_repository, args.mode, args.target)
-    handler = build_handler(args.package_repository, artifacts)
+    handler = build_handler(args.package_repository, args.mode, args.target)
     server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
     Path(args.port_file).write_text(str(server.server_port))
 

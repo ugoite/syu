@@ -51,12 +51,14 @@ start_registry() {
   local mode="$1"
   local port_file="$2"
   local target="$3"
+  local server_log="$4"
 
   python3 "$repo_root/scripts/ci/mock_package_registry.py" \
     --mode "$mode" \
     --target "$target" \
     --package-repository "test/syu-packages" \
-    --port-file "$port_file" &
+    --port-file "$port_file" \
+    >"$server_log" 2>&1 &
   mock_server_pid="$!"
 
   for _ in $(seq 1 150); do
@@ -69,6 +71,9 @@ start_registry() {
     sleep 0.1
   done
 
+  if [[ -s "$server_log" ]]; then
+    cat "$server_log" >&2
+  fi
   echo "mock registry did not start" >&2
   exit 1
 }
@@ -79,12 +84,13 @@ run_install_case() {
   local expected_version="$3"
   local target="$4"
   local binary_name="$5"
-  local temp_root port_file port install_dir installed_binary
+  local temp_root port_file port install_dir installed_binary server_log
 
   temp_root="$(mktemp -d)"
   port_file="${temp_root}/port"
+  server_log="${temp_root}/registry.log"
 
-  start_registry "$mode" "$port_file" "$target"
+  start_registry "$mode" "$port_file" "$target" "$server_log"
   port="$(cat "$port_file")"
   install_dir="${temp_root}/bin"
   installed_binary="${install_dir}/${binary_name}"
