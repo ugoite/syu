@@ -5,7 +5,6 @@ set -euo pipefail
 
 DEFAULT_REPOSITORY="ugoite/syu"
 DEFAULT_PACKAGE_HOST="ghcr.io"
-DEFAULT_PACKAGE_REPOSITORY_SUFFIX="syu-packages"
 DEFAULT_PACKAGE_SCHEME="https"
 tmp_dir=""
 
@@ -62,15 +61,13 @@ resolve_package_scheme() {
 
 resolve_package_repository() {
   local repository="$1"
-  local owner
 
   if [[ -n "${SYU_PACKAGE_REPOSITORY:-}" ]]; then
     printf '%s\n' "$SYU_PACKAGE_REPOSITORY"
     return 0
   fi
 
-  owner="${repository%%/*}"
-  printf '%s/%s\n' "$owner" "$DEFAULT_PACKAGE_REPOSITORY_SUFFIX"
+  printf '%s\n' "$repository"
 }
 
 normalize_version_selector() {
@@ -163,13 +160,16 @@ fetch_registry_token() {
   local package_host="$1"
   local package_repository="$2"
   local package_scheme="$3"
-  local python_bin
+  local python_bin response service
 
   python_bin="$(find_python)"
+  service="${package_host%%:*}"
+  response="$(
+    curl -fsSL \
+      "${package_scheme}://${package_host}/token?scope=repository:${package_repository}:pull&service=${service}"
+  )"
 
-  curl -fsSL \
-    "${package_scheme}://${package_host}/token?scope=repository:${package_repository}:pull" |
-    "$python_bin" -c '
+  printf '%s' "$response" | "$python_bin" -c '
 import json
 import sys
 
@@ -186,16 +186,18 @@ resolve_package_tag() {
   local package_scheme="$2"
   local package_repository="$3"
   local target="$4"
-  local python_bin selector token
+  local python_bin response selector token
 
   python_bin="$(find_python)"
   selector="$(normalize_version_selector)"
   token="$(fetch_registry_token "$package_host" "$package_repository" "$package_scheme")"
+  response="$(
+    curl -fsSL \
+      -H "Authorization: Bearer $token" \
+      "${package_scheme}://${package_host}/v2/${package_repository}/tags/list"
+  )"
 
-  curl -fsSL \
-    -H "Authorization: Bearer $token" \
-    "${package_scheme}://${package_host}/v2/${package_repository}/tags/list" |
-    "$python_bin" -c '
+  printf '%s' "$response" | "$python_bin" -c '
 import json
 import re
 import sys
@@ -273,16 +275,18 @@ download_package_archive() {
   local package_tag="$4"
   local archive_name="$5"
   local archive_path="$6"
-  local python_bin token digest
+  local digest manifest python_bin token
 
   python_bin="$(find_python)"
   token="$(fetch_registry_token "$package_host" "$package_repository" "$package_scheme")"
-  digest="$(
+  manifest="$(
     curl -fsSL \
       -H "Authorization: Bearer $token" \
       -H "Accept: application/vnd.oci.image.manifest.v1+json, application/vnd.oci.artifact.manifest.v1+json, application/vnd.oras.artifact.manifest.v1+json" \
-      "${package_scheme}://${package_host}/v2/${package_repository}/manifests/${package_tag}" |
-      "$python_bin" -c '
+      "${package_scheme}://${package_host}/v2/${package_repository}/manifests/${package_tag}"
+  )"
+  digest="$(
+    printf '%s' "$manifest" | "$python_bin" -c '
 import json
 import sys
 

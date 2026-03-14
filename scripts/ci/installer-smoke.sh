@@ -57,12 +57,12 @@ start_registry() {
     --mode "$mode" \
     --port "$port" \
     --target "$target" \
-    --package-repository "test/syu-packages" \
+    --package-repository "test/syu" \
     >"$server_log" 2>&1 &
   mock_server_pid="$!"
 
   for _ in $(seq 1 250); do
-    if curl --silent --show-error --fail "http://127.0.0.1:${port}/token?scope=repository:test/syu-packages:pull" >/dev/null 2>&1; then
+    if curl --silent --show-error --fail "http://127.0.0.1:${port}/token?scope=repository:test/syu:pull&service=127.0.0.1" >/dev/null 2>&1; then
       return 0
     fi
     if ! kill -0 "$mock_server_pid" >/dev/null 2>&1; then
@@ -97,7 +97,7 @@ run_install_case() {
   env \
     SYU_PACKAGE_SCHEME="http" \
     SYU_PACKAGE_HOST="127.0.0.1:${port}" \
-    SYU_PACKAGE_REPOSITORY="test/syu-packages" \
+    SYU_PACKAGE_REPOSITORY="test/syu" \
     SYU_INSTALL_DIR="$install_dir" \
     SYU_VERSION="$selector" \
     bash "$repo_root/scripts/install-syu.sh"

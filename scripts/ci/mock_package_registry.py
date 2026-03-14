@@ -184,7 +184,7 @@ def build_handler(package_repository: str, mode: str, target_filter: str | None)
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--package-repository", default="test/syu-packages")
+    parser.add_argument("--package-repository", default="test/syu")
     parser.add_argument("--mode", choices=sorted(TAG_SETS), default="mixed")
     parser.add_argument("--port", type=int)
     parser.add_argument("--target")

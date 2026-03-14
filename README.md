@@ -30,6 +30,8 @@ See the detailed guides:
 
 ## Install from GitHub Packages
 
+`syu` publishes repository-scoped GHCR packages under `ghcr.io/ugoite/syu`.
+
 Latest published package for your platform:
 
 ```bash

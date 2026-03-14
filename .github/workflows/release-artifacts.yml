@@ -42,7 +42,7 @@ jobs:
     env:
       RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag || github.ref_name }}
       PACKAGE_REGISTRY: ghcr.io
-      PACKAGE_REPOSITORY: ${{ github.repository_owner }}/syu-packages
+      PACKAGE_REPOSITORY: ${{ github.repository }}
     steps:
       - uses: actions/checkout@v6
         with:
