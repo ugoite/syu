@@ -4,6 +4,13 @@
 set -euo pipefail
 
 DEFAULT_REPOSITORY="ugoite/syu"
+tmp_dir=""
+
+cleanup_tmp_dir() {
+  if [[ -n "${tmp_dir:-}" ]]; then
+    rm -rf "$tmp_dir"
+  fi
+}
 
 require_command() {
   local command_name="$1"
@@ -149,7 +156,7 @@ install_syu() {
   tmp_dir="$(mktemp -d)"
   extracted_dir="${tmp_dir}/extract"
 
-  trap "rm -rf '$tmp_dir'" EXIT
+  trap cleanup_tmp_dir EXIT
 
   curl -fsSL "$archive_url" -o "${tmp_dir}/${archive_name}"
   extract_archive "${tmp_dir}/${archive_name}" "$extracted_dir"
