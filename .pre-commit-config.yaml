@@ -1,0 +1,45 @@
+# FEAT-QUALITY-001
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: mixed-line-ending
+      - id: check-merge-conflict
+
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
+    hooks:
+      - id: shellcheck
+        files: ^scripts/.*\.sh$
+
+  - repo: local
+    hooks:
+      - id: syu-validate-self
+        name: syu-validate-self
+        entry: cargo run -- validate .
+        language: system
+        pass_filenames: false
+        stages:
+          - pre-commit
+          - manual
+      - id: syu-quality-gates
+        name: syu-quality-gates
+        entry: scripts/ci/quality-gates.sh
+        language: system
+        pass_filenames: false
+        stages:
+          - pre-push
+          - manual
+      - id: syu-coverage-gate
+        name: syu-coverage-gate
+        entry: scripts/ci/coverage.sh summary
+        language: system
+        pass_filenames: false
+        stages:
+          - pre-push
+          - manual

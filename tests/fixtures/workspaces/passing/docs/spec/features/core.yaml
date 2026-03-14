@@ -1,0 +1,39 @@
+category: Multi-language Features
+version: 1
+
+features:
+  - id: FEAT-TRACE-001
+    title: Rust implementation trace
+    summary: Feature links to Rust source.
+    status: implemented
+    linked_requirements:
+      - REQ-TRACE-001
+    implementations:
+      rust:
+        - file: src/rust_feature.rs
+          symbols:
+            - feature_trace_rust
+
+  - id: FEAT-TRACE-002
+    title: Python implementation trace
+    summary: Feature links to Python source.
+    status: implemented
+    linked_requirements:
+      - REQ-TRACE-002
+    implementations:
+      python:
+        - file: python/feature_trace.py
+          symbols:
+            - feature_trace_py
+
+  - id: FEAT-TRACE-003
+    title: TypeScript implementation trace
+    summary: Feature links to TypeScript source.
+    status: implemented
+    linked_requirements:
+      - REQ-TRACE-003
+    implementations:
+      typescript:
+        - file: frontend/feature-trace.ts
+          symbols:
+            - featureTraceTs

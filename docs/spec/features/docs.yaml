@@ -1,0 +1,37 @@
+category: Documentation
+version: 1
+
+features:
+  - id: FEAT-DOCS-001
+    title: English concepts and workflow documentation
+    summary: Explain the four-layer model, delivery states, configuration, and command workflow in English.
+    status: implemented
+    linked_requirements:
+      - REQ-CORE-010
+    implementations:
+      markdown:
+        - file: README.md
+          symbols:
+            - FEAT-DOCS-001
+            - syu validate
+            - philosophy
+            - planned
+        - file: docs/guide/concepts.md
+          symbols:
+            - FEAT-DOCS-001
+            - policy
+            - requirements
+            - features
+            - planned
+            - implemented
+        - file: docs/guide/getting-started.md
+          symbols:
+            - FEAT-DOCS-001
+            - syu init
+            - syu validate
+        - file: docs/guide/configuration.md
+          symbols:
+            - FEAT-DOCS-001
+            - validate.default_fix
+            - validate.allow_planned
+            - runtimes.python.command

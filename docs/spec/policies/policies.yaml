@@ -1,0 +1,106 @@
+category: Policies
+version: 1
+language: en
+
+policies:
+  - id: POL-001
+    title: Policy must turn philosophy into explicit repository rules
+    summary: Policies are the legal layer that operationalizes philosophy.
+    description: |
+      A policy should not repeat a philosophy statement. It should define the
+      concrete repository rule that makes the philosophy enforceable and should
+      be specific enough to imply one or more requirements.
+    linked_philosophies:
+      - PHIL-001
+      - PHIL-003
+    linked_requirements:
+      - REQ-CORE-001
+      - REQ-CORE-009
+      - REQ-CORE-010
+
+  - id: POL-002
+    title: Each specification layer must link only to adjacent layers
+    summary: Philosophy links to policy, policy to requirements, requirements to features.
+    description: |
+      Keeping each layer adjacent prevents accidental collapse of the model.
+      Philosophy should not link straight to features, and features should not
+      bypass requirements. Reciprocal adjacency keeps the graph explainable.
+    linked_philosophies:
+      - PHIL-001
+    linked_requirements:
+      - REQ-CORE-001
+
+  - id: POL-003
+    title: Validation must prove traceability from repository contents
+    summary: Use language-aware inspection instead of trusting filenames or YAML.
+    description: |
+      Declared traces are only credible when `syu` can verify the referenced
+      file, symbol, owning ID, and optional documentation snippets from the
+      repository. Rich language inspection should be preferred where possible.
+    linked_philosophies:
+      - PHIL-002
+    linked_requirements:
+      - REQ-CORE-001
+      - REQ-CORE-002
+      - REQ-CORE-003
+
+  - id: POL-004
+    title: Starting a project should be one command away
+    summary: Bootstrapping the workspace and config is part of the core workflow.
+    description: |
+      A specification-driven workflow should not begin with manual directory
+      creation. `syu init` should create a valid starting point and the config
+      file that makes future behavior explicit.
+    linked_philosophies:
+      - PHIL-003
+    linked_requirements:
+      - REQ-CORE-009
+      - REQ-CORE-011
+      - REQ-CORE-012
+
+  - id: POL-005
+    title: Explanations should be part of the product
+    summary: Reports, guides, and examples must teach the model explicitly.
+    description: |
+      Users should not need tribal knowledge to understand philosophy, policy,
+      requirements, features, config, or commands. Reports and English guides
+      should explain both the workflow and the reason for the workflow.
+    linked_philosophies:
+      - PHIL-001
+      - PHIL-003
+      - PHIL-004
+    linked_requirements:
+      - REQ-CORE-004
+      - REQ-CORE-010
+      - REQ-CORE-012
+
+  - id: POL-006
+    title: Contributor tooling must self-host the same discipline
+    summary: Docs, devcontainer, examples, and tests are part of product behavior.
+    description: |
+      `syu` should use its own ideas to support contributors. The repository
+      should provide examples, tests for those examples, and a devcontainer that
+      matches the documented workflow.
+    linked_philosophies:
+      - PHIL-002
+      - PHIL-003
+      - PHIL-004
+    linked_requirements:
+      - REQ-CORE-011
+      - REQ-CORE-012
+
+  - id: POL-007
+    title: Self-hosting operations must stay reproducible
+    summary: Quality, coverage, release, and installation are product behavior.
+    description: |
+      Shipping the tool is part of the tool. Quality gates, coverage,
+      release-please automation, release artifacts, and the installer should be
+      explicit, reviewable, and continuously validated.
+    linked_philosophies:
+      - PHIL-002
+      - PHIL-004
+    linked_requirements:
+      - REQ-CORE-005
+      - REQ-CORE-006
+      - REQ-CORE-007
+      - REQ-CORE-008

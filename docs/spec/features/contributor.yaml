@@ -1,0 +1,24 @@
+category: Contributor Experience
+version: 1
+
+features:
+  - id: FEAT-CONTRIB-001
+    title: Contributor devcontainer and example workspaces
+    summary: Provide a ready-to-use contributor container and validated example projects.
+    status: implemented
+    linked_requirements:
+      - REQ-CORE-011
+      - REQ-CORE-012
+    implementations:
+      json:
+        - file: .devcontainer/devcontainer.json
+          symbols:
+            - FEAT-CONTRIB-001
+            - postCreateCommand
+      rust:
+        - file: tests/example_workspaces.rs
+          symbols:
+            - FEAT-CONTRIB-001
+            - rust_only_example_validates
+            - python_only_example_validates
+            - polyglot_example_validates

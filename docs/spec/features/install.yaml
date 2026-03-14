@@ -1,0 +1,20 @@
+category: Installer
+version: 1
+
+features:
+  - id: FEAT-INSTALL-001
+    title: Release installer
+    summary: Install the matching released binary with one shell command and a sane default repository.
+    status: implemented
+    linked_requirements:
+      - REQ-CORE-008
+    implementations:
+      shell:
+        - file: scripts/install-syu.sh
+          symbols:
+            - DEFAULT_REPOSITORY
+            - resolve_repository
+            - resolve_target_triple
+            - resolve_release_tag
+            - extract_archive
+            - install_syu

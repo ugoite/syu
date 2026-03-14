@@ -1,0 +1,7 @@
+# FEAT-QUALITY-001
+ci:
+  autoupdate_schedule: monthly
+  skip:
+    - syu-validate-self
+    - syu-quality-gates
+    - syu-coverage-gate

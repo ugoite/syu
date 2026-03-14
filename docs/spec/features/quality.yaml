@@ -1,0 +1,32 @@
+category: Quality Automation
+version: 1
+
+features:
+  - id: FEAT-QUALITY-001
+    title: Repository quality automation
+    summary: Keep self-validation, quality gates, and coverage enforcement executable and shared across hooks and CI.
+    status: implemented
+    linked_requirements:
+      - REQ-CORE-005
+      - REQ-CORE-006
+    implementations:
+      shell:
+        - file: scripts/ci/quality-gates.sh
+          symbols:
+            - run_quality_gates
+        - file: scripts/ci/coverage.sh
+          symbols:
+            - configure_llvm_tools
+            - run_coverage
+      yaml:
+        - file: .pre-commit-config.yaml
+          symbols:
+            - syu-validate-self
+            - syu-quality-gates
+            - syu-coverage-gate
+        - file: .github/workflows/ci.yml
+          symbols:
+            - precommit
+            - quality
+            - coverage
+            - actionlint

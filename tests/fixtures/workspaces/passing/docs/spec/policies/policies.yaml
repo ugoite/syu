@@ -1,0 +1,28 @@
+category: Policies
+version: 1
+language: en
+
+policies:
+  - id: POL-TRACE-001
+    title: Requirements need executable evidence
+    summary: Each requirement must map to tests.
+    description: |
+      The repository must keep requirement IDs connected to executable tests.
+    linked_philosophies:
+      - PHIL-TRACE-001
+    linked_requirements:
+      - REQ-TRACE-001
+      - REQ-TRACE-002
+      - REQ-TRACE-003
+
+  - id: POL-TRACE-002
+    title: Features need executable evidence
+    summary: Each feature must map to implementation files.
+    description: |
+      Feature IDs stay trustworthy only when implementation links are explicit.
+    linked_philosophies:
+      - PHIL-TRACE-001
+    linked_requirements:
+      - REQ-TRACE-001
+      - REQ-TRACE-002
+      - REQ-TRACE-003

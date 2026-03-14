@@ -1,0 +1,37 @@
+category: Validate Command
+version: 1
+
+features:
+  - id: FEAT-CHECK-001
+    title: Unified validation command
+    summary: Validate graph links, delivery-state trace rules, multi-language traces, and safe autofix with one command.
+    status: implemented
+    linked_requirements:
+      - REQ-CORE-001
+      - REQ-CORE-002
+      - REQ-CORE-003
+    implementations:
+      rust:
+        - file: src/command/check.rs
+          symbols:
+            - run_check_command
+            - collect_check_result
+            - apply_autofix
+            - normalize_delivery_status
+            - validate_delivery_status
+        - file: src/workspace.rs
+          symbols:
+            - load_workspace
+        - file: src/language.rs
+          symbols:
+            - adapter_for_language
+        - file: src/inspect.rs
+          symbols:
+            - inspect_symbol
+            - apply_symbol_doc_fix
+        - file: src/runtime.rs
+          symbols:
+            - resolve_runtime_command
+        - file: src/config.rs
+          symbols:
+            - load_config

@@ -1,0 +1,25 @@
+category: Release Automation
+version: 1
+
+features:
+  - id: FEAT-RELEASE-001
+    title: Release automation
+    summary: Create alpha, beta, and stable releases predictably and package binaries for distribution.
+    status: implemented
+    linked_requirements:
+      - REQ-CORE-007
+    implementations:
+      shell:
+        - file: scripts/ci/package-release.sh
+          symbols:
+            - package_release_artifact
+            - write_sha256
+      yaml:
+        - file: .github/workflows/release-please.yml
+          symbols:
+            - release-please-stable
+            - release-please-beta
+            - release-please-alpha
+        - file: .github/workflows/release-artifacts.yml
+          symbols:
+            - release-artifacts
