@@ -28,9 +28,9 @@ See the detailed guides:
 - [`docs/guide/getting-started.md`](docs/guide/getting-started.md)
 - [`docs/guide/configuration.md`](docs/guide/configuration.md)
 
-## Install from a GitHub release
+## Install from GitHub Packages
 
-Latest release:
+Latest published package for your platform:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ugoite/syu/main/scripts/install-syu.sh | bash
@@ -39,13 +39,19 @@ curl -fsSL https://raw.githubusercontent.com/ugoite/syu/main/scripts/install-syu
 Pin a specific release track:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ugoite/syu/main/scripts/install-syu.sh | env SYU_VERSION=v0.0.1-alpha.1 bash
+curl -fsSL https://raw.githubusercontent.com/ugoite/syu/main/scripts/install-syu.sh | env SYU_VERSION=alpha bash
 ```
 
 Install to a custom directory:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ugoite/syu/main/scripts/install-syu.sh | env SYU_INSTALL_DIR=$HOME/bin bash
+```
+
+Install a specific prerelease:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ugoite/syu/main/scripts/install-syu.sh | env SYU_VERSION=v0.0.1-alpha.3 bash
 ```
 
 ## Quick start
@@ -232,6 +238,7 @@ The repository includes:
 
 Release notes come from GitHub Releases rather than a committed `CHANGELOG.md`.
 
-Release binaries are packaged with `scripts/ci/package-release.sh`.
+Release binaries are packaged with `scripts/ci/package-release.sh`, published to
+GitHub Packages / GHCR, and uploaded as GitHub release assets.
 
 See `docs/spec/` for `syu`'s own self-hosted specification.

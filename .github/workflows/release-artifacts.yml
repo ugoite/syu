@@ -1,18 +1,27 @@
 # FEAT-RELEASE-001
 name: release-artifacts
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   release:
     types:
       - published
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to rebuild
+        required: true
+        type: string
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
   release-artifacts:
-    if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/')
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
     strategy:
       fail-fast: false
       matrix:
@@ -30,8 +39,14 @@ jobs:
             target: x86_64-pc-windows-msvc
             binary: syu.exe
     runs-on: ${{ matrix.os }}
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag || github.ref_name }}
+      PACKAGE_REGISTRY: ghcr.io
+      PACKAGE_REPOSITORY: ${{ github.repository_owner }}/syu-packages
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -49,8 +64,30 @@ jobs:
             "target/${{ matrix.target }}/release/${{ matrix.binary }}" \
             release-artifacts
 
+      - name: Set up ORAS
+        uses: oras-project/setup-oras@v1.2.4
+
+      - name: Publish package artifacts
+        shell: bash
+        env:
+          ORAS_USER: ${{ github.actor }}
+          ORAS_PASSWORD: ${{ github.token }}
+        run: |
+          archive_name="syu-${{ matrix.target }}"
+          if [[ "${{ matrix.target }}" == *windows* ]]; then
+            archive_name="${archive_name}.zip"
+          else
+            archive_name="${archive_name}.tar.gz"
+          fi
+          echo "$ORAS_PASSWORD" | oras login "$PACKAGE_REGISTRY" --username "$ORAS_USER" --password-stdin
+          scripts/ci/publish-package.sh \
+            "$PACKAGE_REGISTRY" \
+            "$PACKAGE_REPOSITORY" \
+            "${RELEASE_TAG}__${{ matrix.target }}" \
+            "release-artifacts/${archive_name}"
+
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.release.tag_name || github.ref_name }}
+          tag_name: ${{ env.RELEASE_TAG }}
           files: release-artifacts/*

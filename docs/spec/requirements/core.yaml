@@ -139,8 +139,9 @@ requirements:
     description: |
       The repository MUST provide release automation that prepares release PRs,
       supports alpha / beta / stable tracks, publishes GitHub release notes
-      without a committed changelog file, and builds installable artifacts for
-      supported platforms.
+      without a committed changelog file, builds installable artifacts for
+      supported platforms, and publishes install packages to GitHub Packages /
+      GHCR.
     priority: high
     status: implemented
     linked_policies:
@@ -154,11 +155,12 @@ requirements:
             - repository_declares_release_automation
 
   - id: REQ-CORE-008
-    title: Provide a one-line installer for release artifacts
+    title: Provide a one-line installer for package artifacts
     description: |
       The repository MUST ship an installer script that resolves the current
-      platform, downloads the matching GitHub release asset, defaults to
-      `ugoite/syu`, and installs the binary into a user-controlled location.
+      platform, downloads the matching package artifact from GitHub Packages /
+      GHCR, defaults to `ugoite/syu`, and installs the binary into a
+      user-controlled location.
     priority: medium
     status: implemented
     linked_policies:

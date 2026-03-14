@@ -32,9 +32,13 @@ fn repository_declares_precommit_and_quality_gates() {
     assert!(ci_workflow.contains("precommit:"));
     assert!(ci_workflow.contains("quality:"));
     assert!(ci_workflow.contains("actionlint:"));
+    assert!(ci_workflow.contains("dependency-audit:"));
+    assert!(ci_workflow.contains("installer-smoke:"));
     assert!(ci_workflow.contains("--hook-stage pre-commit"));
     assert!(ci_workflow.contains("--hook-stage pre-push"));
     assert!(ci_workflow.contains("scripts/ci/quality-gates.sh"));
+    assert!(ci_workflow.contains("cargo audit"));
+    assert!(ci_workflow.contains("scripts/ci/installer-smoke.sh"));
 }
 
 #[test]
@@ -60,26 +64,33 @@ fn repository_declares_release_automation() {
     let release_please = read_file(".github/workflows/release-please.yml");
     let release_artifacts = read_file(".github/workflows/release-artifacts.yml");
     let package_script = read_file("scripts/ci/package-release.sh");
+    let publish_script = read_file("scripts/ci/publish-package.sh");
     let release_config = read_file("release-please-config.json");
     let beta_config = read_file("release-please-config.beta.json");
     let alpha_config = read_file("release-please-config.alpha.json");
     let manifest = read_file(".release-please-manifest.json");
 
     assert!(release_please.contains("FEAT-RELEASE-001"));
-    assert!(release_please.contains("googleapis/release-please-action@v4"));
+    assert!(release_please.contains("googleapis/release-please-action@v4.4.0"));
     assert!(release_please.contains("release-please-stable"));
     assert!(release_please.contains("release-please-beta"));
     assert!(release_please.contains("release-please-alpha"));
+    assert!(release_please.contains("release-please skipped"));
 
     assert!(release_artifacts.contains("FEAT-RELEASE-001"));
     assert!(release_artifacts.contains("release-artifacts"));
     assert!(release_artifacts.contains("x86_64-unknown-linux-gnu"));
     assert!(release_artifacts.contains("aarch64-apple-darwin"));
     assert!(release_artifacts.contains("x86_64-pc-windows-msvc"));
+    assert!(release_artifacts.contains("PACKAGE_REPOSITORY"));
+    assert!(release_artifacts.contains("publish-package.sh"));
 
     assert!(package_script.contains("FEAT-RELEASE-001"));
     assert!(package_script.contains("package_release_artifact"));
     assert!(package_script.contains("write_sha256"));
+    assert!(publish_script.contains("FEAT-RELEASE-001"));
+    assert!(publish_script.contains("publish_package_artifact"));
+    assert!(publish_script.contains("oras push"));
 
     assert!(release_config.contains("\"release-type\": \"rust\""));
     assert!(release_config.contains("\"package-name\": \"syu\""));
@@ -98,20 +109,31 @@ fn repository_declares_release_automation() {
 // REQ-CORE-008
 fn repository_declares_installer_contract() {
     let installer = read_file("scripts/install-syu.sh");
+    let installer_smoke = read_file("scripts/ci/installer-smoke.sh");
+    let mock_registry = read_file("scripts/ci/mock_package_registry.py");
     let readme = read_file("README.md");
 
     assert!(installer.contains("FEAT-INSTALL-001"));
     assert!(installer.contains("resolve_repository"));
     assert!(installer.contains("resolve_target_triple"));
-    assert!(installer.contains("resolve_release_tag"));
+    assert!(installer.contains("resolve_package_repository"));
+    assert!(installer.contains("resolve_package_tag"));
+    assert!(installer.contains("download_package_archive"));
     assert!(installer.contains("install_syu"));
     assert!(installer.contains("SYU_REPOSITORY"));
     assert!(installer.contains("SYU_INSTALL_DIR"));
+    assert!(installer.contains("SYU_PACKAGE_REPOSITORY"));
     assert!(installer.contains("ugoite/syu"));
+    assert!(installer.contains("ghcr.io"));
+    assert!(installer_smoke.contains("FEAT-INSTALL-001"));
+    assert!(installer_smoke.contains("run_install_case"));
+    assert!(mock_registry.contains("FEAT-INSTALL-001"));
+    assert!(mock_registry.contains("build_artifacts"));
 
     assert!(readme.contains("install-syu.sh"));
     assert!(readme.contains("ugoite/syu"));
     assert!(readme.contains("SYU_VERSION"));
+    assert!(readme.contains("GitHub Packages"));
 }
 
 #[test]

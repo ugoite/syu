@@ -14,6 +14,9 @@ features:
           symbols:
             - package_release_artifact
             - write_sha256
+        - file: scripts/ci/publish-package.sh
+          symbols:
+            - publish_package_artifact
       yaml:
         - file: .github/workflows/release-please.yml
           symbols:
