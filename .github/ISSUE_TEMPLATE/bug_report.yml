@@ -30,7 +30,7 @@ body:
     id: version
     attributes:
       label: syu version
-      description: Example: `0.0.1` or `v0.0.1-alpha.4`
+      description: "Example: `0.0.1` or `v0.0.1-alpha.4`"
       placeholder: 0.0.1
     validations:
       required: true
