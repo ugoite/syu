@@ -58,10 +58,14 @@ def sha256_digest(content: bytes) -> str:
     return f"sha256:{hashlib.sha256(content).hexdigest()}"
 
 
-def build_artifacts(package_repository: str, mode: str) -> Dict[str, Artifact]:
+def build_artifacts(
+    package_repository: str, mode: str, target_filter: str | None
+) -> Dict[str, Artifact]:
     artifacts: Dict[str, Artifact] = {}
     for version in TAG_SETS[mode]:
         for target, binary_name in TARGETS.items():
+            if target_filter is not None and target != target_filter:
+                continue
             archive_name = (
                 f"syu-{target}.zip" if target.endswith("windows-msvc") else f"syu-{target}.tar.gz"
             )
@@ -171,9 +175,10 @@ def main() -> None:
     parser.add_argument("--package-repository", default="test/syu-packages")
     parser.add_argument("--mode", choices=sorted(TAG_SETS), default="mixed")
     parser.add_argument("--port-file", required=True)
+    parser.add_argument("--target")
     args = parser.parse_args()
 
-    artifacts = build_artifacts(args.package_repository, args.mode)
+    artifacts = build_artifacts(args.package_repository, args.mode, args.target)
     handler = build_handler(args.package_repository, artifacts)
     server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
     Path(args.port_file).write_text(str(server.server_port))

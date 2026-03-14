@@ -50,9 +50,11 @@ resolve_binary_name() {
 start_registry() {
   local mode="$1"
   local port_file="$2"
+  local target="$3"
 
   python3 "$repo_root/scripts/ci/mock_package_registry.py" \
     --mode "$mode" \
+    --target "$target" \
     --package-repository "test/syu-packages" \
     --port-file "$port_file" &
   mock_server_pid="$!"
@@ -82,7 +84,7 @@ run_install_case() {
   temp_root="$(mktemp -d)"
   port_file="${temp_root}/port"
 
-  start_registry "$mode" "$port_file"
+  start_registry "$mode" "$port_file" "$target"
   port="$(cat "$port_file")"
   install_dir="${temp_root}/bin"
   installed_binary="${install_dir}/${binary_name}"

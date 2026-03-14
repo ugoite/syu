@@ -74,11 +74,10 @@ jobs:
           ORAS_PASSWORD: ${{ github.token }}
         run: |
           archive_name="syu-${{ matrix.target }}"
-          if [[ "${{ matrix.target }}" == *windows* ]]; then
-            archive_name="${archive_name}.zip"
-          else
-            archive_name="${archive_name}.tar.gz"
-          fi
+          case "${{ matrix.target }}" in
+            *windows*) archive_name="${archive_name}.zip" ;;
+            *) archive_name="${archive_name}.tar.gz" ;;
+          esac
           echo "$ORAS_PASSWORD" | oras login "$PACKAGE_REGISTRY" --username "$ORAS_USER" --password-stdin
           scripts/ci/publish-package.sh \
             "$PACKAGE_REGISTRY" \
