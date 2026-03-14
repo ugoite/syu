@@ -49,20 +49,20 @@ resolve_binary_name() {
 
 start_registry() {
   local mode="$1"
-  local port_file="$2"
+  local port="$2"
   local target="$3"
   local server_log="$4"
 
-  python3 "$repo_root/scripts/ci/mock_package_registry.py" \
+  python3 -u "$repo_root/scripts/ci/mock_package_registry.py" \
     --mode "$mode" \
+    --port "$port" \
     --target "$target" \
     --package-repository "test/syu-packages" \
-    --port-file "$port_file" \
     >"$server_log" 2>&1 &
   mock_server_pid="$!"
 
-  for _ in $(seq 1 150); do
-    if [[ -s "$port_file" ]]; then
+  for _ in $(seq 1 250); do
+    if curl --silent --show-error --fail "http://127.0.0.1:${port}/token?scope=repository:test/syu-packages:pull" >/dev/null 2>&1; then
       return 0
     fi
     if ! kill -0 "$mock_server_pid" >/dev/null 2>&1; then
@@ -84,14 +84,13 @@ run_install_case() {
   local expected_version="$3"
   local target="$4"
   local binary_name="$5"
-  local temp_root port_file port install_dir installed_binary server_log
+  local temp_root port install_dir installed_binary server_log
 
   temp_root="$(mktemp -d)"
-  port_file="${temp_root}/port"
   server_log="${temp_root}/registry.log"
+  port="$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()')"
 
-  start_registry "$mode" "$port_file" "$target" "$server_log"
-  port="$(cat "$port_file")"
+  start_registry "$mode" "$port" "$target" "$server_log"
   install_dir="${temp_root}/bin"
   installed_binary="${install_dir}/${binary_name}"
 

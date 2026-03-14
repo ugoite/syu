@@ -13,7 +13,6 @@ import zipfile
 from dataclasses import dataclass
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
 from typing import Dict
 
 
@@ -187,13 +186,12 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--package-repository", default="test/syu-packages")
     parser.add_argument("--mode", choices=sorted(TAG_SETS), default="mixed")
-    parser.add_argument("--port-file", required=True)
+    parser.add_argument("--port", type=int)
     parser.add_argument("--target")
     args = parser.parse_args()
 
     handler = build_handler(args.package_repository, args.mode, args.target)
-    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
-    Path(args.port_file).write_text(str(server.server_port))
+    server = ThreadingHTTPServer(("127.0.0.1", args.port or 0), handler)
 
     try:
         server.serve_forever()
