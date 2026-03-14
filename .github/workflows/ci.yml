@@ -40,6 +40,7 @@ jobs:
         with:
           python-version: "3.x"
           cache: pip
+          cache-dependency-path: .pre-commit-config.yaml
 
       - name: Install pre-commit
         run: python -m pip install --upgrade pip pre-commit
@@ -123,7 +124,22 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Check dependency graph support
+        id: dependency-graph
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh api "repos/${GITHUB_REPOSITORY}/dependency-graph/sbom" >/dev/null 2>&1; then
+            echo "enabled=true" >>"$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >>"$GITHUB_OUTPUT"
+            echo "::notice title=dependency-review skipped::Enable Dependency graph in repository settings to activate dependency review."
+          fi
+
       - name: Review dependency changes
+        if: steps.dependency-graph.outputs.enabled == 'true'
         uses: actions/dependency-review-action@v4
 
   installer-smoke:
@@ -144,6 +160,7 @@ jobs:
         with:
           python-version: "3.x"
           cache: pip
+          cache-dependency-path: .pre-commit-config.yaml
 
       - name: Run installer smoke tests
         shell: bash

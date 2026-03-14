@@ -250,6 +250,7 @@ fn repository_declares_dependency_hygiene_and_ci_caching() {
     assert!(ci_workflow.contains("Swatinem/rust-cache@v2"));
     assert!(ci_workflow.contains("Set up Python with pip cache"));
     assert!(ci_workflow.contains("cache: pip"));
+    assert!(ci_workflow.contains("cache-dependency-path: .pre-commit-config.yaml"));
 
     assert!(release_artifacts.contains("Restore Rust cache"));
     assert!(release_artifacts.contains("Swatinem/rust-cache@v2"));
