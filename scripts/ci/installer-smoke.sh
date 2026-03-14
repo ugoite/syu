@@ -57,9 +57,12 @@ start_registry() {
     --port-file "$port_file" &
   mock_server_pid="$!"
 
-  for _ in $(seq 1 50); do
+  for _ in $(seq 1 150); do
     if [[ -s "$port_file" ]]; then
       return 0
+    fi
+    if ! kill -0 "$mock_server_pid" >/dev/null 2>&1; then
+      break
     fi
     sleep 0.1
   done

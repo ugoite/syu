@@ -195,7 +195,7 @@ resolve_package_tag() {
   curl -fsSL \
     -H "Authorization: Bearer $token" \
     "${package_scheme}://${package_host}/v2/${package_repository}/tags/list" |
-    "$python_bin" - "$selector" "$target" <<'PY'
+    "$python_bin" -c '
 import json
 import re
 import sys
@@ -263,7 +263,7 @@ if not filtered:
 
 filtered.sort(key=lambda candidate: candidate[:5], reverse=True)
 print(filtered[0][7])
-PY
+' "$selector" "$target"
 }
 
 download_package_archive() {
@@ -282,7 +282,7 @@ download_package_archive() {
       -H "Authorization: Bearer $token" \
       -H "Accept: application/vnd.oci.image.manifest.v1+json, application/vnd.oci.artifact.manifest.v1+json, application/vnd.oras.artifact.manifest.v1+json" \
       "${package_scheme}://${package_host}/v2/${package_repository}/manifests/${package_tag}" |
-      "$python_bin" - "$archive_name" <<'PY'
+      "$python_bin" -c '
 import json
 import sys
 
@@ -308,7 +308,7 @@ if len(layers) == 1:
     raise SystemExit(0)
 
 raise SystemExit(f"unable to find archive layer for {archive_name}")
-PY
+' "$archive_name"
   )"
 
   curl -fsSL \
