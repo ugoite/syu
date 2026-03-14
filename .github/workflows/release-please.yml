@@ -24,6 +24,7 @@ jobs:
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+          target-branch: main
   release-please-beta:
     if: github.ref_name == 'beta'
     runs-on: ubuntu-latest
@@ -33,6 +34,7 @@ jobs:
         with:
           config-file: release-please-config.beta.json
           manifest-file: .release-please-manifest.beta.json
+          target-branch: beta
   release-please-alpha:
     if: github.ref_name == 'alpha'
     runs-on: ubuntu-latest
@@ -42,3 +44,4 @@ jobs:
         with:
           config-file: release-please-config.alpha.json
           manifest-file: .release-please-manifest.alpha.json
+          target-branch: alpha
