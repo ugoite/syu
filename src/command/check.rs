@@ -10,6 +10,7 @@ use anyhow::Result;
 use crate::{
     cli::{CheckArgs, OutputFormat},
     config::SyuConfig,
+    coverage::validate_symbol_trace_coverage,
     inspect::{apply_symbol_doc_fix, inspect_symbol, supports_rich_inspection},
     language::adapter_for_language,
     model::{
@@ -217,6 +218,7 @@ fn collect_check_result_from_workspace(workspace: &Workspace) -> CheckResult {
     }
 
     validate_orphaned_definitions(workspace, &mut issues);
+    validate_symbol_trace_coverage(workspace, &mut issues);
 
     issues.sort_by(|left, right| {
         (
@@ -344,7 +346,7 @@ fn apply_autofix_for_reference(
         .symbols
         .iter()
         .map(|symbol| symbol.trim())
-        .filter(|symbol| !symbol.is_empty())
+        .filter(|symbol| !symbol.is_empty() && *symbol != "*")
     {
         let mut required = reference.doc_contains.clone();
         if !contents.contains(owner_id) {
@@ -1241,6 +1243,27 @@ fn verify_trace_reference(
             )),
         ));
         success = false;
+    }
+
+    let has_wildcard = reference.symbols.iter().any(|symbol| symbol.trim() == "*");
+    if has_wildcard {
+        if !reference.doc_contains.is_empty() {
+            issues.push(Issue::error(
+                "trace-doc-unsupported",
+                subject.clone(),
+                Some(format_reference_location(language, reference)),
+                format!(
+                    "Wildcard trace mappings in `{}` cannot use `doc_contains` because they do not point to a single symbol.",
+                    reference.file.display()
+                ),
+                Some(
+                    "Remove `doc_contains` or replace `*` with explicit symbol names for documentation checks."
+                        .to_string(),
+                ),
+            ));
+            success = false;
+        }
+        return success;
     }
 
     for symbol in &reference.symbols {

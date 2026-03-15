@@ -1,4 +1,5 @@
 pub mod cli;
+pub mod coverage;
 pub mod command;
 pub mod config;
 pub mod inspect;

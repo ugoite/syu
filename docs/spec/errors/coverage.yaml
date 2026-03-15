@@ -2,6 +2,17 @@ genre: Coverage Discipline
 version: 1
 
 rules:
+  - code: coverage-scan-failed
+    severity: error
+    title: Coverage inventory must be inspectable
+    summary: Opt-in trace coverage cannot be enforced unless `syu` can scan the workspace.
+    description: |
+      The strict trace coverage rule only means something when `syu` can read and
+      parse the files it is supposed to inventory. If source or test files cannot
+      be scanned, the safest behavior is to fail loudly instead of pretending the
+      workspace is fully covered. This rule protects the credibility of the
+      100-percent coverage claim.
+
   - code: public-symbol-untracked
     severity: error
     title: Public API symbols must belong to at least one feature
