@@ -48,7 +48,9 @@ pub fn validate_symbol_trace_coverage(workspace: &Workspace, issues: &mut Vec<Is
 
     for target in targets {
         match target.kind {
-            CoverageTargetKind::PublicSymbol if !feature_coverage.covers(&target.file, &target.symbol) => {
+            CoverageTargetKind::PublicSymbol
+                if !feature_coverage.covers(&target.file, &target.symbol) =>
+            {
                 issues.push(Issue::error(
                     "public-symbol-untracked",
                     format!("public symbol {}", target.symbol),
@@ -65,7 +67,9 @@ pub fn validate_symbol_trace_coverage(workspace: &Workspace, issues: &mut Vec<Is
                     )),
                 ));
             }
-            CoverageTargetKind::TestSymbol if !requirement_coverage.covers(&target.file, &target.symbol) => {
+            CoverageTargetKind::TestSymbol
+                if !requirement_coverage.covers(&target.file, &target.symbol) =>
+            {
                 issues.push(Issue::error(
                     "test-symbol-untracked",
                     format!("test {}", target.symbol),
@@ -114,10 +118,7 @@ fn collect_trace_map_coverage(
             }
 
             let path = normalize_relative_path(&reference.file);
-            let has_wildcard = reference
-                .symbols
-                .iter()
-                .any(|symbol| symbol.trim() == "*");
+            let has_wildcard = reference.symbols.iter().any(|symbol| symbol.trim() == "*");
 
             if has_wildcard {
                 coverage.wildcard_files.insert(path);
@@ -284,12 +285,7 @@ fn collect_rust_targets(
                 }
 
                 if let Some((_, nested)) = &item.content {
-                    collect_rust_targets(
-                        nested,
-                        relative_path,
-                        item_cfg_test,
-                        targets,
-                    );
+                    collect_rust_targets(nested, relative_path, item_cfg_test, targets);
                 }
             }
             Item::Impl(item) if !item_cfg_test => {
@@ -408,7 +404,10 @@ mod tests {
 
     use tempfile::tempdir;
 
-    use super::{CoverageTargetKind, collect_feature_coverage, collect_requirement_coverage, discover_rust_targets};
+    use super::{
+        CoverageTargetKind, collect_feature_coverage, collect_requirement_coverage,
+        discover_rust_targets,
+    };
     use crate::model::{Feature, Requirement, TraceReference};
 
     #[test]

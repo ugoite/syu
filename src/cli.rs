@@ -5,19 +5,36 @@ use std::path::PathBuf;
 #[command(
     name = "syu",
     version,
-    about = "Specification-driven development helper"
+    about = "Specification-driven development helper",
+    subcommand_required = false,
+    arg_required_else_help = false
 )]
 pub struct Cli {
     #[command(subcommand)]
-    pub command: Commands,
+    pub command: Option<Commands>,
 }
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
+    Browse(BrowseArgs),
     #[command(visible_alias = "check")]
     Validate(ValidateArgs),
     Report(ReportArgs),
     Init(InitArgs),
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct BrowseArgs {
+    #[arg(default_value = ".")]
+    pub workspace: PathBuf,
+}
+
+impl Default for BrowseArgs {
+    fn default() -> Self {
+        Self {
+            workspace: PathBuf::from("."),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Args)]
