@@ -121,7 +121,7 @@ main() {
   run_install_case "prerelease" "latest" "v0.0.1-beta.1" "$target" "$binary_name"
   run_install_case "prerelease" "alpha" "v0.0.1-alpha.3" "$target" "$binary_name"
   run_install_case "prerelease" "v0.0.1-alpha.2" "v0.0.1-alpha.2" "$target" "$binary_name"
-  run_install_case "mixed" "stable" "v0.0.1" "$target" "$binary_name"
+  run_install_case "mixed" "stable" "v0.0.2" "$target" "$binary_name"
 }
 
 main "$@"

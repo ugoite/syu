@@ -7,7 +7,7 @@
 ## Minimal configuration
 
 ```yaml
-version: 0.0.1
+version: 0.0.1-beta.1
 spec:
   root: docs/spec
 validate:

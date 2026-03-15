@@ -61,7 +61,7 @@ curl -fsSL https://raw.githubusercontent.com/ugoite/syu/main/scripts/install-syu
 Install a specific prerelease:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ugoite/syu/main/scripts/install-syu.sh | env SYU_VERSION=v0.0.1-alpha.3 bash
+curl -fsSL https://raw.githubusercontent.com/ugoite/syu/main/scripts/install-syu.sh | env SYU_VERSION=v0.0.1-beta.1 bash
 ```
 
 ## Quick start
@@ -128,14 +128,18 @@ Generate a Markdown validation report:
 ```bash
 syu report .
 syu report . --output reports/syu.md
+syu report . --output docs/generated/syu-report.md
 ```
+
+The self-hosted repository keeps its latest generated report at
+`docs/generated/syu-report.md`.
 
 ## Configuration
 
 `syu` looks for `syu.yaml` in the workspace root:
 
 ```yaml
-version: 0.0.1
+version: 0.0.1-beta.1
 spec:
   root: docs/spec
 validate:

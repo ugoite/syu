@@ -25,7 +25,7 @@ TARGETS = {
 
 TAG_SETS = {
     "prerelease": ["v0.0.1-alpha.2", "v0.0.1-alpha.3", "v0.0.1-beta.1"],
-    "mixed": ["v0.0.1-alpha.2", "v0.0.1-alpha.3", "v0.0.1-beta.1", "v0.0.1"],
+    "mixed": ["v0.0.1-alpha.2", "v0.0.1-alpha.3", "v0.0.1-beta.1", "v0.0.2"],
 }
 
 

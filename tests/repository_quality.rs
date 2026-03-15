@@ -108,7 +108,7 @@ fn repository_declares_release_automation() {
     assert!(release_config.contains("\"package-name\": \"syu\""));
     assert!(release_config.contains("\"skip-changelog\": true"));
     assert!(release_config.contains("\"changelog-type\": \"github\""));
-    assert!(release_config.contains("\"initial-version\": \"0.0.1\""));
+    assert!(!release_config.contains("\"initial-version\""));
     assert!(manifest.contains("\".\": \"0.0.0\""));
     assert!(
         !repo_root()
@@ -163,6 +163,7 @@ fn repository_declares_installer_contract() {
 #[test]
 // REQ-CORE-010
 fn repository_declares_documentation_guides() {
+    let current_version = env!("CARGO_PKG_VERSION");
     let readme = read_file("README.md");
     let concepts = read_file("docs/guide/concepts.md");
     let getting_started = read_file("docs/guide/getting-started.md");
@@ -191,7 +192,7 @@ fn repository_declares_documentation_guides() {
     assert!(getting_started.contains("status: implemented"));
     assert!(configuration.contains("validate.default_fix"));
     assert!(configuration.contains("validate.allow_planned"));
-    assert!(configuration.contains("version: 0.0.1"));
+    assert!(configuration.contains(&format!("version: {current_version}")));
     assert!(docs_package.contains("@docusaurus/core"));
     assert!(docs_package.contains("\"build\": \"docusaurus build\""));
     assert!(docs_config.contains("FEAT-DOCS-002"));
@@ -212,6 +213,7 @@ fn repository_declares_devcontainer_configuration() {
 #[test]
 // REQ-CORE-012
 fn repository_ships_example_workspaces() {
+    let current_version = env!("CARGO_PKG_VERSION");
     let rust_example_requirement = read_file("examples/rust-only/docs/spec/requirements/core.yaml");
     let rust_example_config = read_file("examples/rust-only/syu.yaml");
     let python_example_requirement =
@@ -220,7 +222,7 @@ fn repository_ships_example_workspaces() {
     let example_tests = read_file("tests/example_workspaces.rs");
 
     assert!(rust_example_requirement.contains("REQ-RUST-001"));
-    assert!(rust_example_config.contains("version: 0.0.1"));
+    assert!(rust_example_config.contains(&format!("version: {current_version}")));
     assert!(python_example_requirement.contains("REQ-PY-001"));
     assert!(polyglot_feature.contains("FEAT-MIX-001"));
     assert!(polyglot_feature.contains("status: implemented"));

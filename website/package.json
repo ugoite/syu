@@ -2,7 +2,7 @@
   "name": "syu-docs",
   "description": "FEAT-DOCS-002 Docusaurus site for the checked-in syu docs tree",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.0.1-beta.1",
   "scripts": {
     "start": "docusaurus start --host 0.0.0.0",
     "build": "docusaurus build",
