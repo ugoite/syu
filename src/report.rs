@@ -1,3 +1,5 @@
+// REQ-CORE-004
+
 use std::{collections::BTreeSet, fmt::Write};
 
 use crate::model::{CheckResult, Issue, Severity};

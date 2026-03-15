@@ -14,6 +14,7 @@ fn repository_declares_precommit_and_quality_gates() {
     let precommit = read_file(".pre-commit-config.yaml");
     let quality_script = read_file("scripts/ci/quality-gates.sh");
     let ci_workflow = read_file(".github/workflows/ci.yml");
+    let repo_config = read_file("syu.yaml");
 
     assert!(precommit.contains("FEAT-QUALITY-001"));
     assert!(precommit.contains("shellcheck"));
@@ -41,6 +42,10 @@ fn repository_declares_precommit_and_quality_gates() {
     assert!(ci_workflow.contains("cargo audit"));
     assert!(ci_workflow.contains("Review dependency changes"));
     assert!(ci_workflow.contains("scripts/ci/installer-smoke.sh"));
+
+    assert!(repo_config.contains("FEAT-CHECK-001"));
+    assert!(repo_config.contains("require_non_orphaned_items: true"));
+    assert!(repo_config.contains("require_symbol_trace_coverage: true"));
 }
 
 #[test]

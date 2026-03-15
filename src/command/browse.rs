@@ -1,3 +1,6 @@
+// FEAT-BROWSE-001
+// REQ-CORE-015
+
 use std::io::{self, Write};
 
 use anyhow::Result;

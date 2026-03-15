@@ -4,10 +4,15 @@
 
 `syu` is a Rust CLI for specification-driven development.
 
-It manages machine-readable `philosophy`, `policy`, `requirements`, and
-`feature` YAML definitions, validates their dependency graph, checks
-requirement-to-test and feature-to-implementation traceability, applies safe
-autofixes for missing trace documentation, and generates Markdown reports.
+It keeps machine-readable `philosophy`, `policy`, `requirements`, and `feature`
+YAML definitions connected to real repository work: validation, implementation
+ownership, maintenance, contributor workflow, and release delivery.
+
+The design goal is intentionally pragmatic:
+
+- specification-driven development that keeps looking after implementation and maintenance
+- a language-agnostic model that can fit Rust-only, Python-only, or polyglot repositories
+- a simple, low-friction workflow that does not need to take over the whole project
 
 ## Why four layers?
 
@@ -152,6 +157,9 @@ Key behaviors:
 - `validate.require_non_orphaned_items` turns isolated layered definitions into validation errors
 - `validate.require_symbol_trace_coverage` opt-in checks that public Rust symbols belong to features and tests belong to requirements
 - `runtimes.*.command` can be set to `auto` or an explicit executable name/path
+
+The `syu` repository itself enables both `validate.require_non_orphaned_items`
+and `validate.require_symbol_trace_coverage` in its root `syu.yaml`.
 
 ## Traceability rules
 

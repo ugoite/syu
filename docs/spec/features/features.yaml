@@ -2,6 +2,8 @@ version: "0.0.1"
 updated: "2026-03"
 
 files:
+  - kind: browse
+    file: browse.yaml
   - kind: check
     file: check.yaml
   - kind: init
