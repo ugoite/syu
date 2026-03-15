@@ -63,10 +63,14 @@ curl -fsSL https://raw.githubusercontent.com/ugoite/syu/main/scripts/install-syu
 
 ```bash
 cargo run -- init .
+cargo run -- browse .
 cargo run -- validate .
 cargo run -- validate . --fix
 cargo run -- report . --output reports/syu.md
 ```
+
+Running `syu` with no subcommand opens the interactive browser when stdin/stdout
+are attached to a terminal.
 
 `syu init` creates:
 
@@ -102,6 +106,16 @@ syu validate . --no-fix
 
 `check` remains available as a compatibility alias for `validate`.
 
+### `syu browse`
+
+Browse philosophies, policies, features, requirements, and current validation
+errors interactively:
+
+```bash
+syu
+syu browse .
+```
+
 ### `syu report`
 
 Generate a Markdown validation report:
@@ -135,6 +149,8 @@ Key behaviors:
 - `spec.root` changes where `syu` loads YAML definitions from
 - `validate.default_fix` enables conservative autofix by default
 - `validate.allow_planned` controls whether `planned` requirements and features are allowed at all
+- `validate.require_non_orphaned_items` turns isolated layered definitions into validation errors
+- `validate.require_symbol_trace_coverage` opt-in checks that public Rust symbols belong to features and tests belong to requirements
 - `runtimes.*.command` can be set to `auto` or an explicit executable name/path
 
 ## Traceability rules
@@ -150,6 +166,8 @@ Key behaviors:
 - traced files must mention the owning requirement / feature ID
 - optional `doc_contains` snippets must be present in the traced symbol's
   documentation
+- `symbols: ['*']` may be used when a feature or requirement intentionally owns
+  every relevant symbol in the traced file
 
 ## Safe autofix
 
@@ -203,10 +221,23 @@ scripts/ci/coverage.sh lcov
 Install pre-commit hooks:
 
 ```bash
-python -m pip install pre-commit
-pre-commit install --hook-type pre-commit --hook-type pre-push
+scripts/install-precommit.sh
 pre-commit run --all-files --hook-stage pre-commit
 pre-commit run --all-files --hook-stage pre-push
+```
+
+If you prefer to install `pre-commit` manually, `pipx install pre-commit` or
+`python -m pip install --user pre-commit` also work.
+
+## Documentation site
+
+The repository ships a Docusaurus site rooted at `website/` that renders the
+checked-in `docs/` tree directly.
+
+```bash
+cd website
+npm install
+npm run start
 ```
 
 ## Specification layout
@@ -243,6 +274,9 @@ The repository includes:
 - release artifact packaging for Linux, macOS (Intel/Apple Silicon), and Windows
 
 Release notes come from GitHub Releases rather than a committed `CHANGELOG.md`.
+Track-specific release notes are generated so alpha releases compare against the
+previous alpha, beta releases compare against the previous beta, and stable
+releases compare against the previous stable tag.
 
 Release binaries are packaged with `scripts/ci/package-release.sh`, published to
 GitHub Packages / GHCR, and uploaded as GitHub release assets.
