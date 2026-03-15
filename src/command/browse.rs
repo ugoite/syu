@@ -94,6 +94,14 @@ impl BrowseState {
     }
 
     fn show_top_level_menu(&self) -> Result<Option<TopLevelSection>> {
+        const SECTIONS: [TopLevelSection; 5] = [
+            TopLevelSection::Philosophy,
+            TopLevelSection::Policy,
+            TopLevelSection::Feature,
+            TopLevelSection::Requirement,
+            TopLevelSection::Errors,
+        ];
+
         self.print_summary("syu interactive browser");
         println!(
             "1. philosophy ({})",
@@ -110,12 +118,8 @@ impl BrowseState {
 
         match prompt_number("Select a section", 5)? {
             Some(0) => Ok(None),
-            Some(1) => Ok(Some(TopLevelSection::Philosophy)),
-            Some(2) => Ok(Some(TopLevelSection::Policy)),
-            Some(3) => Ok(Some(TopLevelSection::Feature)),
-            Some(4) => Ok(Some(TopLevelSection::Requirement)),
-            Some(5) => Ok(Some(TopLevelSection::Errors)),
-            _ => Ok(None),
+            None => Ok(None),
+            Some(choice) => Ok(SECTIONS.get(choice - 1).copied()),
         }
     }
 
@@ -154,14 +158,8 @@ impl BrowseState {
             EntityKind::Requirement => self.print_requirement_detail(&entity.id),
         };
 
-        if linked.is_empty() {
-            println!("0. back");
-            wait_for_enter("Press Enter to go back")?;
-            return Ok(None);
-        }
-
         println!("0. back");
-        match prompt_number("Open a linked entry", linked.len())? {
+        match prompt_number("Choose an entry", linked.len())? {
             Some(0) | None => Ok(None),
             Some(choice) => Ok(Some(linked[choice - 1].clone())),
         }
@@ -497,7 +495,10 @@ fn prompt_number(prompt: &str, max: usize) -> Result<Option<usize>> {
         io::stdout().flush()?;
 
         let mut input = String::new();
-        io::stdin().read_line(&mut input)?;
+        if io::stdin().read_line(&mut input)? == 0 {
+            println!();
+            return Ok(None);
+        }
         let trimmed = input.trim();
         if trimmed.eq_ignore_ascii_case("q") || trimmed.eq_ignore_ascii_case("quit") {
             return Ok(Some(0));
@@ -528,16 +529,32 @@ fn collapse_whitespace(value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::{collections::BTreeMap, path::PathBuf};
 
     use crate::{
+        command::check::collect_check_result,
         model::{
-            CheckResult, DefinitionCounts, Feature, Philosophy, Policy, Requirement, TraceSummary,
+            CheckResult, DefinitionCounts, Feature, Philosophy, Policy, Requirement,
+            TraceReference, TraceSummary,
         },
-        workspace::Workspace,
+        workspace::{Workspace, load_workspace},
     };
 
-    use super::{BrowseState, EntityKind};
+    use super::{BrowseState, EntityKind, collapse_whitespace, print_trace_summary};
+
+    fn fixture_path(name: &str) -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/workspaces")
+            .join(name)
+    }
+
+    fn state_for_fixture(name: &str) -> BrowseState {
+        let root = fixture_path(name);
+        BrowseState {
+            workspace: load_workspace(&root).ok(),
+            result: collect_check_result(&root),
+        }
+    }
 
     #[test]
     fn entity_entries_follow_workspace_contents() {
@@ -599,5 +616,85 @@ mod tests {
         assert_eq!(state.entity_entries(EntityKind::Policy).len(), 1);
         assert_eq!(state.entity_entries(EntityKind::Requirement).len(), 1);
         assert_eq!(state.entity_entries(EntityKind::Feature).len(), 1);
+    }
+
+    #[test]
+    fn browse_helpers_cover_labels_and_entity_lookup() {
+        let state = state_for_fixture("passing");
+
+        assert_eq!(EntityKind::Philosophy.label(), "philosophy");
+        assert_eq!(EntityKind::Policy.label(), "policy");
+        assert_eq!(EntityKind::Feature.label(), "feature");
+        assert_eq!(EntityKind::Requirement.label(), "requirement");
+
+        let workspace = state.workspace.as_ref().expect("fixture should load");
+        let philosophy_id = workspace.philosophies[0].id.clone();
+        let policy_id = workspace.policies[0].id.clone();
+        let requirement_id = workspace.requirements[0].id.clone();
+        let feature_id = workspace.features[0].id.clone();
+
+        assert!(state.philosophy(&philosophy_id).is_some());
+        assert!(state.policy(&policy_id).is_some());
+        assert!(state.requirement(&requirement_id).is_some());
+        assert!(state.feature(&feature_id).is_some());
+
+        assert!(state.philosophy("PHIL-MISSING").is_none());
+        assert!(state.policy("POL-MISSING").is_none());
+        assert!(state.requirement("REQ-MISSING").is_none());
+        assert!(state.feature("FEAT-MISSING").is_none());
+    }
+
+    #[test]
+    fn detail_helpers_return_linked_entities_and_handle_missing_items() {
+        let state = state_for_fixture("passing");
+        let workspace = state.workspace.as_ref().expect("fixture should load");
+
+        let philosophy_links = state.print_philosophy_detail(&workspace.philosophies[0].id);
+        let policy_links = state.print_policy_detail(&workspace.policies[0].id);
+        let requirement_links = state.print_requirement_detail(&workspace.requirements[0].id);
+        let feature_links = state.print_feature_detail(&workspace.features[0].id);
+
+        assert!(!philosophy_links.is_empty());
+        assert!(!policy_links.is_empty());
+        assert!(!requirement_links.is_empty());
+        assert!(!feature_links.is_empty());
+
+        assert!(state.print_philosophy_detail("PHIL-MISSING").is_empty());
+        assert!(state.print_policy_detail("POL-MISSING").is_empty());
+        assert!(state.print_requirement_detail("REQ-MISSING").is_empty());
+        assert!(state.print_feature_detail("FEAT-MISSING").is_empty());
+    }
+
+    #[test]
+    fn helper_rendering_handles_empty_and_non_empty_values() {
+        let state = state_for_fixture("passing");
+
+        assert!(
+            state
+                .print_links(EntityKind::Policy, &[], 1, |_| None)
+                .is_empty()
+        );
+
+        print_trace_summary(&BTreeMap::new());
+        print_trace_summary(&BTreeMap::from([(
+            "rust".to_string(),
+            vec![
+                TraceReference {
+                    file: PathBuf::from("src/lib.rs"),
+                    symbols: Vec::new(),
+                    doc_contains: Vec::new(),
+                },
+                TraceReference {
+                    file: PathBuf::from("src/main.rs"),
+                    symbols: vec!["public_api".to_string()],
+                    doc_contains: Vec::new(),
+                },
+            ],
+        )]));
+
+        assert_eq!(
+            collapse_whitespace("browse\n  keeps   context"),
+            "browse keeps context"
+        );
     }
 }

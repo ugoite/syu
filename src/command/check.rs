@@ -2166,6 +2166,29 @@ mod tests {
                 .iter()
                 .any(|issue| issue.code == "trace-doc-unsupported")
         );
+
+        let wildcard_path = tempdir.path().join("wildcard.rs");
+        fs::write(&wildcard_path, "/// REQ-1\npub fn expected() {}\n")
+            .expect("wildcard file should exist");
+        let mut wildcard_issues = Vec::new();
+        assert!(!verify_trace_reference(
+            tempdir.path(),
+            &SyuConfig::default(),
+            "REQ-1",
+            TraceRole::RequirementTest,
+            "rust",
+            &TraceReference {
+                file: PathBuf::from("wildcard.rs"),
+                symbols: vec!["*".to_string()],
+                doc_contains: vec!["Explain expected".to_string()],
+            },
+            &mut wildcard_issues,
+        ));
+        assert!(
+            wildcard_issues
+                .iter()
+                .any(|issue| issue.code == "trace-doc-unsupported")
+        );
     }
 
     #[test]

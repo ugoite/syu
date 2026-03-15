@@ -369,6 +369,9 @@ requirements:
         - file: tests/browse_command.rs
           symbols:
             - "*"
+        - file: src/lib.rs
+          symbols:
+            - dispatches_interactive_bare_invocations_to_browse_defaults
         - file: src/command/browse.rs
           symbols:
             - "*"

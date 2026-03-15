@@ -16,22 +16,65 @@ use anyhow::Result;
 use clap::{CommandFactory, Parser};
 use std::io::IsTerminal;
 
-pub fn run() -> Result<i32> {
-    let cli = cli::Cli::parse();
+enum Dispatch {
+    Browse(cli::BrowseArgs),
+    PrintHelp,
+    Validate(cli::ValidateArgs),
+    Report(cli::ReportArgs),
+    Init(cli::InitArgs),
+}
 
+fn dispatch(cli: cli::Cli, stdin_is_terminal: bool, stdout_is_terminal: bool) -> Dispatch {
     match cli.command {
-        Some(cli::Commands::Browse(args)) => command::browse::run_browse_command(&args),
-        None if std::io::stdin().is_terminal() && std::io::stdout().is_terminal() => {
-            command::browse::run_browse_command(&cli::BrowseArgs::default())
+        Some(cli::Commands::Browse(args)) => Dispatch::Browse(args),
+        None if stdin_is_terminal && stdout_is_terminal => {
+            Dispatch::Browse(cli::BrowseArgs::default())
         }
-        None => {
+        None => Dispatch::PrintHelp,
+        Some(cli::Commands::Validate(args)) => Dispatch::Validate(args),
+        Some(cli::Commands::Report(args)) => Dispatch::Report(args),
+        Some(cli::Commands::Init(args)) => Dispatch::Init(args),
+    }
+}
+
+fn run_dispatch(dispatch: Dispatch) -> Result<i32> {
+    match dispatch {
+        Dispatch::Browse(args) => command::browse::run_browse_command(&args),
+        Dispatch::PrintHelp => {
             let mut command = cli::Cli::command();
             command.print_help()?;
             println!();
             Ok(0)
         }
-        Some(cli::Commands::Validate(args)) => command::check::run_check_command(&args),
-        Some(cli::Commands::Report(args)) => command::report::run_report_command(&args),
-        Some(cli::Commands::Init(args)) => command::init::run_init_command(&args),
+        Dispatch::Validate(args) => command::check::run_check_command(&args),
+        Dispatch::Report(args) => command::report::run_report_command(&args),
+        Dispatch::Init(args) => command::init::run_init_command(&args),
+    }
+}
+
+pub fn run() -> Result<i32> {
+    let cli = cli::Cli::parse();
+    run_dispatch(dispatch(
+        cli,
+        std::io::stdin().is_terminal(),
+        std::io::stdout().is_terminal(),
+    ))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use crate::cli::Cli;
+
+    // REQ-CORE-015
+    #[test]
+    fn dispatches_interactive_bare_invocations_to_browse_defaults() {
+        let action = super::dispatch(Cli { command: None }, true, true);
+        assert!(matches!(
+            action,
+            super::Dispatch::Browse(crate::cli::BrowseArgs { workspace })
+                if workspace == Path::new(".")
+        ));
     }
 }

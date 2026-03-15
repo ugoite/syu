@@ -41,7 +41,7 @@ pub fn validate_symbol_trace_coverage(workspace: &Workspace, issues: &mut Vec<Is
     let targets = match discover_rust_targets(&workspace.root) {
         Ok(targets) => targets,
         Err(issue) => {
-            issues.push(issue);
+            issues.push(*issue);
             return;
         }
     };
@@ -152,7 +152,7 @@ impl CoverageMap {
     }
 }
 
-fn discover_rust_targets(root: &Path) -> Result<Vec<CoverageTarget>, Issue> {
+fn discover_rust_targets(root: &Path) -> Result<Vec<CoverageTarget>, Box<Issue>> {
     let mut targets = Vec::new();
     let mut files = rust_files_under(&root.join("src"))?;
     files.extend(rust_files_under(&root.join("tests"))?);
@@ -160,23 +160,23 @@ fn discover_rust_targets(root: &Path) -> Result<Vec<CoverageTarget>, Issue> {
 
     for path in files {
         let contents = fs::read_to_string(&path).map_err(|error| {
-            Issue::error(
+            Box::new(Issue::error(
                 "coverage-scan-failed",
                 "trace coverage inventory",
                 Some(path.display().to_string()),
                 format!("Failed to read `{}` while building trace coverage inventory: {error}", path.display()),
                 Some("Fix the unreadable file or disable `validate.require_symbol_trace_coverage` until the workspace can be scanned.".to_string()),
-            )
+            ))
         })?;
 
         let file = syn::parse_file(&contents).map_err(|error| {
-            Issue::error(
+            Box::new(Issue::error(
                 "coverage-scan-failed",
                 "trace coverage inventory",
                 Some(path.display().to_string()),
                 format!("Failed to parse `{}` while building trace coverage inventory: {error}", path.display()),
                 Some("Fix the Rust syntax error or disable `validate.require_symbol_trace_coverage` until the workspace can be scanned.".to_string()),
-            )
+            ))
         })?;
 
         let relative = path
@@ -309,20 +309,20 @@ fn collect_rust_targets(
     }
 }
 
-fn rust_files_under(root: &Path) -> Result<Vec<PathBuf>, Issue> {
+fn rust_files_under(root: &Path) -> Result<Vec<PathBuf>, Box<Issue>> {
     if !root.exists() {
         return Ok(Vec::new());
     }
 
     let mut files = Vec::new();
     collect_rust_files_recursive(root, &mut files).map_err(|error| {
-        Issue::error(
+        Box::new(Issue::error(
             "coverage-scan-failed",
             "trace coverage inventory",
             Some(root.display().to_string()),
             format!("Failed to walk `{}` while building trace coverage inventory: {error}", root.display()),
             Some("Fix the directory layout or disable `validate.require_symbol_trace_coverage` until the workspace can be scanned.".to_string()),
-        )
+        ))
     })?;
     Ok(files)
 }
@@ -409,20 +409,43 @@ mod tests {
 
     use super::{
         CoverageTargetKind, collect_feature_coverage, collect_requirement_coverage,
-        discover_rust_targets,
+        discover_rust_targets, normalize_relative_path, rust_files_under,
+        validate_symbol_trace_coverage,
     };
-    use crate::model::{Feature, Requirement, TraceReference};
+    use crate::{
+        config::SyuConfig,
+        model::{Feature, Requirement, TraceReference},
+        workspace::Workspace,
+    };
 
     #[test]
     fn discover_rust_targets_collects_public_symbols_and_tests() {
         let tempdir = tempdir().expect("tempdir");
         fs::create_dir_all(tempdir.path().join("src")).expect("src");
+        fs::create_dir_all(tempdir.path().join("src/nested")).expect("nested src");
         fs::create_dir_all(tempdir.path().join("tests")).expect("tests");
         fs::write(
             tempdir.path().join("src/lib.rs"),
-            "pub fn public_api() {}\n#[cfg(test)] mod tests { #[test] fn unit_case() {} }\n",
+            "use std::fmt;\n\
+             pub fn public_api() {}\n\
+             pub struct PublicStruct;\n\
+             pub enum PublicEnum { Ready }\n\
+             pub trait PublicTrait { fn describe(&self); }\n\
+             pub const LIMIT: usize = 1;\n\
+             pub static LABEL: &str = \"ok\";\n\
+             pub type Alias = usize;\n\
+             pub mod nested { pub fn nested_api() {} }\n\
+             pub struct ImplType;\n\
+             impl ImplType { pub fn create() -> Self { Self } }\n\
+             #[cfg(test)] pub fn hidden_in_test() {}\n\
+             #[cfg(test)] mod tests { #[test] fn unit_case() {} }\n",
         )
         .expect("source");
+        fs::write(
+            tempdir.path().join("src/nested/inner.rs"),
+            "pub fn nested_file_api() {}\n",
+        )
+        .expect("nested source");
         fs::write(
             tempdir.path().join("tests/integration.rs"),
             "fn helper() {}\n#[test] fn integration_case() {}\n",
@@ -431,21 +454,71 @@ mod tests {
 
         let targets = discover_rust_targets(tempdir.path()).expect("targets");
         assert!(targets.iter().any(|target| {
-            target.file == PathBuf::from("src/lib.rs")
+            target.file == Path::new("src/lib.rs")
                 && target.symbol == "public_api"
                 && target.kind == CoverageTargetKind::PublicSymbol
         }));
         assert!(targets.iter().any(|target| {
-            target.file == PathBuf::from("src/lib.rs")
+            target.file == Path::new("src/lib.rs")
+                && target.symbol == "PublicStruct"
+                && target.kind == CoverageTargetKind::PublicSymbol
+        }));
+        assert!(targets.iter().any(|target| {
+            target.file == Path::new("src/lib.rs")
+                && target.symbol == "PublicEnum"
+                && target.kind == CoverageTargetKind::PublicSymbol
+        }));
+        assert!(targets.iter().any(|target| {
+            target.file == Path::new("src/lib.rs")
+                && target.symbol == "PublicTrait"
+                && target.kind == CoverageTargetKind::PublicSymbol
+        }));
+        assert!(targets.iter().any(|target| {
+            target.file == Path::new("src/lib.rs")
+                && target.symbol == "LIMIT"
+                && target.kind == CoverageTargetKind::PublicSymbol
+        }));
+        assert!(targets.iter().any(|target| {
+            target.file == Path::new("src/lib.rs")
+                && target.symbol == "LABEL"
+                && target.kind == CoverageTargetKind::PublicSymbol
+        }));
+        assert!(targets.iter().any(|target| {
+            target.file == Path::new("src/lib.rs")
+                && target.symbol == "Alias"
+                && target.kind == CoverageTargetKind::PublicSymbol
+        }));
+        assert!(targets.iter().any(|target| {
+            target.file == Path::new("src/lib.rs")
+                && target.symbol == "nested"
+                && target.kind == CoverageTargetKind::PublicSymbol
+        }));
+        assert!(targets.iter().any(|target| {
+            target.file == Path::new("src/lib.rs")
+                && target.symbol == "create"
+                && target.kind == CoverageTargetKind::PublicSymbol
+        }));
+        assert!(targets.iter().any(|target| {
+            target.file == Path::new("src/lib.rs")
                 && target.symbol == "unit_case"
                 && target.kind == CoverageTargetKind::TestSymbol
         }));
         assert!(targets.iter().any(|target| {
-            target.file == PathBuf::from("tests/integration.rs")
+            target.file == Path::new("tests/integration.rs")
                 && target.symbol == "integration_case"
                 && target.kind == CoverageTargetKind::TestSymbol
         }));
+        assert!(targets.iter().any(|target| {
+            target.file == Path::new("src/nested/inner.rs")
+                && target.symbol == "nested_file_api"
+                && target.kind == CoverageTargetKind::PublicSymbol
+        }));
         assert!(!targets.iter().any(|target| target.symbol == "helper"));
+        assert!(
+            !targets
+                .iter()
+                .any(|target| target.symbol == "hidden_in_test")
+        );
     }
 
     #[test]
@@ -469,6 +542,11 @@ mod tests {
                         symbols: vec!["*".to_string()],
                         doc_contains: Vec::new(),
                     },
+                    TraceReference {
+                        file: PathBuf::new(),
+                        symbols: vec!["ignored".to_string()],
+                        doc_contains: Vec::new(),
+                    },
                 ],
             )]),
         }]);
@@ -483,11 +561,18 @@ mod tests {
             linked_features: vec!["FEAT-1".to_string()],
             tests: BTreeMap::from([(
                 "rust".to_string(),
-                vec![TraceReference {
-                    file: PathBuf::from("tests/api.rs"),
-                    symbols: vec!["*".to_string()],
-                    doc_contains: Vec::new(),
-                }],
+                vec![
+                    TraceReference {
+                        file: PathBuf::from("tests/api.rs"),
+                        symbols: vec!["*".to_string()],
+                        doc_contains: Vec::new(),
+                    },
+                    TraceReference {
+                        file: PathBuf::from("./tests/../tests/helpers.rs"),
+                        symbols: vec![" ".to_string(), "helper_case".to_string()],
+                        doc_contains: Vec::new(),
+                    },
+                ],
             )]),
         }]);
 
@@ -496,5 +581,82 @@ mod tests {
         assert!(!feature_coverage.covers(Path::new("src/api.rs"), "missing"));
 
         assert!(requirement_coverage.covers(Path::new("tests/api.rs"), "integration_case"));
+        assert!(requirement_coverage.covers(Path::new("tests/helpers.rs"), "helper_case"));
+    }
+
+    #[test]
+    fn rust_files_under_handles_missing_and_invalid_roots() {
+        let tempdir = tempdir().expect("tempdir");
+        assert!(
+            rust_files_under(&tempdir.path().join("missing"))
+                .expect("missing directories should be ignored")
+                .is_empty()
+        );
+
+        let file_root = tempdir.path().join("not-a-dir.rs");
+        fs::write(&file_root, "pub fn nope() {}\n").expect("file");
+        let issue = rust_files_under(&file_root).expect_err("file roots should fail");
+        assert_eq!(issue.code, "coverage-scan-failed");
+    }
+
+    #[test]
+    fn discover_rust_targets_reports_parse_failures() {
+        let tempdir = tempdir().expect("tempdir");
+        fs::create_dir_all(tempdir.path().join("src")).expect("src");
+        fs::write(tempdir.path().join("src/broken.rs"), "pub fn broken( {}\n").expect("broken");
+
+        let issue = discover_rust_targets(tempdir.path()).expect_err("broken rust should fail");
+        assert_eq!(issue.code, "coverage-scan-failed");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn validate_symbol_trace_coverage_reports_unreadable_sources() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let tempdir = tempdir().expect("tempdir");
+        let src_dir = tempdir.path().join("src");
+        fs::create_dir_all(&src_dir).expect("src");
+        let unreadable = src_dir.join("hidden.rs");
+        fs::write(&unreadable, "pub fn hidden() {}\n").expect("source");
+
+        let mut permissions = fs::metadata(&unreadable).expect("metadata").permissions();
+        let original_mode = permissions.mode();
+        permissions.set_mode(0o000);
+        fs::set_permissions(&unreadable, permissions).expect("set unreadable");
+
+        let mut config = SyuConfig::default();
+        config.validate.require_symbol_trace_coverage = true;
+        let workspace = Workspace {
+            root: tempdir.path().to_path_buf(),
+            spec_root: tempdir.path().join("docs/spec"),
+            config,
+            philosophies: Vec::new(),
+            policies: Vec::new(),
+            requirements: Vec::new(),
+            features: Vec::new(),
+        };
+
+        let mut issues = Vec::new();
+        validate_symbol_trace_coverage(&workspace, &mut issues);
+
+        let mut restore = fs::metadata(&unreadable).expect("metadata").permissions();
+        restore.set_mode(original_mode);
+        fs::set_permissions(&unreadable, restore).expect("restore");
+
+        assert_eq!(issues.len(), 1);
+        assert_eq!(issues[0].code, "coverage-scan-failed");
+    }
+
+    #[test]
+    fn normalize_relative_path_handles_dot_parent_and_absolute_segments() {
+        assert_eq!(
+            normalize_relative_path(Path::new("./src/../src/lib.rs")),
+            PathBuf::from("src/lib.rs")
+        );
+        assert_eq!(
+            normalize_relative_path(Path::new("/tmp/coverage.rs")),
+            PathBuf::from("/tmp/coverage.rs")
+        );
     }
 }
