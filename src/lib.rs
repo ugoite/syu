@@ -5,6 +5,7 @@ pub mod inspect;
 pub mod language;
 pub mod model;
 pub mod report;
+pub mod rules;
 pub mod runtime;
 pub mod workspace;
 

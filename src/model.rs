@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, path::PathBuf};
 
+use crate::rules::ReferencedRule;
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PhilosophyDocument {
@@ -139,6 +141,7 @@ pub struct CheckResult {
     pub definition_counts: DefinitionCounts,
     pub trace_summary: TraceSummary,
     pub issues: Vec<Issue>,
+    pub referenced_rules: Vec<ReferencedRule>,
 }
 
 impl CheckResult {
@@ -154,6 +157,7 @@ impl CheckResult {
                 message.into(),
                 Some("Create a valid docs/spec tree and feature registry before running `syu validate`.".to_string()),
             )],
+            referenced_rules: Vec::new(),
         }
     }
 
@@ -244,6 +248,7 @@ mod tests {
                 "only warning",
                 None,
             )],
+            referenced_rules: Vec::new(),
         };
 
         assert!(result.is_success());
