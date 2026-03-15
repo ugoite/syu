@@ -20,7 +20,7 @@ export default function Home() {
             <Link to="/docs/guide/configuration">Configure validation and runtimes</Link>
           </li>
           <li>
-            <Link to="/docs/spec/philosophy/foundation">Browse the self-hosted specification</Link>
+            <Link to="/docs/generated/site-spec">Browse the self-hosted specification</Link>
           </li>
         </ul>
       </main>

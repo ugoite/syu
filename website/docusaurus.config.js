@@ -10,7 +10,11 @@ const config = {
   organizationName: 'ugoite',
   projectName: 'syu',
   onBrokenLinks: 'throw',
-  onBrokenMarkdownLinks: 'throw',
+  markdown: {
+    hooks: {
+      onBrokenMarkdownLinks: 'throw'
+    }
+  },
   i18n: {
     defaultLocale: 'en',
     locales: ['en']
@@ -25,7 +29,7 @@ const config = {
           sidebarPath: require.resolve('./sidebars.js')
         },
         blog: false,
-        pages: true,
+        pages: {},
         theme: {
           customCss: require.resolve('./src/css/custom.css')
         }
@@ -37,7 +41,7 @@ const config = {
       title: 'syu',
       items: [
         { to: '/docs/guide/getting-started', label: 'Docs', position: 'left' },
-        { to: '/docs/spec/philosophy/foundation', label: 'Spec', position: 'left' },
+        { to: '/docs/generated/site-spec', label: 'Spec', position: 'left' },
         { href: 'https://github.com/ugoite/syu', label: 'GitHub', position: 'right' }
       ]
     },
@@ -54,8 +58,8 @@ const config = {
         {
           title: 'Specification',
           items: [
-            { label: 'Philosophy', to: '/docs/spec/philosophy/foundation' },
-            { label: 'Requirements', to: '/docs/spec/requirements/core' }
+            { label: 'Reference index', to: '/docs/generated/site-spec' },
+            { label: 'Validation report', to: '/docs/generated/syu-report' }
           ]
         }
       ]
