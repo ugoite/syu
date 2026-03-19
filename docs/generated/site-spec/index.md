@@ -22,6 +22,7 @@ This section is generated from the YAML source under `docs/spec/`.
 - [Quality Automation / Quality](/docs/generated/site-spec/features/quality)
 - [Release Automation / Release](/docs/generated/site-spec/features/release)
 - [Report Command / Report](/docs/generated/site-spec/features/report)
+- [Agent Skills / Skills](/docs/generated/site-spec/features/skills)
 - [Philosophy / Foundation](/docs/generated/site-spec/philosophy/foundation)
 - [Policies / Policies](/docs/generated/site-spec/policies)
 - [Core CLI / Core](/docs/generated/site-spec/requirements/core)

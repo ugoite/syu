@@ -9,7 +9,7 @@ description: "Generated reference for docs/spec/features/features.yaml"
 
 ### Version
 
-- 0.0.1-beta.1
+- 0.0.1-alpha.5
 
 ### Updated
 
@@ -27,6 +27,8 @@ description: "Generated reference for docs/spec/features/features.yaml"
   - **file**: report.yaml
 - **kind**: docs
   - **file**: docs.yaml
+- **kind**: skills
+  - **file**: skills.yaml
 - **kind**: contributor
   - **file**: contributor.yaml
 - **kind**: quality
@@ -39,7 +41,7 @@ description: "Generated reference for docs/spec/features/features.yaml"
 ## Source YAML
 
 ```yaml
-version: "0.0.1-beta.1"
+version: "0.0.1-alpha.5"
 updated: "2026-03"
 
 files:
@@ -53,6 +55,8 @@ files:
     file: report.yaml
   - kind: docs
     file: docs.yaml
+  - kind: skills
+    file: skills.yaml
   - kind: contributor
     file: contributor.yaml
   - kind: quality

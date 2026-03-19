@@ -61,7 +61,7 @@ curl -fsSL https://raw.githubusercontent.com/ugoite/syu/main/scripts/install-syu
 Install a specific prerelease:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ugoite/syu/main/scripts/install-syu.sh | env SYU_VERSION=v0.0.1-beta.1 bash
+curl -fsSL https://raw.githubusercontent.com/ugoite/syu/main/scripts/install-syu.sh | env SYU_VERSION=v0.0.1-alpha.5 bash
 ```
 
 ## Quick start
@@ -139,7 +139,7 @@ The self-hosted repository keeps its latest generated report at
 `syu` looks for `syu.yaml` in the workspace root:
 
 ```yaml
-version: 0.0.1-beta.1
+version: 0.0.1-alpha.5
 spec:
   root: docs/spec
 validate:
@@ -252,6 +252,20 @@ npm install
 npm run start
 ```
 
+## Agent skill
+
+<!-- FEAT-SKILLS-001 -->
+
+The repository also ships a checked-in agent skill inspired by Anthropics
+Skills:
+
+- [`skills/syu-maintainer/SKILL.md`](skills/syu-maintainer/SKILL.md)
+- [`skills/README.md`](skills/README.md)
+
+It documents a repeatable workflow for browsing the layered model, updating
+adjacent links, running `syu validate .`, and refreshing
+`docs/generated/syu-report.md`.
+
 ## Specification layout
 
 ```text
@@ -261,6 +275,7 @@ docs/spec/
   requirements/*.yaml
   features/features.yaml
   features/*.yaml
+skills/*/SKILL.md
 ```
 
 ## Built-in language adapters

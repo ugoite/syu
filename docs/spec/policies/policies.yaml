@@ -83,6 +83,7 @@ policies:
       - REQ-CORE-004
       - REQ-CORE-010
       - REQ-CORE-012
+      - REQ-CORE-016
 
   - id: POL-006
     title: The self-hosted repository should demonstrate polyglot, contributor-friendly use
@@ -100,6 +101,7 @@ policies:
       - REQ-CORE-012
       - REQ-CORE-013
       - REQ-CORE-014
+      - REQ-CORE-016
 
   - id: POL-007
     title: Delivery automation must remain trustworthy, secure, and reviewable

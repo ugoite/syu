@@ -102,6 +102,7 @@ description: "Generated reference for docs/spec/policies/policies.yaml"
     - REQ-CORE-004
     - REQ-CORE-010
     - REQ-CORE-012
+    - REQ-CORE-016
 - **id**: POL-006
   - **title**: The self-hosted repository should demonstrate polyglot, contributor-friendly use
   - **summary**: `syu` should prove that its model works in the kind of mixed repositories it claims to support.
@@ -119,6 +120,7 @@ description: "Generated reference for docs/spec/policies/policies.yaml"
     - REQ-CORE-012
     - REQ-CORE-013
     - REQ-CORE-014
+    - REQ-CORE-016
 - **id**: POL-007
   - **title**: Delivery automation must remain trustworthy, secure, and reviewable
   - **summary**: Quality gates, release flow, packaging, and installation are part of the product contract.
@@ -226,6 +228,7 @@ policies:
       - REQ-CORE-004
       - REQ-CORE-010
       - REQ-CORE-012
+      - REQ-CORE-016
 
   - id: POL-006
     title: The self-hosted repository should demonstrate polyglot, contributor-friendly use
@@ -243,6 +246,7 @@ policies:
       - REQ-CORE-012
       - REQ-CORE-013
       - REQ-CORE-014
+      - REQ-CORE-016
 
   - id: POL-007
     title: Delivery automation must remain trustworthy, secure, and reviewable

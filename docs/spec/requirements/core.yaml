@@ -375,3 +375,25 @@ requirements:
         - file: src/command/browse.rs
           symbols:
             - "*"
+
+  - id: REQ-CORE-016
+    title: Ship an agent skill for maintaining syu-driven repositories
+    description: |
+      The repository MUST include at least one checked-in agent skill inspired
+      by Anthropics Skills that teaches an agent how to work with `syu`
+      repositories. The skill SHOULD explain when to inspect the layered model,
+      how to update philosophy / policy / requirement / feature links, which
+      commands to run to validate and regenerate reports, and how to keep
+      changes reviewable instead of treating YAML as disconnected prose.
+    priority: medium
+    status: implemented
+    linked_policies:
+      - POL-005
+      - POL-006
+    linked_features:
+      - FEAT-SKILLS-001
+    tests:
+      rust:
+        - file: tests/repository_quality.rs
+          symbols:
+            - repository_ships_agent_skill

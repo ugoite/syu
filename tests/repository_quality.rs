@@ -293,3 +293,20 @@ fn repository_declares_dependency_hygiene_and_ci_caching() {
     assert!(dependabot.contains("rust-crates"));
     assert!(dependabot.contains("github-actions"));
 }
+
+#[test]
+// REQ-CORE-016
+fn repository_ships_agent_skill() {
+    let readme = read_file("README.md");
+    let skills_index = read_file("skills/README.md");
+    let skill = read_file("skills/syu-maintainer/SKILL.md");
+
+    assert!(readme.contains("Agent skill"));
+    assert!(readme.contains("skills/syu-maintainer/SKILL.md"));
+    assert!(skills_index.contains("Anthropics Skills"));
+    assert!(skills_index.contains("SKILL.md"));
+    assert!(skill.contains("name: syu-maintainer"));
+    assert!(skill.contains("syu validate ."));
+    assert!(skill.contains("syu report . --output docs/generated/syu-report.md"));
+    assert!(skill.contains("scripts/ci/quality-gates.sh"));
+}
