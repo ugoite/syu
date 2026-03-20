@@ -221,6 +221,7 @@ fn repository_declares_documentation_guides() {
     assert!(docs_config.contains("projectName: 'syu'"));
     assert!(docs_config.contains("Concepts"));
     assert!(docs_config.contains("Validation report"));
+    assert!(docs_config.contains("/docs/generated/site-spec/features/documentation/docs"));
     assert!(docs_home.contains("Four specification layers"));
     assert!(docs_home.contains("Common journeys"));
     assert!(docs_home.contains("Stay close to checked-in source"));
