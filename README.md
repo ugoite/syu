@@ -277,11 +277,15 @@ adjacent links, running `syu validate .`, and refreshing
 docs/syu/
   philosophy/*.yaml
   policies/*.yaml
-  requirements/*.yaml
+  requirements/**/*.yaml
   features/features.yaml
-  features/*.yaml
+  features/**/*.yaml
 skills/*/SKILL.md
 ```
+
+`requirements/` documents may be grouped into nested folders. `features/` keeps the
+explicit `features/features.yaml` registry, and each registry entry may point to a
+nested YAML document under `features/`.
 
 ## Built-in language adapters
 
