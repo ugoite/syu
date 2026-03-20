@@ -39,7 +39,7 @@ description: "Generated reference for docs/syu/config/overview.yaml"
 
 - **key**: version
   - **type**: string
-  - **default**: 0.0.1-alpha.6
+  - **default**: current CLI version
   - **summary**: Records which `syu` CLI version generated the config.
   - **description**:
     - |
@@ -65,7 +65,7 @@ sections:
 items:
   - key: version
     type: string
-    default: 0.0.1-alpha.6
+    default: current CLI version
     summary: Records which `syu` CLI version generated the config.
     description: |
       `syu init` writes the running CLI version into `syu.yaml`. When existing

@@ -173,7 +173,9 @@ fn repository_declares_documentation_guides() {
     let config_validate = read_file("docs/syu/config/validate.yaml");
     let config_runtimes = read_file("docs/syu/config/runtimes.yaml");
     let generated_config_overview = read_file("docs/generated/site-spec/config/overview.md");
+    let generated_config_spec = read_file("docs/generated/site-spec/config/spec.md");
     let generated_config_validate = read_file("docs/generated/site-spec/config/validate.md");
+    let generated_config_runtimes = read_file("docs/generated/site-spec/config/runtimes.md");
     let ci_workflow = read_file(".github/workflows/ci.yml");
     let docs_deploy_workflow = read_file(".github/workflows/deploy-pages.yml");
     let docs_build_action = read_file(".github/actions/build-docs-site/action.yml");
@@ -219,7 +221,10 @@ fn repository_declares_documentation_guides() {
     assert!(config_validate.contains("validate.require_symbol_trace_coverage"));
     assert!(config_runtimes.contains("runtimes.python.command"));
     assert!(generated_config_overview.contains("docs/syu/config/overview.yaml"));
+    assert!(generated_config_overview.contains("current CLI version"));
+    assert!(generated_config_spec.contains("docs/syu/config/spec.yaml"));
     assert!(generated_config_validate.contains("validate.default_fix"));
+    assert!(generated_config_runtimes.contains("docs/syu/config/runtimes.yaml"));
     assert!(ci_workflow.contains("./.github/actions/build-docs-site"));
     assert!(docs_build_action.contains("FEAT-DOCS-002"));
     assert!(docs_build_action.contains("actions/setup-node@v6"));
