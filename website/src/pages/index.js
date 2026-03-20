@@ -83,7 +83,7 @@ export default function Home() {
             <div className="siteSectionHeader">
               <h2>Four specification layers</h2>
               <p>
-                `syu` keeps philosophy, policy, requirements, and features separate
+                <code>syu</code> keeps philosophy, policy, requirements, and features separate
                 so the repository can explain itself from intent down to code and tests.
               </p>
             </div>
@@ -93,7 +93,7 @@ export default function Home() {
                   <h3>{layer.title}</h3>
                   <p>{layer.description}</p>
                   <Link className="siteCardLink" to={layer.to}>
-                    Open section -
+                    {`Open the ${layer.title} layer`}
                   </Link>
                 </article>
               ))}
@@ -116,7 +116,7 @@ export default function Home() {
                   <h3>{journey.title}</h3>
                   <p>{journey.description}</p>
                   <Link className="siteCardLink" to={journey.to}>
-                    Explore path -
+                    {`Follow the ${journey.title} journey`}
                   </Link>
                 </article>
               ))}
