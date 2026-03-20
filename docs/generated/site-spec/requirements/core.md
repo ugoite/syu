@@ -281,6 +281,9 @@ description: "Generated reference for docs/syu/requirements/core.yaml"
       - **file**: tests/repository_quality.rs
         - **symbols**:
           - repository_declares_documentation_guides
+      - **file**: tests/site_docs_generator.rs
+        - **symbols**:
+          - site_docs_generator_accepts_absolute_spec_roots_outside_repo
 - **id**: REQ-CORE-011
   - **title**: Provide a contributor devcontainer
   - **description**:
@@ -684,6 +687,9 @@ requirements:
         - file: tests/repository_quality.rs
           symbols:
             - repository_declares_documentation_guides
+        - file: tests/site_docs_generator.rs
+          symbols:
+            - site_docs_generator_accepts_absolute_spec_roots_outside_repo
 
   - id: REQ-CORE-011
     title: Provide a contributor devcontainer

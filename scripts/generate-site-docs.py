@@ -19,10 +19,11 @@ def display_name(value: str) -> str:
 
 
 def frontmatter(title: str, source_path: Path) -> list[str]:
+    source_display = display_source_path(source_path)
     return [
         "---",
         f'title: "{title}"',
-        f'description: "Generated reference for {source_path.as_posix()}"',
+        f'description: "Generated reference for {source_display}"',
         "---",
         "",
     ]
@@ -121,6 +122,13 @@ def relative_source_root(spec_root: Path) -> str:
         return spec_root.as_posix()
 
 
+def display_source_path(source_path: Path) -> str:
+    try:
+        return source_path.relative_to(REPO_ROOT).as_posix()
+    except ValueError:
+        return source_path.as_posix()
+
+
 def write_markdown(source_path: Path, spec_root: Path) -> tuple[str, str]:
     relative_path = source_path.relative_to(spec_root)
     output_path = OUTPUT_ROOT / relative_path.with_suffix(".md")
@@ -132,10 +140,11 @@ def write_markdown(source_path: Path, spec_root: Path) -> tuple[str, str]:
         document = {"content": document}
 
     title = page_title(relative_path, document)
-    lines = frontmatter(title, source_path.relative_to(REPO_ROOT))
+    source_display = display_source_path(source_path)
+    lines = frontmatter(title, source_path)
     lines.extend(
         [
-            f"> Generated from `{source_path.relative_to(REPO_ROOT).as_posix()}`.",
+            f"> Generated from `{source_display}`.",
             "",
             "## Parsed content",
             "",
