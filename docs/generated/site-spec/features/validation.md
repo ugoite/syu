@@ -1,9 +1,9 @@
 ---
 title: "Validation"
-description: "Generated reference for docs/spec/features/validation.yaml"
+description: "Generated reference for docs/syu/features/validation.yaml"
 ---
 
-> Generated from `docs/spec/features/validation.yaml`.
+> Generated from `docs/syu/features/validation.yaml`.
 
 ## Parsed content
 
