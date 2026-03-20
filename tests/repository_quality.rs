@@ -168,6 +168,7 @@ fn repository_declares_documentation_guides() {
     let concepts = read_file("docs/guide/concepts.md");
     let getting_started = read_file("docs/guide/getting-started.md");
     let configuration = read_file("docs/guide/configuration.md");
+    let docs_deploy_workflow = read_file(".github/workflows/deploy-pages.yml");
     let docs_package = read_file("website/package.json");
     let docs_config = read_file("website/docusaurus.config.js");
     let docs_home = read_file("website/src/pages/index.js");
@@ -182,6 +183,7 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("CONTRIBUTING.md"));
     assert!(readme.contains("Documentation site"));
     assert!(readme.contains("scripts/install-precommit.sh"));
+    assert!(readme.contains("https://ugoite.github.io/syu/"));
 
     assert!(concepts.contains("philosophy"));
     assert!(concepts.contains("policy"));
@@ -201,6 +203,10 @@ fn repository_declares_documentation_guides() {
     assert!(configuration.contains(&format!("version: {current_version}")));
     assert!(docs_package.contains("@docusaurus/core"));
     assert!(docs_package.contains("\"build\": \"docusaurus build\""));
+    assert!(docs_deploy_workflow.contains("actions/configure-pages@v5"));
+    assert!(docs_deploy_workflow.contains("actions/upload-pages-artifact@v4"));
+    assert!(docs_deploy_workflow.contains("actions/deploy-pages@v4"));
+    assert!(docs_deploy_workflow.contains("github-pages"));
     assert!(docs_config.contains("FEAT-DOCS-002"));
     assert!(docs_config.contains("routeBasePath: 'docs'"));
     assert!(docs_config.contains("projectName: 'syu'"));
@@ -258,6 +264,7 @@ fn repository_declares_contribution_workflow_assets() {
     assert!(contributing.contains("main"));
     assert!(contributing.contains("scripts/ci/quality-gates.sh"));
     assert!(contributing.contains("scripts/install-precommit.sh"));
+    assert!(contributing.contains("GitHub Pages"));
     assert!(contributing.contains("release track"));
 
     assert!(pr_template.contains("FEAT-CONTRIB-002"));
