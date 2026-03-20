@@ -124,7 +124,9 @@ fn is_structured_rule_code(code: &str) -> bool {
 mod tests {
     use crate::model::{CheckResult, DefinitionCounts, Issue, TraceSummary};
 
-    use super::{all_rules, attach_referenced_rules, referenced_rules, rule_by_code};
+    use super::{
+        all_rules, attach_referenced_rules, is_structured_rule_code, referenced_rules, rule_by_code,
+    };
 
     #[test]
     fn built_in_rule_catalog_loads_expected_entries() {
@@ -197,5 +199,13 @@ mod tests {
     #[test]
     fn rule_lookup_returns_none_for_unknown_codes() {
         assert!(rule_by_code("warn").is_none());
+    }
+
+    #[test]
+    fn structured_rule_code_validation_rejects_malformed_codes() {
+        assert!(is_structured_rule_code("SYU-graph-reference-001"));
+        assert!(!is_structured_rule_code("graph-reference-001"));
+        assert!(!is_structured_rule_code("SYU-Graph-reference-001"));
+        assert!(!is_structured_rule_code("SYU-graph-reference-1"));
     }
 }
