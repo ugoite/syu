@@ -1,19 +1,21 @@
 // REQ-CORE-004
 
-use std::fs;
+use std::{fs, path::PathBuf};
 
 use anyhow::Result;
 
 use crate::{
-    cli::ReportArgs, command::check::collect_check_result, report::render_markdown_report,
+    cli::ReportArgs, command::check::collect_check_result, config::load_config,
+    report::render_markdown_report,
 };
 
 // FEAT-REPORT-001
 pub fn run_report_command(args: &ReportArgs) -> Result<i32> {
     let result = collect_check_result(&args.workspace);
     let markdown = render_markdown_report(&result);
+    let output = resolve_report_output(args)?;
 
-    if let Some(output) = &args.output {
+    if let Some(output) = &output {
         if let Some(parent) = output.parent()
             && !parent.as_os_str().is_empty()
         {
@@ -28,20 +30,52 @@ pub fn run_report_command(args: &ReportArgs) -> Result<i32> {
     Ok(if result.is_success() { 0 } else { 1 })
 }
 
+fn resolve_report_output(args: &ReportArgs) -> Result<Option<PathBuf>> {
+    if let Some(output) = &args.output {
+        return Ok(Some(output.clone()));
+    }
+
+    let loaded = load_config(&args.workspace)?;
+    Ok(loaded.config.report.output.map(|output| {
+        if output.is_absolute() {
+            output
+        } else {
+            args.workspace.join(output)
+        }
+    }))
+}
+
 #[cfg(test)]
 mod tests {
-    use std::{env, fs};
+    use std::{
+        env, fs,
+        path::{Path, PathBuf},
+    };
 
     use tempfile::tempdir;
 
     use crate::cli::ReportArgs;
 
-    use super::run_report_command;
+    use super::{resolve_report_output, run_report_command};
 
     fn fixture_path(name: &str) -> std::path::PathBuf {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("tests/fixtures/workspaces")
             .join(name)
+    }
+
+    fn write_config(root: &Path, output: Option<&str>) {
+        let report_section = output
+            .map(|output| format!("report:\n  output: {output}\n"))
+            .unwrap_or_default();
+        fs::write(
+            root.join("syu.yaml"),
+            format!(
+                "version: {}\nspec:\n  root: docs/syu\nvalidate:\n  default_fix: false\n  allow_planned: true\n  require_non_orphaned_items: true\n  require_symbol_trace_coverage: false\n{report_section}runtimes:\n  python:\n    command: auto\n  node:\n    command: auto\n",
+                env!("CARGO_PKG_VERSION"),
+            ),
+        )
+        .expect("config");
     }
 
     #[test]
@@ -53,6 +87,63 @@ mod tests {
 
         let code = run_report_command(&args).expect("report should succeed");
         assert_eq!(code, 0);
+    }
+
+    #[test]
+    fn resolve_report_output_defaults_to_stdout_when_config_is_missing() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        let output = resolve_report_output(&ReportArgs {
+            workspace: tempdir.path().to_path_buf(),
+            output: None,
+        })
+        .expect("default output should resolve");
+        assert_eq!(output, None);
+    }
+
+    #[test]
+    fn resolve_report_output_uses_workspace_relative_config_paths() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        write_config(tempdir.path(), Some("docs/generated/syu-report.md"));
+
+        let output = resolve_report_output(&ReportArgs {
+            workspace: tempdir.path().to_path_buf(),
+            output: None,
+        })
+        .expect("configured output should resolve");
+
+        assert_eq!(
+            output,
+            Some(tempdir.path().join("docs/generated/syu-report.md"))
+        );
+    }
+
+    #[test]
+    fn resolve_report_output_preserves_absolute_config_paths() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        let absolute = tempdir.path().join("report.md");
+        write_config(tempdir.path(), Some(absolute.to_string_lossy().as_ref()));
+
+        let output = resolve_report_output(&ReportArgs {
+            workspace: tempdir.path().to_path_buf(),
+            output: None,
+        })
+        .expect("absolute output should resolve");
+
+        assert_eq!(output, Some(absolute));
+    }
+
+    #[test]
+    fn resolve_report_output_prefers_cli_paths_over_config() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        write_config(tempdir.path(), Some("docs/generated/syu-report.md"));
+
+        let output = resolve_report_output(&ReportArgs {
+            workspace: tempdir.path().to_path_buf(),
+            output: Some(PathBuf::from("custom/report.md")),
+        })
+        .expect("cli output should win");
+
+        assert_eq!(output, Some(PathBuf::from("custom/report.md")));
     }
 
     #[test]

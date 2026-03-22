@@ -10,6 +10,7 @@ under `docs/syu/config/`:
 - `docs/syu/config/overview.yaml`
 - `docs/syu/config/spec.yaml`
 - `docs/syu/config/validate.yaml`
+- `docs/syu/config/report.yaml`
 - `docs/syu/config/runtimes.yaml`
 
 Add new supported config items there first, then update this guide when the
@@ -84,6 +85,21 @@ symbol belongs to some feature and every test belongs to some requirement.
 This is useful once the repository wants maintenance work to stay fully owned by
 the specification.
 
+### `report.output`
+
+Sets the default Markdown destination for `syu report`.
+
+Use a repository-relative path such as:
+
+```yaml
+report:
+  output: docs/generated/syu-report.md
+```
+
+When set in `syu.yaml`, the path is resolved from the workspace root. This keeps
+checked-in report destinations stable even when contributors invoke `syu report`
+from different working directories.
+
 ### `runtimes.python.command`
 
 Controls which Python executable `syu` uses for Python inspection.
@@ -109,6 +125,12 @@ override it.
 
 `validate.require_non_orphaned_items` and
 `validate.require_symbol_trace_coverage` are also configuration-only.
+
+For report output paths, CLI flags override config:
+
+1. `--output`
+2. `report.output`
+3. stdout
 
 ## Wildcard file ownership
 
@@ -136,5 +158,7 @@ want strict ownership checks without enumerating every public symbol by hand.
   deliberate migration
 - turn on `validate.require_symbol_trace_coverage: true` once the repository
   wants public APIs and tests to remain fully owned by the spec
+- set `report.output` when your repository checks in one stable report artifact
+  path
 - treat runtime overrides as environment-specific, not project-specific, unless
   your team truly needs a pinned executable name

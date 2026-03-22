@@ -150,6 +150,8 @@ syu report . --output docs/generated/syu-report.md
 
 The self-hosted repository keeps its latest generated report at
 `docs/generated/syu-report.md`.
+Set `report.output` in `syu.yaml` when a repository wants that checked-in path
+to become the default, while keeping `--output` available for one-off overrides.
 
 ## Browser app
 
@@ -194,13 +196,15 @@ Key behaviors:
 - `validate.allow_planned` controls whether `planned` requirements and features are allowed at all
 - `validate.require_non_orphaned_items` turns isolated layered definitions into validation errors
 - `validate.require_symbol_trace_coverage` opt-in checks that public Rust symbols belong to features and tests belong to requirements
+- `report.output` sets the default `syu report` destination while `--output` still takes precedence
 - `runtimes.*.command` can be set to `auto` or an explicit executable name/path
 
 The self-hosted repository keeps a structured reference for supported config
 fields under [`docs/syu/config/`](docs/syu/config).
 
 The `syu` repository itself enables both `validate.require_non_orphaned_items`
-and `validate.require_symbol_trace_coverage` in its root `syu.yaml`.
+and `validate.require_symbol_trace_coverage`, and it sets
+`report.output: docs/generated/syu-report.md` in its root `syu.yaml`.
 
 ## Traceability rules
 

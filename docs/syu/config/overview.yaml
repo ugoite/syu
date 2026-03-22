@@ -9,6 +9,7 @@ guidance:
 sections:
   - spec.yaml
   - validate.yaml
+  - report.yaml
   - runtimes.yaml
 items:
   - key: version
