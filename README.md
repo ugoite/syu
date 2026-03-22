@@ -213,6 +213,7 @@ and `validate.require_symbol_trace_coverage` in its root `syu.yaml`.
 - `implemented` items must declare valid tests or implementations
 - requirement test mappings must point to existing files and symbols
 - feature implementation mappings must point to existing files and symbols
+- trace file paths should use canonical repository-relative spelling
 - duplicate trace mappings inside one language list are rejected
 - traced files must mention the owning requirement / feature ID
 - optional `doc_contains` snippets must be present in the traced symbol's
