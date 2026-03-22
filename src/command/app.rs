@@ -32,11 +32,18 @@ struct AppState {
     payload: Arc<AppPayload>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct AppServerSettings {
+    bind: String,
+    port: u16,
+}
+
 pub fn run_app_command(args: &AppArgs) -> Result<i32> {
-    let bind = args
+    let settings = resolve_app_server_settings(args)?;
+    let bind = settings
         .bind
         .parse::<IpAddr>()
-        .with_context(|| format!("invalid bind address `{}`", args.bind))?;
+        .with_context(|| format!("invalid bind address `{}`", settings.bind))?;
     let payload = build_app_payload(&args.workspace)?;
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -47,9 +54,9 @@ pub fn run_app_command(args: &AppArgs) -> Result<i32> {
         let router = app_router(AppState {
             payload: Arc::new(payload),
         });
-        let listener = tokio::net::TcpListener::bind((bind, args.port))
+        let listener = tokio::net::TcpListener::bind((bind, settings.port))
             .await
-            .with_context(|| format!("failed to bind `{bind}:{}`", args.port))?;
+            .with_context(|| format!("failed to bind `{bind}:{}`", settings.port))?;
         let local_addr = listener
             .local_addr()
             .context("failed to inspect bind address")?;
@@ -65,6 +72,17 @@ pub fn run_app_command(args: &AppArgs) -> Result<i32> {
     })?;
 
     Ok(0)
+}
+
+fn resolve_app_server_settings(args: &AppArgs) -> Result<AppServerSettings> {
+    let loaded = load_config(&args.workspace)?;
+    Ok(AppServerSettings {
+        bind: args
+            .bind
+            .clone()
+            .unwrap_or_else(|| loaded.config.app.bind.clone()),
+        port: args.port.unwrap_or(loaded.config.app.port),
+    })
 }
 
 fn app_router(state: AppState) -> Router {
@@ -358,10 +376,13 @@ mod tests {
     use tempfile::tempdir;
     use tower::util::ServiceExt;
 
+    use crate::cli::AppArgs;
+
     use super::{
-        AppPayload, AppState, SectionKind, Severity, app_router, build_app_payload,
-        collect_feature_sources, collect_yaml_sources_recursive, content_type_for_path,
-        is_asset_like, normalized_asset_path, relative_display, validation_snapshot,
+        AppPayload, AppServerSettings, AppState, SectionKind, Severity, app_router,
+        build_app_payload, collect_feature_sources, collect_yaml_sources_recursive,
+        content_type_for_path, is_asset_like, normalized_asset_path, relative_display,
+        resolve_app_server_settings, validation_snapshot,
     };
 
     fn fixture_root(name: &str) -> PathBuf {
@@ -377,6 +398,17 @@ mod tests {
         fs::create_dir_all(spec_root.join("requirements")).expect("requirements dir");
         fs::create_dir_all(spec_root.join("features")).expect("features dir");
         spec_root
+    }
+
+    fn write_config(root: &Path, bind: &str, port: u16) {
+        fs::write(
+            root.join("syu.yaml"),
+            format!(
+                "version: {}\nspec:\n  root: docs/syu\nvalidate:\n  default_fix: false\n  allow_planned: true\n  require_non_orphaned_items: true\n  require_symbol_trace_coverage: false\napp:\n  bind: {bind}\n  port: {port}\nruntimes:\n  python:\n    command: auto\n  node:\n    command: auto\n",
+                env!("CARGO_PKG_VERSION"),
+            ),
+        )
+        .expect("config");
     }
 
     #[cfg(unix)]
@@ -426,6 +458,69 @@ mod tests {
         assert_eq!(
             content_type_for_path("blob.bin"),
             "application/octet-stream"
+        );
+    }
+
+    #[test]
+    fn resolve_app_server_settings_uses_defaults_when_config_is_missing() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        let settings = resolve_app_server_settings(&AppArgs {
+            workspace: tempdir.path().to_path_buf(),
+            bind: None,
+            port: None,
+        })
+        .expect("default app settings should resolve");
+
+        assert_eq!(
+            settings,
+            AppServerSettings {
+                bind: "127.0.0.1".to_string(),
+                port: 3000,
+            }
+        );
+    }
+
+    #[test]
+    fn resolve_app_server_settings_uses_config_when_flags_are_absent() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        create_workspace_skeleton(tempdir.path());
+        write_config(tempdir.path(), "0.0.0.0", 4123);
+
+        let settings = resolve_app_server_settings(&AppArgs {
+            workspace: tempdir.path().to_path_buf(),
+            bind: None,
+            port: None,
+        })
+        .expect("configured app settings should resolve");
+
+        assert_eq!(
+            settings,
+            AppServerSettings {
+                bind: "0.0.0.0".to_string(),
+                port: 4123,
+            }
+        );
+    }
+
+    #[test]
+    fn resolve_app_server_settings_prefers_cli_flags_over_config() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        create_workspace_skeleton(tempdir.path());
+        write_config(tempdir.path(), "0.0.0.0", 4123);
+
+        let settings = resolve_app_server_settings(&AppArgs {
+            workspace: tempdir.path().to_path_buf(),
+            bind: Some("127.0.0.1".to_string()),
+            port: Some(5123),
+        })
+        .expect("cli overrides should win");
+
+        assert_eq!(
+            settings,
+            AppServerSettings {
+                bind: "127.0.0.1".to_string(),
+                port: 5123,
+            }
         );
     }
 

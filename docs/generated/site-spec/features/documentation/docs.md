@@ -53,6 +53,8 @@ description: "Generated reference for docs/syu/features/documentation/docs.yaml"
           - validate.allow_planned
           - validate.require_non_orphaned_items
           - validate.require_symbol_trace_coverage
+          - app.bind
+          - app.port
           - runtimes.python.command
 - **id**: FEAT-DOCS-002
   - **title**: Docusaurus documentation site
@@ -125,6 +127,8 @@ features:
             - validate.allow_planned
             - validate.require_non_orphaned_items
             - validate.require_symbol_trace_coverage
+            - app.bind
+            - app.port
             - runtimes.python.command
 
   - id: FEAT-DOCS-002
