@@ -1,7 +1,13 @@
 // FEAT-APP-001
 // REQ-CORE-017
 
-use std::{fs, io::Write, net::IpAddr, path::Path, sync::Arc};
+use std::{
+    fs,
+    io::Write,
+    net::IpAddr,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use anyhow::{Context, Result};
 use axum::{
@@ -21,7 +27,7 @@ use syu_core::{
 use crate::{
     cli::AppArgs,
     command::check::collect_check_result,
-    config::{load_config, resolve_spec_root},
+    config::{SyuConfig, load_config, resolve_spec_root},
     model::{CheckResult, FeatureRegistryDocument},
 };
 
@@ -39,12 +45,14 @@ struct AppServerSettings {
 }
 
 pub fn run_app_command(args: &AppArgs) -> Result<i32> {
-    let settings = resolve_app_server_settings(args)?;
+    let workspace_root = canonical_workspace_root(&args.workspace)?;
+    let loaded = load_config(&workspace_root)?;
+    let settings = resolve_app_server_settings(args, &loaded.config);
     let bind = settings
         .bind
         .parse::<IpAddr>()
         .with_context(|| format!("invalid bind address `{}`", settings.bind))?;
-    let payload = build_app_payload(&args.workspace)?;
+    let payload = build_app_payload_from_config(&workspace_root, &loaded.config)?;
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
@@ -74,14 +82,19 @@ pub fn run_app_command(args: &AppArgs) -> Result<i32> {
     Ok(0)
 }
 
-fn resolve_app_server_settings(args: &AppArgs) -> Result<AppServerSettings> {
-    let loaded = load_config(&args.workspace)?;
-    Ok(AppServerSettings {
-        bind: args
-            .bind
-            .clone()
-            .unwrap_or_else(|| loaded.config.app.bind.clone()),
-        port: args.port.unwrap_or(loaded.config.app.port),
+fn resolve_app_server_settings(args: &AppArgs, config: &SyuConfig) -> AppServerSettings {
+    AppServerSettings {
+        bind: args.bind.clone().unwrap_or_else(|| config.app.bind.clone()),
+        port: args.port.unwrap_or(config.app.port),
+    }
+}
+
+fn canonical_workspace_root(workspace_root: &Path) -> Result<PathBuf> {
+    workspace_root.canonicalize().with_context(|| {
+        format!(
+            "failed to resolve workspace root `{}`",
+            workspace_root.display()
+        )
     })
 }
 
@@ -171,15 +184,15 @@ async fn shutdown_signal() {
     let _ = tokio::signal::ctrl_c().await;
 }
 
+#[cfg(test)]
 fn build_app_payload(workspace_root: &Path) -> Result<AppPayload> {
-    let workspace_root = workspace_root.canonicalize().with_context(|| {
-        format!(
-            "failed to resolve workspace root `{}`",
-            workspace_root.display()
-        )
-    })?;
+    let workspace_root = canonical_workspace_root(workspace_root)?;
     let loaded = load_config(&workspace_root)?;
-    let spec_root = resolve_spec_root(&workspace_root, &loaded.config);
+    build_app_payload_from_config(&workspace_root, &loaded.config)
+}
+
+fn build_app_payload_from_config(workspace_root: &Path, config: &SyuConfig) -> Result<AppPayload> {
+    let spec_root = resolve_spec_root(workspace_root, config);
 
     let mut source_documents = Vec::new();
     source_documents.extend(collect_yaml_sources_recursive(
@@ -204,7 +217,7 @@ fn build_app_payload(workspace_root: &Path) -> Result<AppPayload> {
         workspace_root: workspace_root.display().to_string(),
         spec_root: spec_root.display().to_string(),
         source_documents,
-        validation: validation_snapshot(collect_check_result(&workspace_root)),
+        validation: validation_snapshot(collect_check_result(workspace_root)),
     })
 }
 
@@ -376,7 +389,10 @@ mod tests {
     use tempfile::tempdir;
     use tower::util::ServiceExt;
 
-    use crate::cli::AppArgs;
+    use crate::{
+        cli::AppArgs,
+        config::{SyuConfig, load_config},
+    };
 
     use super::{
         AppPayload, AppServerSettings, AppState, SectionKind, Severity, app_router,
@@ -463,13 +479,15 @@ mod tests {
 
     #[test]
     fn resolve_app_server_settings_uses_defaults_when_config_is_missing() {
-        let tempdir = tempdir().expect("tempdir should exist");
-        let settings = resolve_app_server_settings(&AppArgs {
-            workspace: tempdir.path().to_path_buf(),
-            bind: None,
-            port: None,
-        })
-        .expect("default app settings should resolve");
+        let config = SyuConfig::default();
+        let settings = resolve_app_server_settings(
+            &AppArgs {
+                workspace: PathBuf::from("."),
+                bind: None,
+                port: None,
+            },
+            &config,
+        );
 
         assert_eq!(
             settings,
@@ -485,13 +503,18 @@ mod tests {
         let tempdir = tempdir().expect("tempdir should exist");
         create_workspace_skeleton(tempdir.path());
         write_config(tempdir.path(), "0.0.0.0", 4123);
+        let config = load_config(tempdir.path())
+            .expect("config should load")
+            .config;
 
-        let settings = resolve_app_server_settings(&AppArgs {
-            workspace: tempdir.path().to_path_buf(),
-            bind: None,
-            port: None,
-        })
-        .expect("configured app settings should resolve");
+        let settings = resolve_app_server_settings(
+            &AppArgs {
+                workspace: tempdir.path().to_path_buf(),
+                bind: None,
+                port: None,
+            },
+            &config,
+        );
 
         assert_eq!(
             settings,
@@ -507,13 +530,18 @@ mod tests {
         let tempdir = tempdir().expect("tempdir should exist");
         create_workspace_skeleton(tempdir.path());
         write_config(tempdir.path(), "0.0.0.0", 4123);
+        let config = load_config(tempdir.path())
+            .expect("config should load")
+            .config;
 
-        let settings = resolve_app_server_settings(&AppArgs {
-            workspace: tempdir.path().to_path_buf(),
-            bind: Some("127.0.0.1".to_string()),
-            port: Some(5123),
-        })
-        .expect("cli overrides should win");
+        let settings = resolve_app_server_settings(
+            &AppArgs {
+                workspace: tempdir.path().to_path_buf(),
+                bind: Some("127.0.0.1".to_string()),
+                port: Some(5123),
+            },
+            &config,
+        );
 
         assert_eq!(
             settings,
