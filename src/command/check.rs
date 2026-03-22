@@ -768,7 +768,7 @@ fn validate_linked_delivery_states(
                 format!("{owner_kind} {owner_id}"),
                 Some("status".to_string()),
                 format!(
-                    "{owner_kind} `{owner_id}` is marked `implemented` but links only to planned {linked_kind_plural}: {}.",
+                    "{owner_kind} `{owner_id}` is marked `implemented` but links to planned {linked_kind_plural} and none are implemented: {}.",
                     format_issue_id_list(&planned_ids),
                 ),
                 Some(format!(
@@ -2581,7 +2581,7 @@ mod tests {
             .iter()
             .find(|issue| issue.code == "SYU-delivery-agreement-001")
             .expect("agreement warning");
-        assert!(agreement.message.contains("only to planned requirements"));
+        assert!(agreement.message.contains("none are implemented"));
         assert!(agreement.message.contains("`REQ-1`"));
         assert!(agreement.message.contains("`REQ-2`"));
     }
@@ -2615,6 +2615,40 @@ mod tests {
                 .iter()
                 .any(|issue| issue.code == "SYU-delivery-agreement-001")
         );
+    }
+
+    #[test]
+    fn validate_feature_warning_mentions_absence_of_implemented_requirements() {
+        let mut entry = feature("FEAT-1");
+        entry.linked_requirements = vec!["REQ-1".to_string(), "REQ-2".to_string()];
+
+        let mut linked_requirement_one = requirement("REQ-1");
+        linked_requirement_one.status = "planned".to_string();
+        let mut linked_requirement_two = requirement("REQ-2");
+        linked_requirement_two.status = "proposed".to_string();
+
+        let mut requirements = HashMap::new();
+        requirements.insert("REQ-1", &linked_requirement_one);
+        requirements.insert("REQ-2", &linked_requirement_two);
+
+        let mut issues = Vec::new();
+        let mut trace_count = Default::default();
+        validate_feature(
+            &entry,
+            &requirements,
+            &SyuConfig::default(),
+            Path::new("."),
+            &mut issues,
+            &mut trace_count,
+        );
+
+        let agreement = issues
+            .iter()
+            .find(|issue| issue.code == "SYU-delivery-agreement-001")
+            .expect("agreement warning");
+        assert!(agreement.message.contains("none are implemented"));
+        assert!(agreement.message.contains("`REQ-1`"));
+        assert!(!agreement.message.contains("`REQ-2`"));
     }
 
     #[test]
