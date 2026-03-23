@@ -270,7 +270,8 @@ function App() {
     return (
       <div className="app-shell flex items-center justify-center px-6 text-slate-100">
         <div className="app-glass max-w-2xl rounded-3xl border border-rose-500/40 px-8 py-6 shadow-2xl shadow-rose-950/30">
-          <h1 className="text-2xl font-semibold">syu</h1>
+          <div className="text-sm font-semibold tracking-wide text-slate-400">syu</div>
+          <h1 className="mt-1 text-2xl font-semibold">Workspace could not load</h1>
           <p className="mt-3 text-sm leading-7 text-slate-300">{error}</p>
         </div>
       </div>
@@ -601,7 +602,7 @@ function App() {
           </section>
 
           <details
-            open={Boolean(currentDocument?.parse_error)}
+            defaultOpen={Boolean(currentDocument?.parse_error)}
             className="app-glass rounded-3xl border border-white/10 p-5 shadow-2xl shadow-sky-950/15 sm:p-6"
           >
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
