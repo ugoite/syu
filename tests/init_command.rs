@@ -37,6 +37,10 @@ fn init_command_bootstraps_a_workspace_that_validate_accepts() {
     assert!(config.contains(env!("CARGO_PKG_VERSION")));
     assert_eq!(parsed_config["app"]["bind"].as_str(), Some("127.0.0.1"));
     assert_eq!(parsed_config["app"]["port"].as_u64(), Some(3000));
+    assert_eq!(
+        parsed_config["validate"]["require_reciprocal_links"].as_bool(),
+        Some(true)
+    );
     assert!(requirement.contains("status: planned"));
     assert!(feature.contains("status: planned"));
 
