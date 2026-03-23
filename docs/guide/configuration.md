@@ -10,6 +10,7 @@ under `docs/syu/config/`:
 - `docs/syu/config/overview.yaml`
 - `docs/syu/config/spec.yaml`
 - `docs/syu/config/validate.yaml`
+- `docs/syu/config/app.yaml`
 - `docs/syu/config/report.yaml`
 - `docs/syu/config/runtimes.yaml`
 
@@ -26,7 +27,11 @@ validate:
   default_fix: false
   allow_planned: true
   require_non_orphaned_items: true
+  require_reciprocal_links: true
   require_symbol_trace_coverage: false
+app:
+  bind: 127.0.0.1
+  port: 3000
 runtimes:
   python:
     command: auto
@@ -74,6 +79,17 @@ When `true`, philosophy, policy, requirement, and feature entries must each
 connect to at least one adjacent layer. This is on by default because isolated
 definitions usually mean the specification has drifted away from the repository.
 
+### `validate.require_reciprocal_links`
+
+When `true`, adjacent-layer relationships must be confirmed from both sides.
+
+- `true`: `SYU-graph-reciprocal-001` remains an error
+- `false`: missing backlinks stop failing validation, but broken references still do
+
+Keep this enabled for steady-state self-hosting. Turning it off is mainly useful
+when a repository is migrating an existing spec graph and wants to phase in
+backlinks after the forward links are already trustworthy.
+
 ### `validate.require_symbol_trace_coverage`
 
 When `true`, `syu` scans Rust source and test files to confirm that every public
@@ -84,6 +100,20 @@ symbol belongs to some feature and every test belongs to some requirement.
 
 This is useful once the repository wants maintenance work to stay fully owned by
 the specification.
+
+### `app.bind`
+
+Controls the default address that `syu app` binds to.
+
+Use `127.0.0.1` for a localhost-only browser app or `0.0.0.0` when a demo or
+container workflow needs the server to be reachable from outside the process.
+
+### `app.port`
+
+Controls the default port that `syu app` binds to.
+
+CLI flags still override the config so temporary port conflicts can be resolved
+without editing the repository.
 
 ### `report.output`
 
@@ -96,9 +126,9 @@ report:
   output: docs/generated/syu-report.md
 ```
 
-When set in `syu.yaml`, the path is resolved from the workspace root. This keeps
-checked-in report destinations stable even when contributors invoke `syu report`
-from different working directories.
+When set in `syu.yaml`, the path is resolved from the workspace root. `--output`
+still overrides the config, and relative config paths must stay inside the
+workspace root so checked-in report destinations cannot escape the repository.
 
 ### `runtimes.python.command`
 
@@ -123,7 +153,8 @@ For autofix behavior, CLI flags override config:
 `validate.allow_planned` is configuration-only. There is no CLI flag to
 override it.
 
-`validate.require_non_orphaned_items` and
+`validate.require_non_orphaned_items`,
+`validate.require_reciprocal_links`, and
 `validate.require_symbol_trace_coverage` are also configuration-only.
 
 For report output paths, CLI flags override config:
@@ -131,6 +162,16 @@ For report output paths, CLI flags override config:
 1. `--output`
 2. `report.output`
 3. stdout
+
+For the browser app, CLI flags override config:
+
+1. `--bind`
+2. `app.bind`
+3. `127.0.0.1`
+
+1. `--port`
+2. `app.port`
+3. `3000`
 
 ## Wildcard file ownership
 
@@ -156,8 +197,14 @@ want strict ownership checks without enumerating every public symbol by hand.
   forbid backlog items
 - leave `validate.require_non_orphaned_items: true` unless you are doing a
   deliberate migration
+- leave `validate.require_reciprocal_links: true` unless you are phasing in
+  backlinks after stabilizing the forward graph
 - turn on `validate.require_symbol_trace_coverage: true` once the repository
   wants public APIs and tests to remain fully owned by the spec
+- set `report.output` when your repository checks in one stable report artifact
+  path
+- set `app.bind` and `app.port` only when your team really has a stable local
+  browser-app convention worth checking in
 - set `report.output` when your repository checks in one stable report artifact
   path
 - treat runtime overrides as environment-specific, not project-specific, unless

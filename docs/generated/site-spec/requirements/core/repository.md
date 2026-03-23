@@ -25,7 +25,8 @@ description: "Generated reference for docs/syu/requirements/core/repository.yaml
       linting, tests, workflow linting, pre-commit / pre-push hooks, and
       self-validation so `syu`'s own promises stay continuously checkable. The
       repository MUST also check in a root `syu.yaml` that enables non-orphaned
-      validation and strict symbol/test ownership for self-hosting.
+      validation, reciprocal-link validation, and strict symbol/test ownership
+      for self-hosting.
   - **priority**: high
   - **status**: implemented
   - **linked_policies**:
@@ -63,8 +64,9 @@ description: "Generated reference for docs/syu/requirements/core/repository.yaml
       PRs from `main`, keeps `main` releaseable under GitHub Flow, publishes
       GitHub release notes without a committed changelog file, generates alpha,
       beta, and stable release notes against the previous tag in the same track,
-      builds installable artifacts for supported platforms, and publishes
-      install packages to GitHub Packages / GHCR.
+      builds installable artifacts for supported platforms, publishes the
+      one-line installer as a GitHub release asset, and publishes install
+      packages to GitHub Packages / GHCR.
   - **priority**: high
   - **status**: implemented
   - **linked_policies**:
@@ -80,11 +82,11 @@ description: "Generated reference for docs/syu/requirements/core/repository.yaml
   - **title**: Provide a one-line installer for package artifacts
   - **description**:
     - |
-      The repository MUST ship an installer script that resolves the current
-      platform, prefers the matching package artifact from GitHub Packages /
-      GHCR, falls back to GitHub release assets when package download is not
-      available, defaults to `ugoite/syu`, and installs the binary into a
-      user-controlled location.
+      The repository MUST ship a release-hosted installer script that resolves
+      the current platform, prefers the matching package artifact from GitHub
+      Packages / GHCR, falls back to GitHub release assets when package
+      download is not available, defaults to `ugoite/syu`, and installs the
+      binary into a user-controlled location.
   - **priority**: medium
   - **status**: implemented
   - **linked_policies**:
@@ -194,7 +196,8 @@ requirements:
       linting, tests, workflow linting, pre-commit / pre-push hooks, and
       self-validation so `syu`'s own promises stay continuously checkable. The
       repository MUST also check in a root `syu.yaml` that enables non-orphaned
-      validation and strict symbol/test ownership for self-hosting.
+      validation, reciprocal-link validation, and strict symbol/test ownership
+      for self-hosting.
     priority: high
     status: implemented
     linked_policies:
@@ -230,8 +233,9 @@ requirements:
       PRs from `main`, keeps `main` releaseable under GitHub Flow, publishes
       GitHub release notes without a committed changelog file, generates alpha,
       beta, and stable release notes against the previous tag in the same track,
-      builds installable artifacts for supported platforms, and publishes
-      install packages to GitHub Packages / GHCR.
+      builds installable artifacts for supported platforms, publishes the
+      one-line installer as a GitHub release asset, and publishes install
+      packages to GitHub Packages / GHCR.
     priority: high
     status: implemented
     linked_policies:
@@ -246,11 +250,11 @@ requirements:
   - id: REQ-CORE-008
     title: Provide a one-line installer for package artifacts
     description: |
-      The repository MUST ship an installer script that resolves the current
-      platform, prefers the matching package artifact from GitHub Packages /
-      GHCR, falls back to GitHub release assets when package download is not
-      available, defaults to `ugoite/syu`, and installs the binary into a
-      user-controlled location.
+      The repository MUST ship a release-hosted installer script that resolves
+      the current platform, prefers the matching package artifact from GitHub
+      Packages / GHCR, falls back to GitHub release assets when package
+      download is not available, defaults to `ugoite/syu`, and installs the
+      binary into a user-controlled location.
     priority: medium
     status: implemented
     linked_policies:

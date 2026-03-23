@@ -34,45 +34,50 @@ See the detailed guides:
 - [`docs/guide/configuration.md`](docs/guide/configuration.md)
 - [`CONTRIBUTING.md`](CONTRIBUTING.md)
 
-## Install from GitHub Packages
+## Install from published releases
 
-`syu` publishes repository-scoped GHCR packages under `ghcr.io/ugoite/syu` and
-falls back to matching GitHub release assets if anonymous package pulls are not
-available yet.
+`syu` publishes a release-hosted installer entrypoint and repository-scoped
+GHCR packages under `ghcr.io/ugoite/syu`. Download the installer from the
+current CLI release; the script prefers the matching package artifact and falls
+back to GitHub release assets if anonymous package pulls are not available yet.
 
-Latest published package for your platform:
+Current installer entrypoint:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ugoite/syu/main/scripts/install-syu.sh | bash
+curl -fsSL https://github.com/ugoite/syu/releases/download/v0.0.1-alpha.7/install-syu.sh | bash
 ```
 
 Pin a specific release track:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ugoite/syu/main/scripts/install-syu.sh | env SYU_VERSION=alpha bash
+curl -fsSL https://github.com/ugoite/syu/releases/download/v0.0.1-alpha.7/install-syu.sh | env SYU_VERSION=alpha bash
 ```
 
 Install to a custom directory:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ugoite/syu/main/scripts/install-syu.sh | env SYU_INSTALL_DIR=$HOME/bin bash
+curl -fsSL https://github.com/ugoite/syu/releases/download/v0.0.1-alpha.7/install-syu.sh | env SYU_INSTALL_DIR=$HOME/bin bash
 ```
 
 Install a specific prerelease:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ugoite/syu/main/scripts/install-syu.sh | env SYU_VERSION=v0.0.1-alpha.7 bash
+curl -fsSL https://github.com/ugoite/syu/releases/download/v0.0.1-alpha.7/install-syu.sh | env SYU_VERSION=v0.0.1-alpha.7 bash
 ```
+
+If you're contributing to `syu` itself from source, jump to
+[Contributing and local development](#contributing-and-local-development)
+below. The rest of this section assumes you installed the published CLI.
 
 ## Quick start
 
 ```bash
-cargo run -- init .
-cargo run -- browse .
-cargo run -- app .
-cargo run -- validate .
-cargo run -- validate . --fix
-cargo run -- report . --output reports/syu.md
+syu init .
+syu validate .
+syu validate . --fix
+syu browse .
+syu app .
+syu report . --output reports/syu.md
 ```
 
 Running `syu` with no subcommand opens the interactive browser when stdin/stdout
@@ -137,6 +142,8 @@ syu app . --bind 127.0.0.1 --port 3000
 
 The browser app serves a VitePlus / React / Tailwind UI and uses Rust plus
 WebAssembly to build the layered browser view from the live workspace data.
+When `syu.yaml` defines `app.bind` or `app.port`, `syu app` uses those defaults
+unless the CLI flags override them.
 
 ### `syu report`
 
@@ -155,20 +162,16 @@ to become the default, while keeping `--output` available for one-off overrides.
 
 ## Browser app
 
-The repository also ships a local browser app rooted at `app/` for richer spec
-exploration.
+The installed CLI can launch a local browser app for richer spec exploration:
 
 ```bash
-cd app
-npm install
-npm run build:wasm
-npm run build
-cd ..
-cargo run -- app .
+syu app .
+syu app . --bind 127.0.0.1 --port 3000
 ```
 
-It keeps the source UI in `app/`, checks in the generated production bundle in
-`app/dist/`, and serves that bundle directly from the `syu app` command.
+The repository keeps the source UI in `app/`, checks in the generated
+production bundle in `app/dist/`, and serves that bundle directly from the
+`syu app` command, so end users do not need a separate frontend build step.
 
 ## Configuration
 
@@ -181,6 +184,12 @@ spec:
 validate:
   default_fix: false
   allow_planned: true
+  require_non_orphaned_items: true
+  require_reciprocal_links: true
+  require_symbol_trace_coverage: false
+app:
+  bind: 127.0.0.1
+  port: 3000
 runtimes:
   python:
     command: auto
@@ -195,16 +204,20 @@ Key behaviors:
 - `validate.default_fix` enables conservative autofix by default
 - `validate.allow_planned` controls whether `planned` requirements and features are allowed at all
 - `validate.require_non_orphaned_items` turns isolated layered definitions into validation errors
+- `validate.require_reciprocal_links` keeps adjacent-layer backlinks mandatory by default while still allowing phased migration when disabled
 - `validate.require_symbol_trace_coverage` opt-in checks that public Rust symbols belong to features and tests belong to requirements
+- `report.output` sets the default `syu report` destination while `--output` still takes precedence
+- `app.bind` and `app.port` define the default local browser-app address and port unless `--bind` / `--port` override them
 - `report.output` sets the default `syu report` destination while `--output` still takes precedence
 - `runtimes.*.command` can be set to `auto` or an explicit executable name/path
 
 The self-hosted repository keeps a structured reference for supported config
 fields under [`docs/syu/config/`](docs/syu/config).
 
-The `syu` repository itself enables both `validate.require_non_orphaned_items`
-and `validate.require_symbol_trace_coverage`, and it sets
-`report.output: docs/generated/syu-report.md` in its root `syu.yaml`.
+The `syu` repository itself enables `validate.require_non_orphaned_items`,
+`validate.require_reciprocal_links`, and
+`validate.require_symbol_trace_coverage` in its root `syu.yaml`, and it sets
+`report.output: docs/generated/syu-report.md`.
 
 ## Traceability rules
 
@@ -247,14 +260,16 @@ The repository ships working example projects:
 
 Each one is validated in the automated test suite.
 
-## Contributor environment
+## Contributing and local development
 
-For VS Code / Codespaces-style development, use the devcontainer:
+If you're working on `syu` itself rather than using it in another repository:
 
-- [`.devcontainer/devcontainer.json`](.devcontainer/devcontainer.json)
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) for the GitHub Flow contribution path
+- use [`.devcontainer/devcontainer.json`](.devcontainer/devcontainer.json) for
+  a ready-to-run VS Code / Codespaces-style environment
+- follow [`CONTRIBUTING.md`](CONTRIBUTING.md) for the GitHub Flow contributor
+  path and repository expectations
 
-## Local quality gates
+### Local quality gates
 
 Run the shared repository checks:
 
@@ -286,10 +301,22 @@ pre-commit run --all-files --hook-stage pre-push
 If you prefer to install `pre-commit` manually, `pipx install pre-commit` or
 `python -m pip install --user pre-commit` also work.
 
+### Browser app development
+
+```bash
+cd app
+npm install
+npm run build:wasm
+npm run build
+cd ..
+cargo run -- app .
+```
+
 ## Documentation site
 
 The repository ships a Docusaurus site rooted at `website/` that renders the
-checked-in `docs/` tree directly.
+checked-in `docs/` tree directly, and the published site is available at
+`https://ugoite.github.io/syu/`.
 
 ```bash
 cd website
@@ -299,7 +326,7 @@ npm run start
 
 The landing page links the core guides, the self-hosted specification reference,
 the latest checked-in validation report, and the published site is deployed
-from `main` to GitHub Pages at `https://ugoite.github.io/syu/` via
+from `main` to GitHub Pages via
 `.github/workflows/deploy-pages.yml`.
 
 ## Agent skill

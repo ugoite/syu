@@ -1,3 +1,4 @@
+// FEAT-APP-001
 // FEAT-CHECK-001
 // FEAT-REPORT-001
 // REQ-CORE-009
@@ -30,6 +31,8 @@ pub struct SyuConfig {
     #[serde(default, skip_serializing_if = "ReportConfig::is_default")]
     pub report: ReportConfig,
     #[serde(default)]
+    pub app: AppConfig,
+    #[serde(default)]
     pub runtimes: RuntimeConfigSet,
 }
 
@@ -40,6 +43,7 @@ impl Default for SyuConfig {
             spec: SpecConfig::default(),
             validate: ValidateConfig::default(),
             report: ReportConfig::default(),
+            app: AppConfig::default(),
             runtimes: RuntimeConfigSet::default(),
         }
     }
@@ -69,6 +73,8 @@ pub struct ValidateConfig {
     pub allow_planned: bool,
     #[serde(default = "default_require_non_orphaned_items")]
     pub require_non_orphaned_items: bool,
+    #[serde(default = "default_require_reciprocal_links")]
+    pub require_reciprocal_links: bool,
     #[serde(default)]
     pub require_symbol_trace_coverage: bool,
 }
@@ -79,7 +85,26 @@ impl Default for ValidateConfig {
             default_fix: false,
             allow_planned: default_allow_planned(),
             require_non_orphaned_items: default_require_non_orphaned_items(),
+            require_reciprocal_links: default_require_reciprocal_links(),
             require_symbol_trace_coverage: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct AppConfig {
+    #[serde(default = "default_app_bind")]
+    pub bind: String,
+    #[serde(default = "default_app_port")]
+    pub port: u16,
+}
+
+impl Default for AppConfig {
+    fn default() -> Self {
+        Self {
+            bind: default_app_bind(),
+            port: default_app_port(),
         }
     }
 }
@@ -163,8 +188,20 @@ fn default_require_non_orphaned_items() -> bool {
     true
 }
 
+fn default_require_reciprocal_links() -> bool {
+    true
+}
+
 fn default_spec_root() -> PathBuf {
     PathBuf::from("docs/syu")
+}
+
+fn default_app_bind() -> String {
+    "127.0.0.1".to_string()
+}
+
+fn default_app_port() -> u16 {
+    3000
 }
 
 fn default_runtime_command() -> String {
@@ -240,8 +277,11 @@ mod tests {
         assert_eq!(loaded.config.runtimes.python.command, "auto");
         assert!(loaded.config.validate.allow_planned);
         assert!(loaded.config.validate.require_non_orphaned_items);
+        assert!(loaded.config.validate.require_reciprocal_links);
         assert!(!loaded.config.validate.require_symbol_trace_coverage);
         assert_eq!(loaded.config.report.output, None);
+        assert_eq!(loaded.config.app.bind, "127.0.0.1");
+        assert_eq!(loaded.config.app.port, 3000);
     }
 
     #[test]
@@ -250,7 +290,7 @@ mod tests {
         fs::write(
             tempdir.path().join(CONFIG_FILE_NAME),
             format!(
-                "version: {version}\nspec:\n  root: spec/contracts\nvalidate:\n  default_fix: true\n  allow_planned: false\n  require_non_orphaned_items: false\n  require_symbol_trace_coverage: true\nreport:\n  output: docs/generated/syu-report.md\nruntimes:\n  python:\n    command: python3\n  node:\n    command: node\n",
+                "version: {version}\nspec:\n  root: spec/contracts\nvalidate:\n  default_fix: true\n  allow_planned: false\n  require_non_orphaned_items: false\n  require_reciprocal_links: false\n  require_symbol_trace_coverage: true\nreport:\n  output: docs/generated/syu-report.md\napp:\n  bind: 0.0.0.0\n  port: 4321\nruntimes:\n  python:\n    command: python3\n  node:\n    command: node\n",
                 version = current_cli_version()
             ),
         )
@@ -265,11 +305,14 @@ mod tests {
         assert!(loaded.config.validate.default_fix);
         assert!(!loaded.config.validate.allow_planned);
         assert!(!loaded.config.validate.require_non_orphaned_items);
+        assert!(!loaded.config.validate.require_reciprocal_links);
         assert!(loaded.config.validate.require_symbol_trace_coverage);
         assert_eq!(
             loaded.config.report.output,
             Some(std::path::PathBuf::from("docs/generated/syu-report.md"))
         );
+        assert_eq!(loaded.config.app.bind, "0.0.0.0");
+        assert_eq!(loaded.config.app.port, 4321);
         assert_eq!(loaded.config.runtimes.python.command, "python3");
     }
 
@@ -280,8 +323,11 @@ mod tests {
         assert!(rendered.contains("default_fix: false"));
         assert!(rendered.contains("allow_planned: true"));
         assert!(rendered.contains("require_non_orphaned_items: true"));
+        assert!(rendered.contains("require_reciprocal_links: true"));
         assert!(rendered.contains("require_symbol_trace_coverage: false"));
         assert!(!rendered.contains("report:"));
+        assert!(rendered.contains("bind: 127.0.0.1"));
+        assert!(rendered.contains("port: 3000"));
         assert!(rendered.contains("command: auto"));
     }
 

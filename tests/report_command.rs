@@ -33,7 +33,7 @@ fn configured_workspace(output: &str) -> (tempfile::TempDir, PathBuf) {
     fs::write(
         workspace.join("syu.yaml"),
         format!(
-            "version: {version}\nspec:\n  root: docs/syu\nvalidate:\n  default_fix: false\n  allow_planned: true\n  require_non_orphaned_items: true\n  require_symbol_trace_coverage: false\nreport:\n  output: {output}\nruntimes:\n  python:\n    command: auto\n  node:\n    command: auto\n",
+            "version: {version}\nspec:\n  root: docs/syu\nvalidate:\n  default_fix: false\n  allow_planned: true\n  require_non_orphaned_items: true\n  require_reciprocal_links: true\n  require_symbol_trace_coverage: false\nreport:\n  output: {output}\nruntimes:\n  python:\n    command: auto\n  node:\n    command: auto\n",
             version = env!("CARGO_PKG_VERSION"),
         ),
     )
@@ -132,5 +132,32 @@ fn report_command_cli_output_overrides_configured_output_path() {
     assert!(
         !workspace.join("docs/generated/syu-report.md").exists(),
         "configured path should not be used when CLI output is present"
+    );
+}
+
+#[test]
+fn report_command_rejects_configured_paths_that_escape_workspace() {
+    let (tempdir, workspace) = configured_workspace("../outside-report.md");
+
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .arg("report")
+        .arg(&workspace)
+        .output()
+        .expect("command should run");
+
+    assert!(
+        !output.status.success(),
+        "unsafe configured path should fail"
+    );
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("must stay within workspace root"),
+        "stderr:\n{}\nstdout:\n{}",
+        String::from_utf8_lossy(&output.stderr),
+        String::from_utf8_lossy(&output.stdout)
+    );
+    assert!(
+        !tempdir.path().join("outside-report.md").exists(),
+        "report must not be written outside the workspace"
     );
 }

@@ -46,6 +46,7 @@ fn repository_declares_precommit_and_quality_gates() {
     assert!(repo_config.contains("FEAT-CHECK-001"));
     assert!(repo_config.contains("FEAT-REPORT-001"));
     assert!(repo_config.contains("require_non_orphaned_items: true"));
+    assert!(repo_config.contains("require_reciprocal_links: true"));
     assert!(repo_config.contains("require_symbol_trace_coverage: true"));
     assert!(repo_config.contains("output: docs/generated/syu-report.md"));
 }
@@ -93,6 +94,7 @@ fn repository_declares_release_automation() {
     assert!(release_artifacts.contains("x86_64-pc-windows-msvc"));
     assert!(release_artifacts.contains("PACKAGE_REPOSITORY"));
     assert!(release_artifacts.contains("publish-package.sh"));
+    assert!(release_artifacts.contains("install-syu.sh"));
     assert!(release_artifacts.contains("release-notes:"));
     assert!(release_artifacts.contains("release-track-notes.sh"));
 
@@ -134,6 +136,7 @@ fn repository_declares_release_automation() {
 #[test]
 // REQ-CORE-008
 fn repository_declares_installer_contract() {
+    let current_version = env!("CARGO_PKG_VERSION");
     let installer = read_file("scripts/install-syu.sh");
     let installer_smoke = read_file("scripts/ci/installer-smoke.sh");
     let mock_registry = read_file("scripts/ci/mock_package_registry.py");
@@ -159,7 +162,11 @@ fn repository_declares_installer_contract() {
     assert!(readme.contains("install-syu.sh"));
     assert!(readme.contains("ugoite/syu"));
     assert!(readme.contains("SYU_VERSION"));
+    assert!(readme.contains(&format!(
+        "https://github.com/ugoite/syu/releases/download/v{current_version}/install-syu.sh"
+    )));
     assert!(readme.contains("GitHub Packages"));
+    assert!(!readme.contains("raw.githubusercontent.com/ugoite/syu/main/scripts/install-syu.sh"));
 }
 
 #[test]
@@ -185,6 +192,7 @@ fn repository_declares_documentation_guides() {
     let docs_deploy_workflow = read_file(".github/workflows/deploy-pages.yml");
     let docs_build_action = read_file(".github/actions/build-docs-site/action.yml");
     let docs_package = read_file("website/package.json");
+    let docs_lock = read_file("website/package-lock.json");
     let docs_config = read_file("website/docusaurus.config.js");
     let docs_home = read_file("website/src/pages/index.js");
     let docs_css = read_file("website/src/css/custom.css");
@@ -192,16 +200,19 @@ fn repository_declares_documentation_guides() {
 
     assert!(readme.contains("docs/guide/concepts.md"));
     assert!(readme.contains("syu init"));
+    assert!(readme.contains("syu init ."));
     assert!(readme.contains("syu validate"));
     assert!(readme.contains("syu browse"));
     assert!(readme.contains("syu app"));
     assert!(readme.contains("examples/polyglot"));
     assert!(readme.contains("CONTRIBUTING.md"));
+    assert!(readme.contains("Contributing and local development"));
     assert!(readme.contains("Documentation site"));
     assert!(readme.contains("Browser app"));
     assert!(readme.contains("scripts/install-precommit.sh"));
     assert!(readme.contains("https://ugoite.github.io/syu/"));
     assert!(readme.contains("docs/syu/config/"));
+    assert!(!readme.contains("cargo run -- init ."));
 
     assert!(concepts.contains("philosophy"));
     assert!(concepts.contains("policy"));
@@ -239,9 +250,12 @@ fn repository_declares_documentation_guides() {
     assert!(ci_workflow.contains("./.github/actions/build-docs-site"));
     assert!(docs_build_action.contains("FEAT-DOCS-002"));
     assert!(docs_build_action.contains("actions/setup-node@v6"));
-    assert!(docs_build_action.contains("npm install"));
+    assert!(docs_build_action.contains("cache-dependency-path: website/package-lock.json"));
+    assert!(docs_build_action.contains("npm ci"));
     assert!(docs_build_action.contains("npm run build"));
     assert!(docs_package.contains("@docusaurus/core"));
+    assert!(docs_lock.contains("\"name\": \"syu-docs\""));
+    assert!(docs_lock.contains("\"lockfileVersion\":"));
     assert!(docs_package.contains("\"build\": \"docusaurus build\""));
     assert!(docs_deploy_workflow.contains("permissions:"));
     assert!(docs_deploy_workflow.contains("./.github/actions/build-docs-site"));
@@ -339,6 +353,7 @@ fn repository_declares_dependency_hygiene_and_ci_caching() {
     let ci_workflow = read_file(".github/workflows/ci.yml");
     let codeql_workflow = read_file(".github/workflows/codeql.yml");
     let docs_build_action = read_file(".github/actions/build-docs-site/action.yml");
+    let docs_lock = read_file("website/package-lock.json");
     let release_artifacts = read_file(".github/workflows/release-artifacts.yml");
     let dependabot = read_file(".github/dependabot.yml");
 
@@ -347,14 +362,22 @@ fn repository_declares_dependency_hygiene_and_ci_caching() {
     assert!(ci_workflow.contains("permissions:"));
     assert!(ci_workflow.contains("Restore Rust cache"));
     assert!(ci_workflow.contains("Swatinem/rust-cache@v2"));
+    assert!(ci_workflow.contains("taiki-e/cache-cargo-install-action@v3"));
+    assert!(ci_workflow.contains("tool: cargo-llvm-cov"));
+    assert!(ci_workflow.contains("tool: cargo-audit"));
     assert!(ci_workflow.contains("merge_group:"));
     assert!(ci_workflow.contains("Set up Python with pip cache"));
     assert!(ci_workflow.contains("cache: pip"));
     assert!(ci_workflow.contains("cache-dependency-path: .pre-commit-config.yaml"));
+    assert!(ci_workflow.contains("cache-dependency-path: app/package-lock.json"));
+    assert!(ci_workflow.contains("npm ci"));
     assert!(ci_workflow.contains("docs-site:"));
     assert!(ci_workflow.contains("./.github/actions/build-docs-site"));
     assert!(docs_build_action.contains("actions/setup-node@v6"));
+    assert!(docs_build_action.contains("cache-dependency-path: website/package-lock.json"));
+    assert!(docs_build_action.contains("npm ci"));
     assert!(docs_build_action.contains("npm run build"));
+    assert!(docs_lock.contains("\"lockfileVersion\":"));
     assert!(codeql_workflow.contains("FEAT-QUALITY-001"));
     assert!(codeql_workflow.contains("merge_group:"));
     assert!(codeql_workflow.contains("security-events: write"));

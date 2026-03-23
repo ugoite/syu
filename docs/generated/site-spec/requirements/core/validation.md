@@ -23,16 +23,18 @@ description: "Generated reference for docs/syu/requirements/core/validation.yaml
     - |
       The `validate` command MUST load philosophy, policy, requirement, and
       feature YAML definitions, validate required fields, reject broken
-      references, verify reciprocal links across the adjacent-layer graph,
-      reject duplicate adjacent-layer IDs inside a single relationship list,
-      report isolated definitions by default, enforce `planned` /
+      references, verify reciprocal links across the adjacent-layer graph by
+      default, reject duplicate adjacent-layer IDs inside a single relationship
+      list, report isolated definitions by default, enforce `planned` /
       `implemented` delivery-state rules for requirements and features, warn
       when linked requirements and features drift apart semantically on delivery
       state, and surface rule codes with human-readable titles and explanations
       in validation output. It MUST also support optional filtered views by
       severity, rule genre, and exact rule code for both text and JSON output
-      without changing the underlying validation result. `check` MAY remain as
-      a compatibility alias, but `validate` is the canonical command name.
+      without changing the underlying validation result, and `syu.yaml` MUST be
+      able to disable reciprocal-link enforcement without disabling missing-
+      reference validation. `check` MAY remain as a compatibility alias, but
+      `validate` is the canonical command name.
   - **priority**: high
   - **status**: implemented
   - **linked_policies**:
@@ -55,6 +57,9 @@ description: "Generated reference for docs/syu/requirements/core/validation.yaml
         - **symbols**:
           - *
       - **file**: tests/orphan_validation.rs
+        - **symbols**:
+          - *
+      - **file**: tests/reciprocal_validation.rs
         - **symbols**:
           - *
       - **file**: src/command/check.rs
@@ -149,10 +154,10 @@ description: "Generated reference for docs/syu/requirements/core/validation.yaml
       The `report` command MUST reuse the same verification engine as `validate`
       and render a Markdown report that summarizes counts, failures, and
       corrective suggestions. It MUST support writing the report to stdout or a
-      file path, `syu.yaml` MUST be able to define a default report output path
-      that `--output` can still override, and the self-hosted repository SHOULD
-      keep a checked-in report artifact so contributors can inspect the current
-      state without running the command first.
+      file path. `syu.yaml` MUST be able to define a default report output path
+      that `--output` can still override. The self-hosted repository SHOULD keep
+      a checked-in report artifact so contributors can inspect the current state
+      without running the command first.
   - **priority**: medium
   - **status**: implemented
   - **linked_policies**:
@@ -186,16 +191,18 @@ requirements:
     description: |
       The `validate` command MUST load philosophy, policy, requirement, and
       feature YAML definitions, validate required fields, reject broken
-      references, verify reciprocal links across the adjacent-layer graph,
-      reject duplicate adjacent-layer IDs inside a single relationship list,
-      report isolated definitions by default, enforce `planned` /
+      references, verify reciprocal links across the adjacent-layer graph by
+      default, reject duplicate adjacent-layer IDs inside a single relationship
+      list, report isolated definitions by default, enforce `planned` /
       `implemented` delivery-state rules for requirements and features, warn
       when linked requirements and features drift apart semantically on delivery
       state, and surface rule codes with human-readable titles and explanations
       in validation output. It MUST also support optional filtered views by
       severity, rule genre, and exact rule code for both text and JSON output
-      without changing the underlying validation result. `check` MAY remain as
-      a compatibility alias, but `validate` is the canonical command name.
+      without changing the underlying validation result, and `syu.yaml` MUST be
+      able to disable reciprocal-link enforcement without disabling missing-
+      reference validation. `check` MAY remain as a compatibility alias, but
+      `validate` is the canonical command name.
     priority: high
     status: implemented
     linked_policies:
@@ -218,6 +225,9 @@ requirements:
           symbols:
             - '*'
         - file: tests/orphan_validation.rs
+          symbols:
+            - '*'
+        - file: tests/reciprocal_validation.rs
           symbols:
             - '*'
         - file: src/command/check.rs
@@ -309,10 +319,10 @@ requirements:
       The `report` command MUST reuse the same verification engine as `validate`
       and render a Markdown report that summarizes counts, failures, and
       corrective suggestions. It MUST support writing the report to stdout or a
-      file path, `syu.yaml` MUST be able to define a default report output path
-      that `--output` can still override, and the self-hosted repository SHOULD
-      keep a checked-in report artifact so contributors can inspect the current
-      state without running the command first.
+      file path. `syu.yaml` MUST be able to define a default report output path
+      that `--output` can still override. The self-hosted repository SHOULD keep
+      a checked-in report artifact so contributors can inspect the current state
+      without running the command first.
     priority: medium
     status: implemented
     linked_policies:

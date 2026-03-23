@@ -52,7 +52,10 @@ description: "Generated reference for docs/syu/features/documentation/docs.yaml"
           - validate.default_fix
           - validate.allow_planned
           - validate.require_non_orphaned_items
+          - validate.require_reciprocal_links
           - validate.require_symbol_trace_coverage
+          - app.bind
+          - app.port
           - report.output
           - runtimes.python.command
 - **id**: FEAT-DOCS-002
@@ -76,6 +79,12 @@ description: "Generated reference for docs/syu/features/documentation/docs.yaml"
         - **symbols**:
           - Home
     - **yaml**:
+      - **file**: .github/actions/build-docs-site/action.yml
+        - **symbols**:
+          - actions/setup-node@v6
+          - cache-dependency-path: website/package-lock.json
+          - npm ci
+          - npm run build
       - **file**: .github/workflows/deploy-pages.yml
         - **symbols**:
           - deploy-pages
@@ -125,7 +134,10 @@ features:
             - validate.default_fix
             - validate.allow_planned
             - validate.require_non_orphaned_items
+            - validate.require_reciprocal_links
             - validate.require_symbol_trace_coverage
+            - app.bind
+            - app.port
             - report.output
             - runtimes.python.command
 
@@ -150,6 +162,12 @@ features:
           symbols:
             - Home
       yaml:
+        - file: .github/actions/build-docs-site/action.yml
+          symbols:
+            - actions/setup-node@v6
+            - "cache-dependency-path: website/package-lock.json"
+            - npm ci
+            - npm run build
         - file: .github/workflows/deploy-pages.yml
           symbols:
             - deploy-pages

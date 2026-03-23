@@ -7,6 +7,7 @@ validate:
   default_fix: false
   allow_planned: false
   require_non_orphaned_items: true
+  require_reciprocal_links: true
   require_symbol_trace_coverage: true
 report:
   output: docs/generated/syu-report.md
