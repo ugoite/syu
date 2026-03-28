@@ -16,8 +16,8 @@ section for the version you just installed.
 
 | Field | Default | Notes |
 |---|---|---|
-| `validate.require_reciprocal_links` | `true` | New. Adjacent-layer links must be reciprocal. See [SYU-graph-reciprocal-001](./troubleshooting.md#syu-graph-reciprocal-001--missing-back-link). |
-| `report.output` | *(none)* | New. Sets a default output path for `syu report`. Previously `--output` was always required. |
+| `validate.require_reciprocal_links` | `true` | New. Adjacent-layer links must be reciprocal. See [Understanding validation output](./getting-started.md#understanding-validation-output). |
+| `report.output` | `stdout` | New. Optional. When unset, `syu report` prints to stdout as before. Set this to a file path to use a default output destination when `--output` is not provided. |
 
 ### Action required
 
@@ -60,7 +60,12 @@ If your `syu.yaml` relied on the implicit default (`docs/spec`) without
 explicitly declaring `spec.root`, you must either:
 
 1. Move your spec directory: `mv docs/spec docs/syu`, or
-2. Add `spec: root: docs/spec` to `syu.yaml` to keep the old path.
+2. Add the following to `syu.yaml` to keep the old path:
+
+   ```yaml
+   spec:
+     root: docs/spec
+   ```
 
 ### New structured validation rule IDs
 
@@ -102,7 +107,9 @@ entry to this file before merge. The entry should include:
 3. The exact action required to upgrade an existing repository
 4. Any new default-on validation rules
 
-See [CONTRIBUTING.md](../../CONTRIBUTING.md) for the full contribution workflow.
+See the repository's
+[`CONTRIBUTING.md`](https://github.com/ugoite/syu/blob/main/CONTRIBUTING.md)
+for the full contribution workflow.
 
 ---
 
@@ -113,4 +120,4 @@ See [CONTRIBUTING.md](../../CONTRIBUTING.md) for the full contribution workflow.
 | alpha.1–alpha.4 | — (not yet documented) | — | — |
 | alpha.5 | `docs/spec` | not present | not present |
 | alpha.6 | `docs/syu` | not present | not present |
-| alpha.7 | `docs/syu` | `true` | `null` |
+| alpha.7 | `docs/syu` | `true` | stdout when unset; otherwise configured path |
