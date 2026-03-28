@@ -21,7 +21,7 @@ use crate::{
         CheckResult, DefinitionCounts, Feature, Issue, Philosophy, Policy, Requirement, Severity,
         TraceCount, TraceReference, TraceSummary,
     },
-    rules::{attach_referenced_rules, referenced_rules, rule_by_code, rule_genre},
+    rules::{all_rules, attach_referenced_rules, referenced_rules, rule_by_code, rule_genre},
     workspace::{Workspace, load_workspace},
 };
 
@@ -77,6 +77,37 @@ struct JsonCheckOutput<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     filtered_view: Option<&'a FilteredIssueView>,
 }
+
+#[derive(Debug, Clone)]
+struct TextReportSummary {
+    checked_rule_count: usize,
+    workspace_item_count: usize,
+    checked_genres: Vec<&'static str>,
+    disabled_checks: Vec<DisabledRuleNotice>,
+}
+
+#[derive(Debug, Clone)]
+struct DisabledRuleNotice {
+    config_key: &'static str,
+    rule_count: usize,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct DisabledRuleGroup {
+    config_key: &'static str,
+    codes: &'static [&'static str],
+}
+
+const RULE_GENRE_ORDER: &[&str] = &["workspace", "graph", "delivery", "trace", "coverage"];
+const ORPHAN_RULE_CODES: &[&str] = &["SYU-graph-orphaned-001"];
+const RECIPROCAL_RULE_CODES: &[&str] = &["SYU-graph-reciprocal-001"];
+const COVERAGE_RULE_CODES: &[&str] = &[
+    "SYU-coverage-walk-001",
+    "SYU-coverage-read-001",
+    "SYU-coverage-parse-001",
+    "SYU-coverage-public-001",
+    "SYU-coverage-test-001",
+];
 
 impl TraceRole {
     fn label(self) -> &'static str {
@@ -177,9 +208,95 @@ impl FilteredIssueView {
     }
 }
 
+impl TextReportSummary {
+    fn from_config(config: &SyuConfig, definition_counts: &DefinitionCounts) -> Self {
+        let disabled_checks: Vec<_> = disabled_rule_groups(config)
+            .into_iter()
+            .map(DisabledRuleNotice::from_group)
+            .collect();
+        let disabled_codes: HashSet<_> = disabled_checks
+            .iter()
+            .flat_map(|notice| disabled_rule_codes_for(notice.config_key).iter().copied())
+            .collect();
+        let enabled_rules: Vec<_> = all_rules()
+            .into_iter()
+            .filter(|rule| !disabled_codes.contains(rule.code.as_str()))
+            .collect();
+        let checked_genres = RULE_GENRE_ORDER
+            .iter()
+            .copied()
+            .filter(|genre| enabled_rules.iter().any(|rule| rule.genre == *genre))
+            .collect();
+
+        Self {
+            checked_rule_count: enabled_rules.len(),
+            workspace_item_count: workspace_item_count(definition_counts),
+            checked_genres,
+            disabled_checks,
+        }
+    }
+}
+
+impl DisabledRuleNotice {
+    fn from_group(group: DisabledRuleGroup) -> Self {
+        Self {
+            config_key: group.config_key,
+            rule_count: group.codes.len(),
+        }
+    }
+
+    fn describe(&self) -> String {
+        let noun = if self.rule_count == 1 {
+            "rule"
+        } else {
+            "rules"
+        };
+        format!("{}=false ({} {})", self.config_key, self.rule_count, noun)
+    }
+}
+
+fn disabled_rule_groups(config: &SyuConfig) -> Vec<DisabledRuleGroup> {
+    let mut groups = Vec::new();
+    if !config.validate.require_non_orphaned_items {
+        groups.push(DisabledRuleGroup {
+            config_key: "validate.require_non_orphaned_items",
+            codes: ORPHAN_RULE_CODES,
+        });
+    }
+    if !config.validate.require_reciprocal_links {
+        groups.push(DisabledRuleGroup {
+            config_key: "validate.require_reciprocal_links",
+            codes: RECIPROCAL_RULE_CODES,
+        });
+    }
+    if !config.validate.require_symbol_trace_coverage {
+        groups.push(DisabledRuleGroup {
+            config_key: "validate.require_symbol_trace_coverage",
+            codes: COVERAGE_RULE_CODES,
+        });
+    }
+    groups
+}
+
+fn disabled_rule_codes_for(config_key: &str) -> &'static [&'static str] {
+    match config_key {
+        "validate.require_non_orphaned_items" => ORPHAN_RULE_CODES,
+        "validate.require_reciprocal_links" => RECIPROCAL_RULE_CODES,
+        "validate.require_symbol_trace_coverage" => COVERAGE_RULE_CODES,
+        _ => &[],
+    }
+}
+
+fn workspace_item_count(definition_counts: &DefinitionCounts) -> usize {
+    definition_counts.philosophies
+        + definition_counts.policies
+        + definition_counts.requirements
+        + definition_counts.features
+}
+
 // FEAT-CHECK-001
 pub fn run_check_command(args: &CheckArgs) -> Result<i32> {
-    let (result, fix_summary) = match load_workspace(&args.workspace) {
+    let (result, fix_summary, text_summary) = match load_workspace(&args.workspace) {
         Ok(workspace) => {
             let should_fix = effective_fix(args, &workspace.config);
             let fix_summary = if should_fix {
@@ -192,10 +309,13 @@ pub fn run_check_command(args: &CheckArgs) -> Result<i32> {
             } else {
                 collect_check_result_from_workspace(&workspace)
             };
-            (result, fix_summary)
+            let text_summary =
+                TextReportSummary::from_config(&workspace.config, &result.definition_counts);
+            (result, fix_summary, Some(text_summary))
         }
         Err(error) => (
             CheckResult::from_load_error(args.workspace.to_path_buf(), error.to_string()),
+            None,
             None,
         ),
     };
@@ -216,7 +336,13 @@ pub fn run_check_command(args: &CheckArgs) -> Result<i32> {
             }
             print!(
                 "{}",
-                render_text_report(overall_success, &result, filtered_view.as_ref())
+                render_text_report(
+                    overall_success,
+                    &result,
+                    filtered_view.as_ref(),
+                    text_summary.as_ref(),
+                    args.quiet,
+                )
             );
         }
         OutputFormat::Json => {
@@ -547,6 +673,8 @@ fn render_text_report(
     overall_success: bool,
     result: &CheckResult,
     filtered_view: Option<&FilteredIssueView>,
+    text_summary: Option<&TextReportSummary>,
+    quiet: bool,
 ) -> String {
     let mut output = String::new();
     let status = if overall_success { "passed" } else { "failed" };
@@ -573,9 +701,42 @@ fn render_text_report(
         result.definition_counts.features
     )
     .expect("writing to String must succeed");
+    if let Some(summary) = text_summary {
+        writeln!(
+            &mut output,
+            "checks: {} built-in rules across {} workspace items ({})",
+            summary.checked_rule_count,
+            summary.workspace_item_count,
+            summary.checked_genres.join(", ")
+        )
+        .expect("writing to String must succeed");
+        if !summary.disabled_checks.is_empty() {
+            let disabled_rule_count: usize = summary
+                .disabled_checks
+                .iter()
+                .map(|notice| notice.rule_count)
+                .sum();
+            let noun = if disabled_rule_count == 1 {
+                "rule is"
+            } else {
+                "rules are"
+            };
+            let details = summary
+                .disabled_checks
+                .iter()
+                .map(DisabledRuleNotice::describe)
+                .collect::<Vec<_>>()
+                .join(", ");
+            writeln!(
+                &mut output,
+                "note: {disabled_rule_count} built-in {noun} disabled by current config ({details})"
+            )
+            .expect("writing to String must succeed");
+        }
+    }
     writeln!(
         &mut output,
-        "traceability: requirements={}/{} features={}/{}",
+        "traceability: requirements={}/{} traces validated; features={}/{} traces validated",
         result.trace_summary.requirement_traces.validated,
         result.trace_summary.requirement_traces.declared,
         result.trace_summary.feature_traces.validated,
@@ -663,7 +824,7 @@ fn render_text_report(
         }
     }
 
-    if overall_success && result.issues.is_empty() {
+    if overall_success && result.issues.is_empty() && !quiet {
         writeln!(&mut output).expect("writing to String must succeed");
         writeln!(&mut output, "What to do next:").expect("writing to String must succeed");
         writeln!(
@@ -2000,6 +2161,7 @@ mod tests {
             rule: Vec::new(),
             fix: false,
             no_fix: false,
+            quiet: false,
         })
         .expect("command should render load errors");
 
@@ -2060,6 +2222,7 @@ mod tests {
             rule: Vec::new(),
             fix: true,
             no_fix: false,
+            quiet: false,
         })
         .expect_err("autofix failures should bubble up");
 
@@ -2076,7 +2239,7 @@ mod tests {
             referenced_rules: Vec::new(),
         };
 
-        let report = render_text_report(true, &result, None);
+        let report = render_text_report(true, &result, None, None, false);
         assert!(report.contains("syu validate passed"));
         assert!(report.contains("issues:"));
         assert!(report.contains("[Warning] warn subject: message"));
@@ -2131,7 +2294,7 @@ mod tests {
             hidden_issue_count: 2,
         };
 
-        let report = render_text_report(false, &result, Some(&filtered_view));
+        let report = render_text_report(false, &result, Some(&filtered_view), None, false);
 
         assert!(report.contains("syu validate failed (filtered view)"));
         assert!(report.contains("filters: severity=warning"));
