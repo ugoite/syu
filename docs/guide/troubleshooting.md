@@ -1,9 +1,10 @@
 # Troubleshooting `syu validate` errors
 
 When you run `syu validate .` for the first time on a project you will likely
-encounter a handful of error codes. This guide explains each code in plain
-English, shows a minimal example that triggers it, and walks you through the
-fix — including when `syu validate . --fix` is safe to use.
+encounter a handful of recurring error codes. This guide explains the most
+common ones in plain English, shows a minimal example that triggers each
+problem, and walks you through the fix — including when
+`syu validate . --fix` is safe to use.
 
 ---
 
@@ -35,23 +36,26 @@ or one of your YAML spec files.
 
 **Typical causes:**
 - Malformed YAML (missing quotes, bad indentation, tab characters)
-- `syu.yaml` missing or pointing to a non-existent `docs:` directory
+- `syu.yaml` missing or pointing to a non-existent `spec.root` directory
 - File permissions that prevent reading
 
 **Fix:**
 
-1. Run `syu validate . 2>&1 | grep -i "error\|parse"` to see the raw parse
+1. Run `syu validate . 2>&1 | grep -Ei "error|parse"` to see the raw parse
    error.
 2. Open the reported file and check the YAML syntax (use a YAML linter or
    `python3 -c "import yaml; yaml.safe_load(open('file.yaml'))"`).
-3. Verify `syu.yaml` has a valid `docs:` path pointing to an existing directory.
+3. Verify `syu.yaml` has a valid `spec.root` path pointing to an existing
+   directory.
 
 ---
 
 ### `SYU-workspace-blank-001` — required fields are empty
 
-**What it means:** A spec entry has an empty `id`, `title`, `description`, or
-`status`.
+**What it means:** A spec entry has a required field that is present but blank.
+Depending on the layer, that can include fields such as `id`, `title`,
+`status`, `description`, `priority`, `summary`, `product_design_principle`, or
+`coding_guideline`.
 
 **Example (triggers the error):**
 ```yaml
@@ -89,28 +93,28 @@ spec but has no links to any adjacent layer.
   title: Users must authenticate
   description: The system must verify identity before granting access.
   status: implemented
-  # ← missing: features field
+  # ← missing: linked_features field
 ```
 
-**Fix:** Add a `features:` list pointing to at least one feature that
-implements this requirement, *and* add a `requirements:` back-reference in
-that feature.
+**Fix:** Add a `linked_features:` list pointing to at least one feature that
+implements this requirement, *and* add a `linked_requirements:` back-reference
+in that feature.
 
 ```yaml
 # requirements/auth.yaml
-  features:
+  linked_features:
     - FEAT-AUTH-001
 
 # features/auth.yaml
 - id: FEAT-AUTH-001
   ...
-  requirements:
+  linked_requirements:
     - REQ-AUTH-001
 ```
 
 > **Config escape hatch:** If isolated nodes are intentional (e.g. early
-> planning), set `validate.require_links: false` in `syu.yaml` to downgrade
-> this to a warning.
+> planning), set `validate.require_non_orphaned_items: false` in `syu.yaml`
+> to disable this check.
 
 ---
 
@@ -121,11 +125,11 @@ that feature.
 **Example (triggers the error):**
 ```yaml
 # requirements/auth.yaml — REQ-AUTH-001 lists FEAT-AUTH-001
-features:
+linked_features:
   - FEAT-AUTH-001
 
 # features/auth.yaml — FEAT-AUTH-001 does NOT list REQ-AUTH-001
-requirements: []   # ← missing back-reference
+linked_requirements: []   # ← missing back-reference
 ```
 
 **Fix:** Add the reverse reference to the other layer's YAML file.
@@ -137,8 +141,9 @@ requirements: []   # ← missing back-reference
 
 ### `SYU-graph-reference-001` — referenced ID does not exist
 
-**What it means:** An item's `features:`, `requirements:`, or `policies:` list
-contains an ID that is not declared anywhere in the spec.
+**What it means:** An item's `linked_philosophies`, `linked_policies`,
+`linked_requirements`, or `linked_features` list contains an ID that is not
+declared anywhere in the spec.
 
 **Typical causes:**
 - Typo in the ID (`FEAT-AUTH-01` instead of `FEAT-AUTH-001`)
@@ -153,9 +158,10 @@ contains an ID that is not declared anywhere in the spec.
 **What it means:** An item doesn't link to the adjacent layers it would
 logically influence or satisfy. This is a *warning*, not a hard error.
 
-**Fix:** Review whether the item should reference adjacent layers. If the
-orphan is intentional, it can be silenced by setting `validate.require_links:
-false`.
+**Fix:** Review whether the item should reference adjacent layers. If the gap
+is intentional, treat this warning as advisory. There is no per-rule config to
+disable only this warning; when you only want blockers, run
+`syu validate . --severity error`.
 
 ---
 
@@ -166,32 +172,34 @@ false`.
 **What it means:** An item with `status: planned` declares implementation or
 test traces. Planning and claiming delivery at the same time is contradictory.
 
-**Fix:** Either change the status to `implemented` / `tested` once the work is
-done, or remove the traces until the work is complete.
+**Fix:** Either change the status to `implemented` once the work is actually
+delivered, or remove the traces until the work is complete.
 
 ---
 
 ### `SYU-delivery-implemented-001` — implemented item has no traces
 
-**What it means:** An item with `status: implemented` does not declare any
-implementation traces.
+**What it means:** An item with `status: implemented` does not declare the
+evidence that proves delivery: `tests:` for requirements or
+`implementations:` for features.
 
 **Example (triggers the error):**
 ```yaml
 - id: FEAT-AUTH-001
   status: implemented
-  # ← no traces block
+  # ← no implementations block
 ```
 
-**Fix:** Add a `traces:` block pointing to the source file and symbol that
-implements the feature:
+**Fix:** Add a `tests:` block (for requirements) or an `implementations:` block
+(for features) pointing to the real file and symbol. For example, a feature
+can declare:
 
 ```yaml
-traces:
-  - lang: rust
-    file: src/auth.rs
-    symbols:
-      - authenticate_user
+implementations:
+  rust:
+    - file: src/auth.rs
+      symbols:
+        - authenticate_user
 ```
 
 ---
@@ -245,8 +253,9 @@ owning spec ID (e.g. `# FEAT-AUTH-001`).
 pub fn authenticate_user(...) { ... }
 ```
 
-> **Autofix available:** `syu validate . --fix` can insert the comment for
-> Rust, Python, and TypeScript files when the symbol already exists.
+> **Autofix available:** `syu validate . --fix` can insert the owning spec ID
+> comment and any missing `doc_contains` snippets using language-appropriate
+> comment or doc-comment syntax when the symbol already exists.
 
 ---
 
@@ -274,13 +283,17 @@ language.
 
 ### `SYU-coverage-public-001` — public symbol has no owning feature
 
-**What it means:** `validate.require_symbol_trace_coverage: true` is set and
-a public Rust API symbol (function, struct, etc.) is not referenced by any
+**What it means:** `validate.require_symbol_trace_coverage: true` is set and a
+public API symbol in Rust, Python, or TypeScript is not referenced by any
 feature trace.
 
-**Fix:** Either add a trace to a feature that covers the symbol, or reduce the
-symbol's visibility to `pub(crate)` / private if it is not part of the public
-API.
+**Fix:** Either add a trace to a feature that covers the symbol, or make the
+symbol non-public if it is not part of the intended API.
+
+- **Rust:** reduce visibility (for example, change `pub` to `pub(crate)` or
+  private).
+- **Python:** remove it from `__all__` or rename it to start with `_`.
+- **TypeScript:** stop exporting it from the module.
 
 ---
 
@@ -299,9 +312,9 @@ if it is obsolete.
 
 | What `--fix` does | Safe? |
 |---|---|
-| Inserts spec ID comments into source files (`// FEAT-xxx`) | ✅ Yes |
+| Inserts spec ID comments and required `doc_contains` snippets using language-appropriate comment or doc-comment syntax | ✅ Yes |
 | Rewrites or deletes symbols | ❌ No — `--fix` never does this |
-| Adds missing `features:` / `requirements:` links | ❌ No — only you know the correct links |
+| Adds missing `linked_*` graph links | ❌ No — only you know the correct links |
 | Creates new spec entries | ❌ No |
 
 Run `git diff` after `--fix` to review every change before committing.
@@ -313,8 +326,10 @@ Run `git diff` after `--fix` to review every change before committing.
 Passing `syu validate .` does not mean the spec perfectly reflects intent.
 Watch out for these false-confidence patterns:
 
-- **Over-broad wildcards:** A `file:`-only trace (no `symbols:`) counts as
-  evidence even if the file contains nothing related to the spec item.
+- **Over-broad wildcards:** An empty `symbols:` list does not validate
+  (`SYU-trace-symbol-001`). If you intentionally mean "this spec item owns the
+  whole file", use `symbols: ["*"]` — but remember that wildcard traces are
+  coarse and can hide missing symbol-level ownership.
 - **Copy-pasted spec IDs:** If a symbol carries `// FEAT-001` but logically
   belongs to `FEAT-002`, validation won't complain — only reviewers will.
 - **`status: implemented` without real evidence:** Adding `status: implemented`
