@@ -32,6 +32,8 @@ const SECTION_COPY: Record<SectionKind, string> = {
   requirements: "Specific obligations with traceable ownership.",
 };
 
+const ONBOARDING_STORAGE_KEY = "syu-onboarding-dismissed";
+
 function App() {
   const [workspace, setWorkspace] = useState<BrowserWorkspace | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +43,9 @@ function App() {
   const [selectedItemId, setSelectedItemId] = useState("");
   const [selectedIssueCode, setSelectedIssueCode] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [focusedResultIndex, setFocusedResultIndex] = useState(-1);
+  const [showOnboarding, setShowOnboarding] = useState(() => shouldShowOnboarding());
+  const [navigationHistory, setNavigationHistory] = useState<string[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,13 +70,35 @@ function App() {
         }
 
         setWorkspace(browserWorkspace);
-        const nextSection = firstPopulatedSection(browserWorkspace) ?? "philosophy";
-        setSelectedSection(nextSection);
-        const firstDocument = browserWorkspace.sections.find(
-          (section) => section.kind === nextSection,
-        )?.documents[0];
-        setSelectedDocumentPath(firstDocument?.path ?? "");
-        setSelectedItemId(firstDocument?.items[0]?.id ?? "");
+
+        const hash = window.location.hash.replace(/^#\/?/, "");
+        const hashParts = hash.split("/");
+        const hashSection = hashParts[0] ?? "";
+        const hashItemId = hashParts[1] ?? "";
+        const hashTarget =
+          hashItemId && isSectionKind(hashSection)
+            ? browserWorkspace.item_index.get(hashItemId)
+            : null;
+
+        if (hashTarget && hashItemId) {
+          setSelectedSection(hashTarget.kind);
+          setSelectedDocumentPath(hashTarget.document_path);
+          setSelectedItemId(hashItemId);
+        } else if (isSectionKind(hashSection)) {
+          const section = browserWorkspace.sections.find((s) => s.kind === hashSection);
+          setSelectedSection(hashSection);
+          setSelectedDocumentPath(section?.documents[0]?.path ?? "");
+          setSelectedItemId(section?.documents[0]?.items[0]?.id ?? "");
+        } else {
+          const nextSection = firstPopulatedSection(browserWorkspace) ?? "philosophy";
+          setSelectedSection(nextSection);
+          const firstDocument = browserWorkspace.sections.find(
+            (section) => section.kind === nextSection,
+          )?.documents[0];
+          setSelectedDocumentPath(firstDocument?.path ?? "");
+          setSelectedItemId(firstDocument?.items[0]?.id ?? "");
+        }
+
         setSelectedIssueCode(browserWorkspace.validation.issues[0]?.code ?? null);
       } catch (loadError) {
         if (!cancelled) {
@@ -90,6 +117,10 @@ function App() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    setFocusedResultIndex(-1);
+  }, [workspace, searchQuery]);
 
   const sectionSummaries = useMemo(() => {
     if (!workspace) {
@@ -227,6 +258,19 @@ function App() {
     return results.slice(0, 20);
   }, [workspace, searchQuery]);
 
+  useEffect(() => {
+    if (loading || !workspace) {
+      return;
+    }
+
+    const target = selectedItemId ? workspace.item_index.get(selectedItemId) : null;
+    const nextHash = target ? `#${target.kind}/${target.id}` : `#${selectedSection}`;
+
+    if (window.location.hash !== nextHash) {
+      history.replaceState(null, "", nextHash);
+    }
+  }, [loading, selectedItemId, selectedSection, workspace]);
+
   const sectionIssueSummaries = useMemo(() => {
     const result = new Map<SectionKind, { count: number; hasError: boolean }>();
     for (const kind of SECTION_ORDER) {
@@ -293,6 +337,17 @@ function App() {
     setSelectedItemId(section?.documents[0]?.items[0]?.id ?? "");
   };
 
+  const resetNavigation = () => {
+    if (!workspace) {
+      return;
+    }
+
+    setSearchQuery("");
+    setNavigationHistory([]);
+    const nextSection = firstPopulatedSection(workspace) ?? "philosophy";
+    selectSection(nextSection);
+  };
+
   const selectDocument = (document: BrowserDocument) => {
     setSelectedDocumentPath(document.path);
     setSelectedItemId(document.items[0]?.id ?? "");
@@ -308,9 +363,33 @@ function App() {
       return;
     }
 
+    if (selectedItemId && selectedItemId !== id) {
+      setNavigationHistory((prev) => [...prev.slice(-4), selectedItemId]);
+    }
+
     setSelectedSection(target.kind);
     setSelectedDocumentPath(target.document_path);
     setSelectedItemId(id);
+  };
+
+  const dismissOnboarding = () => {
+    setShowOnboarding(false);
+    persistOnboardingDismissal();
+  };
+
+  const goBack = () => {
+    const prevId = navigationHistory[navigationHistory.length - 1];
+    if (!prevId || !workspace) {
+      return;
+    }
+    const target = workspace.item_index.get(prevId);
+    if (!target) {
+      return;
+    }
+    setNavigationHistory((h) => h.slice(0, -1));
+    setSelectedSection(target.kind);
+    setSelectedDocumentPath(target.document_path);
+    setSelectedItemId(prevId);
   };
 
   const handleSearchSelect = (id: string) => {
@@ -347,9 +426,21 @@ function App() {
   return (
     <div className="app-shell text-slate-100">
       <header className="sticky top-0 z-20 border-b border-white/10 bg-slate-950/90 backdrop-blur-2xl">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-          <h1 className="text-2xl font-semibold tracking-tight text-white">syu</h1>
-          <nav aria-label="Top level sections" className="flex flex-wrap gap-2">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 md:flex-row md:items-center md:justify-between md:px-8">
+          <h1 className="text-2xl font-semibold tracking-tight text-white">
+            <button
+              type="button"
+              onClick={resetNavigation}
+              className="transition hover:text-sky-300"
+              aria-label="syu — go to first item"
+            >
+              syu
+            </button>
+          </h1>
+          <nav
+            aria-label="Top level sections"
+            className="flex gap-2 overflow-x-auto whitespace-nowrap pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
             {SECTION_ORDER.map((section) => {
               const isActive = section === selectedSection;
               const issueSummary = sectionIssueSummaries.get(section);
@@ -386,12 +477,34 @@ function App() {
         </div>
       </header>
 
-      <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[20rem_minmax(0,1fr)] lg:px-8">
+      <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 md:grid-cols-[18rem_minmax(0,1fr)] md:px-8">
+        {showOnboarding && (
+          <div className="md:col-span-2 flex items-start justify-between gap-4 rounded-3xl border border-sky-400/30 bg-sky-400/10 px-5 py-4 text-sm leading-7 text-sky-100 shadow-2xl shadow-sky-950/15">
+            <p>
+              <span className="font-semibold">Welcome to syu.</span> Browse your specification
+              across four layers:{" "}
+              <span className="text-sky-300">Philosophy → Policies → Requirements → Features</span>.
+              Click any item to explore its traces and validation status.
+            </p>
+            <button
+              type="button"
+              onClick={dismissOnboarding}
+              aria-label="Dismiss welcome banner"
+              className="shrink-0 rounded-full border border-sky-400/30 bg-sky-400/10 px-2 py-1 text-sky-300 transition hover:bg-sky-400/20"
+            >
+              ×
+            </button>
+          </div>
+        )}
         <aside className="space-y-5">
           <section className="app-glass rounded-3xl border border-white/10 p-5 shadow-2xl shadow-sky-950/15">
             <p className="text-xs uppercase tracking-[0.3em] text-slate-500">workspace</p>
-            <p className="mt-3 break-all text-sm font-medium text-slate-100">
-              {workspace.workspace_root}
+            <p
+              className="mt-3 truncate text-sm font-medium text-slate-100"
+              title={workspace.workspace_root}
+              aria-label={workspace.workspace_root}
+            >
+              {truncatePath(workspace.workspace_root)}
             </p>
             <p className="mt-2 break-all text-sm text-slate-400">
               spec root: {workspace.spec_root}
@@ -444,20 +557,53 @@ function App() {
                 placeholder="Search items by ID or keyword…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "ArrowDown") {
+                    if (searchResults.length === 0) {
+                      return;
+                    }
+                    e.preventDefault();
+                    setFocusedResultIndex((prev) => Math.min(prev + 1, searchResults.length - 1));
+                  } else if (e.key === "ArrowUp") {
+                    if (searchResults.length === 0) {
+                      return;
+                    }
+                    e.preventDefault();
+                    setFocusedResultIndex((prev) => Math.max(prev - 1, -1));
+                  } else if (e.key === "Enter") {
+                    const focusedResult =
+                      focusedResultIndex >= 0 && focusedResultIndex < searchResults.length
+                        ? searchResults[focusedResultIndex]
+                        : null;
+
+                    if (focusedResult) {
+                      handleSearchSelect(focusedResult.id);
+                    } else if (searchResults.length === 1) {
+                      handleSearchSelect(searchResults[0].id);
+                    }
+                  } else if (e.key === "Escape") {
+                    setSearchQuery("");
+                    setFocusedResultIndex(-1);
+                  }
+                }}
                 className="w-full rounded-2xl border border-white/10 bg-slate-900/60 py-2 pl-9 pr-4 text-sm text-slate-100 placeholder-slate-500 focus:border-sky-400/60 focus:outline-none focus:ring-1 focus:ring-sky-400/40"
               />
             </div>
             {searchQuery.trim().length > 0 && (
-              <div className="mt-3 space-y-1">
+              <div id="search-results-list" className="mt-3 space-y-1">
                 {searchResults.length === 0 ? (
                   <p className="px-2 py-2 text-xs text-slate-500">No items match.</p>
                 ) : (
-                  searchResults.map((result) => (
+                  searchResults.map((result, index) => (
                     <button
                       key={result.id}
                       type="button"
                       onClick={() => handleSearchSelect(result.id)}
-                      className="flex w-full items-start gap-2 rounded-xl border border-white/5 bg-white/5 px-3 py-2 text-left transition hover:border-sky-400/40 hover:bg-sky-400/10"
+                      className={`flex w-full items-start gap-2 rounded-xl border px-3 py-2 text-left transition hover:border-sky-400/40 hover:bg-sky-400/10 ${
+                        index === focusedResultIndex
+                          ? "border-sky-400/60 bg-white/5 ring-2 ring-sky-400"
+                          : "border-white/5 bg-white/5"
+                      }`}
                     >
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-xs font-semibold text-sky-300">
@@ -603,6 +749,15 @@ function App() {
             <div className="flex flex-col gap-4 border-b border-white/10 pb-5 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <p className="text-xs uppercase tracking-[0.3em] text-slate-500">detail</p>
+                {navigationHistory.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={goBack}
+                    className="mt-2 inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300 transition hover:border-sky-400/40 hover:text-sky-200"
+                  >
+                    ← Back
+                  </button>
+                )}
                 <h2 className="mt-2 text-2xl font-semibold text-white">
                   {currentItem
                     ? `${currentItem.id} — ${currentItem.title}`
@@ -635,25 +790,31 @@ function App() {
             ) : null}
 
             {currentDocument && currentDocument.items.length > 1 ? (
-              <div className="mt-5 flex flex-wrap gap-2">
-                {currentDocument.items.map((item) => {
-                  const isActive = item.id === currentItem?.id;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => setSelectedItemId(item.id)}
-                      className={`rounded-full border px-3 py-2 text-sm transition ${
-                        isActive
-                          ? "border-sky-400 bg-sky-400/15 text-sky-100"
-                          : "border-white/10 bg-white/5 text-slate-300 hover:border-sky-400/40 hover:text-white"
-                      }`}
-                    >
-                      {item.id}
-                    </button>
-                  );
-                })}
-              </div>
+              <>
+                <p className="mt-5 text-xs uppercase tracking-[0.25em] text-slate-500">
+                  Items in this document
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {currentDocument.items.map((item) => {
+                    const isActive = item.id === currentItem?.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        title={item.title}
+                        onClick={() => jumpToItem(item.id)}
+                        className={`rounded-full border px-3 py-2 text-sm transition ${
+                          isActive
+                            ? "border-sky-400 bg-sky-400/15 text-sky-100"
+                            : "border-white/10 bg-white/5 text-slate-300 hover:border-sky-400/40 hover:text-white"
+                        }`}
+                      >
+                        {item.id}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
             ) : null}
 
             {currentItem ? (
@@ -783,11 +944,73 @@ function firstPopulatedSection(workspace: BrowserWorkspace): SectionKind | null 
   return workspace.sections.find((section) => section.documents.length > 0)?.kind ?? null;
 }
 
+function isSectionKind(value: string): value is SectionKind {
+  return SECTION_ORDER.some((section) => section === value);
+}
+
+function truncatePath(fullPath: string): string {
+  const parts = fullPath.replace(/\\/g, "/").split("/").filter(Boolean);
+  if (parts.length <= 2) return fullPath;
+  return `…/${parts.slice(-2).join("/")}`;
+}
+
 function ratio(validated: number, declared: number): number {
   if (declared === 0) {
     return 0;
   }
   return Math.max(0, Math.min(1, validated / declared));
+}
+
+function shouldShowOnboarding(): boolean {
+  if (typeof window === "undefined") {
+    return true;
+  }
+
+  try {
+    return window.sessionStorage.getItem(ONBOARDING_STORAGE_KEY) !== "true";
+  } catch (error) {
+    console.warn("syu app could not read onboarding dismissal state from sessionStorage.", error);
+    return true;
+  }
+}
+
+function persistOnboardingDismissal() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.sessionStorage.setItem(ONBOARDING_STORAGE_KEY, "true");
+  } catch (error) {
+    console.warn("syu app could not persist onboarding dismissal in sessionStorage.", error);
+  }
+}
+
+function formatTraceSymbols(symbols: string[]): string {
+  const normalized = symbols.map((symbol) => symbol.trim()).filter((symbol) => symbol.length > 0);
+
+  if (normalized.length === 0) {
+    return "none listed";
+  }
+
+  if (normalized.some((symbol) => symbol === "*")) {
+    return "any symbol (wildcard)";
+  }
+
+  return normalized.join(", ");
+}
+
+function InfoHint({ label, description }: { label: string; description: string }) {
+  return (
+    <button
+      type="button"
+      aria-label={`${label}: ${description}`}
+      title={description}
+      className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/10 bg-white/5 align-middle text-[10px] normal-case leading-none tracking-normal text-slate-400 transition hover:border-sky-400/40 hover:text-sky-200 focus:outline-none focus-visible:border-sky-400/60 focus-visible:ring-2 focus-visible:ring-sky-400/30"
+    >
+      ⓘ
+    </button>
+  );
 }
 
 function LayerNavigationCard({
@@ -827,7 +1050,15 @@ function LayerNavigationCard({
         <span>{summary.itemCount} items</span>
         <span>{summary.documentCount === 1 ? "single document" : "grouped navigation"}</span>
       </div>
-      <div className="mt-3 h-2 rounded-full bg-white/5">
+      <div
+        className="mt-3 h-2 rounded-full bg-white/5"
+        role="progressbar"
+        aria-label={`${summary.label} item count`}
+        aria-valuenow={summary.itemCount}
+        aria-valuemin={0}
+        aria-valuemax={maxItems}
+        aria-valuetext={`${summary.itemCount} of ${maxItems} items`}
+      >
         <div
           className={`h-full rounded-full ${active ? "bg-sky-300" : "bg-slate-400/70"}`}
           style={{ width: `${barWidth}%` }}
@@ -991,15 +1222,27 @@ function TracePanel({ label, groups }: { label: string; groups: BrowserTraceGrou
                   className="rounded-2xl border border-white/10 bg-slate-950/70 p-3"
                 >
                   <p className="text-sm font-medium text-slate-100">{reference.file}</p>
-                  <p className="mt-2 text-xs uppercase tracking-[0.2em] text-slate-500">symbols</p>
+                  <p className="mt-2 text-xs uppercase tracking-[0.2em] text-slate-500">
+                    symbols{" "}
+                    <InfoHint
+                      label="Symbols"
+                      description="The function, struct, method, or constant names that this trace points to. Use * to match the whole file."
+                    />
+                  </p>
                   <p className="mt-1 text-sm text-slate-300">
-                    {reference.symbols.length > 0 ? reference.symbols.join(", ") : "—"}
+                    {formatTraceSymbols(reference.symbols)}
                   </p>
                   <p className="mt-3 text-xs uppercase tracking-[0.2em] text-slate-500">
-                    doc contains
+                    doc contains{" "}
+                    <InfoHint
+                      label="Doc contains"
+                      description="A string that must appear in the symbol's documentation comment. 'not declared' means no assertion is declared."
+                    />
                   </p>
                   <p className="mt-1 text-sm text-slate-300">
-                    {reference.doc_contains.length > 0 ? reference.doc_contains.join(", ") : "—"}
+                    {reference.doc_contains.length > 0
+                      ? reference.doc_contains.join(", ")
+                      : "not declared"}
                   </p>
                 </div>
               ))}

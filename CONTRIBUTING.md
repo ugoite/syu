@@ -47,8 +47,9 @@ scripts/install-precommit.sh
 ## Dependency security
 
 Dependency advisories are checked automatically on a weekly schedule (every Monday
-at 06:00 UTC) via the CI workflow. The `dependency-audit` job runs `cargo audit`
-and the `npm-audit` job runs `npm audit` against both `app/` and `website/`.
+at 06:00 UTC) via the CI workflow. The scheduled run only executes the
+`dependency-audit` job (`cargo audit`) and the `npm-audit` job (`npm audit`
+against both `app/` and `website/`), so the rest of CI is not rerun weekly.
 Contributors do **not** need to run manual audits — failed scheduled runs are
 reported via the default GitHub Actions failure notification for maintainers.
 
@@ -89,3 +90,17 @@ Commit messages that appear in the changelog follow the
 
 Write the subject line in the imperative mood (e.g. `feat: add syu list command`)
 so the generated changelog reads naturally.
+
+### Migration notes
+
+Every PR that introduces a **breaking change** must add a corresponding entry to
+`docs/guide/migration.md` before the PR is merged. A breaking change is any of:
+
+- A `syu.yaml` field added, removed, or with a changed default
+- A spec YAML schema change that requires user edits to existing `docs/syu/` files
+- A new default-on validation rule (one that was previously off or did not exist)
+- A CLI flag that is renamed, removed, or has a changed default
+
+The migration entry must include the target version, a table of old → new
+values, and the exact steps needed to upgrade an existing repository without
+breakage. See `docs/guide/migration.md` for the expected format.

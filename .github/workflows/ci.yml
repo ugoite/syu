@@ -15,14 +15,15 @@ on:
     - cron: "0 6 * * 1" # Every Monday 06:00 UTC — weekly dependency drift detection
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.event_name != 'schedule' }}
+  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
   precommit:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -54,6 +55,7 @@ jobs:
         run: pre-commit run --all-files --hook-stage pre-push
 
   quality:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -67,6 +69,7 @@ jobs:
         run: scripts/ci/quality-gates.sh
 
   coverage:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -89,6 +92,7 @@ jobs:
           path: target/coverage/lcov.info
 
   actionlint:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -170,6 +174,7 @@ jobs:
         uses: actions/dependency-review-action@v4
 
   installer-smoke:
+    if: github.event_name != 'schedule'
     strategy:
       fail-fast: false
       matrix:
@@ -194,6 +199,7 @@ jobs:
         run: scripts/ci/installer-smoke.sh
 
   docs-site:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -201,6 +207,7 @@ jobs:
         uses: ./.github/actions/build-docs-site
 
   browser-app:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -245,6 +252,7 @@ jobs:
 
   check-msrv:
     name: MSRV check (1.88)
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6

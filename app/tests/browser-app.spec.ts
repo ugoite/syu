@@ -8,18 +8,26 @@ test("renders top tabs and linked spec content", async ({ page }) => {
 
   const topLevelSections = page.getByRole("navigation", { name: "Top level sections" });
 
-  await expect(page.getByRole("heading", { name: "syu" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^syu/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^syu\b/i })).toBeVisible();
   await expect(topLevelSections.getByRole("button", { name: /^philosophy\b/i })).toBeVisible();
   await expect(topLevelSections.getByRole("button", { name: /^policies\b/i })).toBeVisible();
   await expect(topLevelSections.getByRole("button", { name: /^features\b/i })).toBeVisible();
   await expect(topLevelSections.getByRole("button", { name: /^requirements\b/i })).toBeVisible();
-  await expect(page.getByText("What this app is showing")).toHaveCount(0);
+  await expect(page.getByText("Welcome to syu.")).toBeVisible();
+
+  await page.getByRole("button", { name: "Dismiss welcome banner" }).click();
+  await expect(page.getByText("Welcome to syu.")).toHaveCount(0);
+
+  await page.reload();
+  await expect(page.getByText("Welcome to syu.")).toHaveCount(0);
 
   await topLevelSections.getByRole("button", { name: /^features\b/i }).click();
   await page.getByRole("button", { name: /check\.yaml/i }).click();
   await expect(
     page.getByRole("heading", { name: /FEAT-CHECK-001 .* Unified validation command/i }),
   ).toBeVisible();
+  await expect(page).toHaveURL(/#features\/FEAT-CHECK-001$/);
   await expect(page.getByText("SYU-workspace-load-001").first()).toBeVisible();
 
   await page.getByRole("button", { name: "REQ-CORE-001" }).click();
@@ -27,5 +35,45 @@ test("renders top tabs and linked spec content", async ({ page }) => {
     page.getByRole("heading", {
       name: /REQ-CORE-001 .* Validate the linked specification graph with rule-backed diagnostics/i,
     }),
+  ).toBeVisible();
+  await expect(page).toHaveURL(/#requirements\/REQ-CORE-001$/);
+  await expect(page.getByRole("button", { name: "← Back" })).toBeVisible();
+
+  await page.getByRole("button", { name: "← Back" }).click();
+  await expect(
+    page.getByRole("heading", { name: /FEAT-CHECK-001 .* Unified validation command/i }),
+  ).toBeVisible();
+  await expect(page).toHaveURL(/#features\/FEAT-CHECK-001$/);
+});
+
+test("loads deep links and supports keyboard search navigation", async ({ page }) => {
+  await page.goto("/#/requirements/REQ-CORE-001");
+
+  await expect(
+    page.getByRole("heading", {
+      name: /REQ-CORE-001 .* Validate the linked specification graph with rule-backed diagnostics/i,
+    }),
+  ).toBeVisible();
+  await expect(page).toHaveURL(/#requirements\/REQ-CORE-001$/);
+
+  const searchInput = page.getByRole("searchbox", { name: "Search spec items" });
+  await searchInput.fill("FEAT-CHECK-001");
+  await searchInput.press("ArrowDown");
+  await searchInput.press("ArrowUp");
+  await searchInput.press("ArrowDown");
+  await searchInput.press("Enter");
+
+  await expect(
+    page.getByRole("heading", { name: /FEAT-CHECK-001 .* Unified validation command/i }),
+  ).toBeVisible();
+  await expect(page).toHaveURL(/#features\/FEAT-CHECK-001$/);
+
+  await searchInput.fill("no-such-result");
+  await searchInput.press("ArrowUp");
+  await searchInput.press("Enter");
+
+  await expect(page.getByText("No items match.")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /FEAT-CHECK-001 .* Unified validation command/i }),
   ).toBeVisible();
 });

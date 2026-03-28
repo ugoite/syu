@@ -138,6 +138,9 @@ syu validate . --no-fix
 Use `--severity`, `--genre`, and `--rule` to narrow the rendered issue list
 without changing the underlying validation result or exit code.
 
+For a plain-English guide to common validation errors, see the
+[troubleshooting guide](docs/guide/troubleshooting.md).
+
 ### `syu browse`
 
 Browse philosophies, policies, features, requirements, and current validation
@@ -424,5 +427,9 @@ releases compare against the previous stable tag.
 
 Release binaries are packaged with `scripts/ci/package-release.sh`, published to
 GitHub Packages / GHCR, and uploaded as GitHub release assets.
+
+When upgrading between alpha releases, consult the
+[migration guide](docs/guide/migration.md) for breaking config changes, renamed
+CLI flags, and new default-on validation rules.
 
 See `docs/syu/` for `syu`'s own self-hosted specification.
