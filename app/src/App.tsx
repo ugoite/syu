@@ -41,6 +41,7 @@ function App() {
   const [selectedItemId, setSelectedItemId] = useState("");
   const [selectedIssueCode, setSelectedIssueCode] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [focusedResultIndex, setFocusedResultIndex] = useState(-1);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,13 +66,37 @@ function App() {
         }
 
         setWorkspace(browserWorkspace);
-        const nextSection = firstPopulatedSection(browserWorkspace) ?? "philosophy";
-        setSelectedSection(nextSection);
-        const firstDocument = browserWorkspace.sections.find(
-          (section) => section.kind === nextSection,
-        )?.documents[0];
-        setSelectedDocumentPath(firstDocument?.path ?? "");
-        setSelectedItemId(firstDocument?.items[0]?.id ?? "");
+
+        const hash = window.location.hash.slice(1);
+        const hashParts = hash.split("/");
+        const hashSection = hashParts[0] as SectionKind | "";
+        const hashItemId = hashParts[1] ?? "";
+
+        const knownSections: SectionKind[] = ["philosophy", "policies", "features", "requirements"];
+        const hashTarget =
+          hashItemId && knownSections.includes(hashSection as SectionKind)
+            ? browserWorkspace.item_index.get(hashItemId)
+            : null;
+
+        if (hashTarget && hashItemId) {
+          setSelectedSection(hashTarget.kind);
+          setSelectedDocumentPath(hashTarget.document_path);
+          setSelectedItemId(hashItemId);
+        } else if (hashSection && knownSections.includes(hashSection as SectionKind)) {
+          const section = browserWorkspace.sections.find((s) => s.kind === hashSection);
+          setSelectedSection(hashSection as SectionKind);
+          setSelectedDocumentPath(section?.documents[0]?.path ?? "");
+          setSelectedItemId(section?.documents[0]?.items[0]?.id ?? "");
+        } else {
+          const nextSection = firstPopulatedSection(browserWorkspace) ?? "philosophy";
+          setSelectedSection(nextSection);
+          const firstDocument = browserWorkspace.sections.find(
+            (section) => section.kind === nextSection,
+          )?.documents[0];
+          setSelectedDocumentPath(firstDocument?.path ?? "");
+          setSelectedItemId(firstDocument?.items[0]?.id ?? "");
+        }
+
         setSelectedIssueCode(browserWorkspace.validation.issues[0]?.code ?? null);
       } catch (loadError) {
         if (!cancelled) {
@@ -205,6 +230,7 @@ function App() {
   }, [sectionSummaries]);
 
   const searchResults = useMemo(() => {
+    setFocusedResultIndex(-1);
     const trimmed = searchQuery.trim().toLowerCase();
     if (!workspace || trimmed.length === 0) {
       return [];
@@ -291,6 +317,7 @@ function App() {
     setSelectedSection(nextSection);
     setSelectedDocumentPath(section?.documents[0]?.path ?? "");
     setSelectedItemId(section?.documents[0]?.items[0]?.id ?? "");
+    history.replaceState(null, "", "#" + nextSection);
   };
 
   const selectDocument = (document: BrowserDocument) => {
@@ -311,6 +338,7 @@ function App() {
     setSelectedSection(target.kind);
     setSelectedDocumentPath(target.document_path);
     setSelectedItemId(id);
+    history.replaceState(null, "", "#" + target.kind + "/" + id);
   };
 
   const handleSearchSelect = (id: string) => {
@@ -441,23 +469,48 @@ function App() {
               <input
                 id="spec-search"
                 type="search"
+                role="combobox"
+                aria-expanded={searchQuery.trim().length > 0}
+                aria-controls="search-results-list"
                 placeholder="Search items by ID or keyword…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    setFocusedResultIndex((prev) => Math.min(prev + 1, searchResults.length - 1));
+                  } else if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    setFocusedResultIndex((prev) => Math.max(prev - 1, 0));
+                  } else if (e.key === "Enter") {
+                    if (focusedResultIndex >= 0) {
+                      handleSearchSelect(searchResults[focusedResultIndex].id);
+                    } else if (searchResults.length === 1) {
+                      handleSearchSelect(searchResults[0].id);
+                    }
+                  } else if (e.key === "Escape") {
+                    setSearchQuery("");
+                    setFocusedResultIndex(-1);
+                  }
+                }}
                 className="w-full rounded-2xl border border-white/10 bg-slate-900/60 py-2 pl-9 pr-4 text-sm text-slate-100 placeholder-slate-500 focus:border-sky-400/60 focus:outline-none focus:ring-1 focus:ring-sky-400/40"
               />
             </div>
             {searchQuery.trim().length > 0 && (
-              <div className="mt-3 space-y-1">
+              <div id="search-results-list" className="mt-3 space-y-1">
                 {searchResults.length === 0 ? (
                   <p className="px-2 py-2 text-xs text-slate-500">No items match.</p>
                 ) : (
-                  searchResults.map((result) => (
+                  searchResults.map((result, index) => (
                     <button
                       key={result.id}
                       type="button"
                       onClick={() => handleSearchSelect(result.id)}
-                      className="flex w-full items-start gap-2 rounded-xl border border-white/5 bg-white/5 px-3 py-2 text-left transition hover:border-sky-400/40 hover:bg-sky-400/10"
+                      className={`flex w-full items-start gap-2 rounded-xl border px-3 py-2 text-left transition hover:border-sky-400/40 hover:bg-sky-400/10 ${
+                        index === focusedResultIndex
+                          ? "border-sky-400/60 bg-white/5 ring-2 ring-sky-400"
+                          : "border-white/5 bg-white/5"
+                      }`}
                     >
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-xs font-semibold text-sky-300">
@@ -635,25 +688,29 @@ function App() {
             ) : null}
 
             {currentDocument && currentDocument.items.length > 1 ? (
-              <div className="mt-5 flex flex-wrap gap-2">
-                {currentDocument.items.map((item) => {
-                  const isActive = item.id === currentItem?.id;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => setSelectedItemId(item.id)}
-                      className={`rounded-full border px-3 py-2 text-sm transition ${
-                        isActive
-                          ? "border-sky-400 bg-sky-400/15 text-sky-100"
-                          : "border-white/10 bg-white/5 text-slate-300 hover:border-sky-400/40 hover:text-white"
-                      }`}
-                    >
-                      {item.id}
-                    </button>
-                  );
-                })}
-              </div>
+              <>
+                <p className="mt-5 text-xs uppercase tracking-[0.25em] text-slate-500">Items in this document</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {currentDocument.items.map((item) => {
+                    const isActive = item.id === currentItem?.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        title={item.title}
+                        onClick={() => setSelectedItemId(item.id)}
+                        className={`rounded-full border px-3 py-2 text-sm transition ${
+                          isActive
+                            ? "border-sky-400 bg-sky-400/15 text-sky-100"
+                            : "border-white/10 bg-white/5 text-slate-300 hover:border-sky-400/40 hover:text-white"
+                        }`}
+                      >
+                        {item.id}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
             ) : null}
 
             {currentItem ? (
