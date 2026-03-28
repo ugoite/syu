@@ -32,6 +32,8 @@ const SECTION_COPY: Record<SectionKind, string> = {
   requirements: "Specific obligations with traceable ownership.",
 };
 
+const ONBOARDING_STORAGE_KEY = "syu-onboarding-dismissed";
+
 function App() {
   const [workspace, setWorkspace] = useState<BrowserWorkspace | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -41,9 +43,7 @@ function App() {
   const [selectedItemId, setSelectedItemId] = useState("");
   const [selectedIssueCode, setSelectedIssueCode] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [showOnboarding, setShowOnboarding] = useState(
-    localStorage.getItem("syu-onboarding-dismissed") !== "true",
-  );
+  const [showOnboarding, setShowOnboarding] = useState(() => shouldShowOnboarding());
   const [navigationHistory, setNavigationHistory] = useState<string[]>([]);
 
   useEffect(() => {
@@ -323,7 +323,7 @@ function App() {
 
   const dismissOnboarding = () => {
     setShowOnboarding(false);
-    localStorage.setItem("syu-onboarding-dismissed", "true");
+    persistOnboardingDismissal();
   };
 
   const goBack = () => {
@@ -420,10 +420,8 @@ function App() {
             <p>
               <span className="font-semibold">Welcome to syu.</span> Browse your specification
               across four layers:{" "}
-              <span className="text-sky-300">
-                Philosophy → Policies → Requirements → Features
-              </span>
-              . Click any item to explore its traces and validation status.
+              <span className="text-sky-300">Philosophy → Policies → Requirements → Features</span>.
+              Click any item to explore its traces and validation status.
             </p>
             <button
               type="button"
@@ -847,6 +845,58 @@ function ratio(validated: number, declared: number): number {
   return Math.max(0, Math.min(1, validated / declared));
 }
 
+function shouldShowOnboarding(): boolean {
+  if (typeof window === "undefined") {
+    return true;
+  }
+
+  try {
+    return window.sessionStorage.getItem(ONBOARDING_STORAGE_KEY) !== "true";
+  } catch (error) {
+    console.warn("syu app could not read onboarding dismissal state from sessionStorage.", error);
+    return true;
+  }
+}
+
+function persistOnboardingDismissal() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.sessionStorage.setItem(ONBOARDING_STORAGE_KEY, "true");
+  } catch (error) {
+    console.warn("syu app could not persist onboarding dismissal in sessionStorage.", error);
+  }
+}
+
+function formatTraceSymbols(symbols: string[]): string {
+  const normalized = symbols.map((symbol) => symbol.trim()).filter((symbol) => symbol.length > 0);
+
+  if (normalized.length === 0) {
+    return "none listed";
+  }
+
+  if (normalized.some((symbol) => symbol === "*")) {
+    return "any symbol (wildcard)";
+  }
+
+  return normalized.join(", ");
+}
+
+function InfoHint({ label, description }: { label: string; description: string }) {
+  return (
+    <button
+      type="button"
+      aria-label={`${label}: ${description}`}
+      title={description}
+      className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/10 bg-white/5 align-middle text-[10px] normal-case leading-none tracking-normal text-slate-400 transition hover:border-sky-400/40 hover:text-sky-200 focus:outline-none focus-visible:border-sky-400/60 focus-visible:ring-2 focus-visible:ring-sky-400/30"
+    >
+      ⓘ
+    </button>
+  );
+}
+
 function LayerNavigationCard({
   summary,
   active,
@@ -1050,27 +1100,25 @@ function TracePanel({ label, groups }: { label: string; groups: BrowserTraceGrou
                   <p className="text-sm font-medium text-slate-100">{reference.file}</p>
                   <p className="mt-2 text-xs uppercase tracking-[0.2em] text-slate-500">
                     symbols{" "}
-                    <span
-                      className="cursor-help normal-case tracking-normal"
-                      title="The function, struct, method, or constant names that this trace points to. Use * to match the whole file."
-                    >
-                      ⓘ
-                    </span>
+                    <InfoHint
+                      label="Symbols"
+                      description="The function, struct, method, or constant names that this trace points to. Use * to match the whole file."
+                    />
                   </p>
                   <p className="mt-1 text-sm text-slate-300">
-                    {reference.symbols.length > 0 ? reference.symbols.join(", ") : "any symbol (wildcard)"}
+                    {formatTraceSymbols(reference.symbols)}
                   </p>
                   <p className="mt-3 text-xs uppercase tracking-[0.2em] text-slate-500">
                     doc contains{" "}
-                    <span
-                      className="cursor-help normal-case tracking-normal"
-                      title="A string that must appear in the symbol's documentation comment. — means no assertion is declared."
-                    >
-                      ⓘ
-                    </span>
+                    <InfoHint
+                      label="Doc contains"
+                      description="A string that must appear in the symbol's documentation comment. 'not declared' means no assertion is declared."
+                    />
                   </p>
                   <p className="mt-1 text-sm text-slate-300">
-                    {reference.doc_contains.length > 0 ? reference.doc_contains.join(", ") : "not declared"}
+                    {reference.doc_contains.length > 0
+                      ? reference.doc_contains.join(", ")
+                      : "not declared"}
                   </p>
                 </div>
               ))}
