@@ -2,6 +2,7 @@ use assert_cmd::cargo::CommandCargoExt;
 use std::process::Command;
 
 #[test]
+// REQ-CORE-010
 fn root_help_includes_start_here_guidance() {
     let output = Command::cargo_bin("syu")
         .expect("binary should build")
