@@ -36,12 +36,14 @@ fn repository_declares_precommit_and_quality_gates() {
     assert!(ci_workflow.contains("dependency-audit:"));
     assert!(ci_workflow.contains("dependency-review:"));
     assert!(ci_workflow.contains("installer-smoke:"));
+    assert!(ci_workflow.contains("installed-binary-smoke:"));
     assert!(ci_workflow.contains("--hook-stage pre-commit"));
     assert!(ci_workflow.contains("--hook-stage pre-push"));
     assert!(ci_workflow.contains("scripts/ci/quality-gates.sh"));
     assert!(ci_workflow.contains("cargo audit"));
     assert!(ci_workflow.contains("Review dependency changes"));
     assert!(ci_workflow.contains("scripts/ci/installer-smoke.sh"));
+    assert!(ci_workflow.contains("scripts/ci/installed-binary-smoke.sh"));
 
     assert!(repo_config.contains("FEAT-CHECK-001"));
     assert!(repo_config.contains("FEAT-REPORT-001"));
@@ -139,6 +141,7 @@ fn repository_declares_installer_contract() {
     let current_version = env!("CARGO_PKG_VERSION");
     let installer = read_file("scripts/install-syu.sh");
     let installer_smoke = read_file("scripts/ci/installer-smoke.sh");
+    let installed_binary_smoke = read_file("scripts/ci/installed-binary-smoke.sh");
     let mock_registry = read_file("scripts/ci/mock_package_registry.py");
     let readme = read_file("README.md");
 
@@ -156,6 +159,13 @@ fn repository_declares_installer_contract() {
     assert!(installer.contains("ghcr.io"));
     assert!(installer_smoke.contains("FEAT-INSTALL-001"));
     assert!(installer_smoke.contains("run_install_case"));
+    assert!(installed_binary_smoke.contains("FEAT-QUALITY-001"));
+    assert!(installed_binary_smoke.contains("cargo install --path"));
+    assert!(installed_binary_smoke.contains("--locked"));
+    assert!(installed_binary_smoke.contains("wait_for_app_url"));
+    assert!(installed_binary_smoke.contains("wait_for_app_payload"));
+    assert!(installed_binary_smoke.contains("print_app_diagnostics"));
+    assert!(installed_binary_smoke.contains("api/app-data.json"));
     assert!(mock_registry.contains("FEAT-INSTALL-001"));
     assert!(mock_registry.contains("build_artifacts"));
 
@@ -207,6 +217,8 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("syu browse"));
     assert!(readme.contains("syu list"));
     assert!(readme.contains("syu show"));
+    assert!(readme.contains("syu show REQ-001"));
+    assert!(!readme.contains("syu show REQ-CORE-015"));
     assert!(readme.contains("syu app"));
     assert!(readme.contains("examples/polyglot"));
     assert!(readme.contains("CONTRIBUTING.md"));
@@ -236,10 +248,17 @@ fn repository_declares_documentation_guides() {
     assert!(getting_started.contains("syu validate . --fix"));
     assert!(getting_started.contains("syu browse ."));
     assert!(getting_started.contains("syu list feature"));
-    assert!(getting_started.contains("syu show REQ-CORE-015"));
+    assert!(getting_started.contains("syu show REQ-001"));
     assert!(getting_started.contains("syu app ."));
     assert!(getting_started.contains("install-syu.sh"));
     assert!(getting_started.contains("SYU_VERSION=alpha"));
+    assert!(getting_started.contains("Requirements are discovered"));
+    assert!(getting_started.contains("implementation claims should stay deliberate"));
+    assert!(getting_started.contains(&format!("version: {current_version}")));
+    assert!(getting_started.contains("kind: core"));
+    assert!(getting_started.contains("freshly initialized project will not have them yet"));
+    assert!(getting_started.contains("https://ugoite.github.io/syu/docs/generated/site-spec"));
+    assert!(getting_started.contains("https://ugoite.github.io/syu/docs/generated/syu-report"));
     assert!(getting_started.contains("status: implemented"));
     assert!(getting_started.contains("Keep exploring"));
     assert_eq!(
@@ -248,7 +267,8 @@ fn repository_declares_documentation_guides() {
             .count(),
         1
     );
-    assert!(getting_started.contains("latest validation report"));
+    assert!(getting_started.contains("live [validation report]"));
+    assert!(readme.contains("Understand the model first?"));
     assert!(configuration.contains("validate.default_fix"));
     assert!(configuration.contains("validate.allow_planned"));
     assert!(configuration.contains(&format!("version: {current_version}")));

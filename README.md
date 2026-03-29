@@ -89,6 +89,9 @@ below. The rest of this section assumes you installed the published CLI.
 
 Step 0: required — run `syu init .` before any of the other commands in a new repository.
 
+Understand the model first? Start with [`docs/guide/concepts.md`](docs/guide/concepts.md)
+before you begin editing YAML.
+
 ```bash
 syu init .          # 1. Create spec scaffold
 # edit docs/syu/... # 2. Add your spec items
@@ -102,7 +105,7 @@ syu validate .
 syu validate . --fix
 syu browse .
 syu list requirement
-syu show REQ-CORE-015
+syu show REQ-001
 syu app .
 syu report . --output reports/syu.md
 ```
@@ -175,7 +178,7 @@ syu list feature path/to/workspace --format json
 Show one definition by ID:
 
 ```bash
-syu show REQ-CORE-015
+syu show REQ-001
 syu show FEAT-BROWSE-001 path/to/workspace --format json
 ```
 
