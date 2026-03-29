@@ -2,11 +2,12 @@
 // REQ-CORE-017
 
 use std::{
+    collections::hash_map::DefaultHasher,
     fs,
+    hash::{Hash, Hasher},
     io::{Read, Write},
     net::{IpAddr, SocketAddr},
     path::{Path, PathBuf},
-    sync::Arc,
     time::Duration,
 };
 
@@ -36,13 +37,19 @@ static APP_DIST: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/app/dist");
 
 #[derive(Clone)]
 struct AppState {
-    payload: Arc<AppPayload>,
+    workspace_root: PathBuf,
+    config: SyuConfig,
 }
 
 #[derive(serde::Serialize)]
 struct HealthStatus {
     status: &'static str,
     version: &'static str,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct AppVersion {
+    snapshot: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -59,7 +66,7 @@ pub fn run_app_command(args: &AppArgs) -> Result<i32> {
         .bind
         .parse::<IpAddr>()
         .with_context(|| format!("invalid bind address `{}`", settings.bind))?;
-    let payload = build_app_payload_from_config(&workspace_root, &loaded.config)?;
+    build_app_payload_from_config(&workspace_root, &loaded.config)?;
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
@@ -67,7 +74,8 @@ pub fn run_app_command(args: &AppArgs) -> Result<i32> {
 
     runtime.block_on(async move {
         let router = app_router(AppState {
-            payload: Arc::new(payload),
+            workspace_root,
+            config: loaded.config,
         });
         let listener = tokio::net::TcpListener::bind((bind, settings.port))
             .await
@@ -117,14 +125,27 @@ fn canonical_workspace_root(workspace_root: &Path) -> Result<PathBuf> {
 fn app_router(state: AppState) -> Router {
     Router::new()
         .route("/api/app-data.json", get(app_data))
+        .route("/api/version", get(app_version))
         .route("/health", get(health))
         .route("/healthz", get(healthz))
         .fallback(get(serve_static))
         .with_state(state)
 }
 
-async fn app_data(State(state): State<AppState>) -> Json<AppPayload> {
-    Json((*state.payload).clone())
+async fn app_data(
+    State(state): State<AppState>,
+) -> std::result::Result<Json<AppPayload>, AppError> {
+    let payload = load_current_payload(&state)?;
+    Ok(Json(payload))
+}
+
+async fn app_version(
+    State(state): State<AppState>,
+) -> std::result::Result<Json<AppVersion>, AppError> {
+    let payload = load_current_payload(&state)?;
+    Ok(Json(AppVersion {
+        snapshot: payload_snapshot(&payload)?,
+    }))
 }
 
 async fn health() -> Json<HealthStatus> {
@@ -136,6 +157,17 @@ async fn health() -> Json<HealthStatus> {
 
 async fn healthz() -> &'static str {
     "ok"
+}
+
+fn load_current_payload(state: &AppState) -> Result<AppPayload> {
+    build_app_payload_from_config(&state.workspace_root, &state.config)
+}
+
+fn payload_snapshot(payload: &AppPayload) -> Result<u64> {
+    let serialized = serde_json::to_string(payload).context("failed to serialize app payload")?;
+    let mut hasher = DefaultHasher::new();
+    serialized.hash(&mut hasher);
+    Ok(hasher.finish())
 }
 
 async fn serve_static(uri: Uri) -> Response {
@@ -428,12 +460,29 @@ fn validation_snapshot(result: CheckResult) -> ValidationSnapshot {
     }
 }
 
+struct AppError(anyhow::Error);
+
+impl From<anyhow::Error> for AppError {
+    fn from(value: anyhow::Error) -> Self {
+        Self(value)
+    }
+}
+
+impl IntoResponse for AppError {
+    fn into_response(self) -> Response {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("app data refresh failed: {}", self.0),
+        )
+            .into_response()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::{
         fs,
         path::{Path, PathBuf},
-        sync::Arc,
     };
 
     #[cfg(unix)]
@@ -452,10 +501,10 @@ mod tests {
     };
 
     use super::{
-        AppPayload, AppServerSettings, AppState, SectionKind, Severity, app_router,
+        AppPayload, AppServerSettings, AppState, AppVersion, SectionKind, Severity, app_router,
         build_app_payload, collect_feature_sources, collect_yaml_sources_recursive,
-        content_type_for_path, is_asset_like, normalized_asset_path, relative_display,
-        resolve_app_server_settings, validation_snapshot,
+        content_type_for_path, is_asset_like, normalized_asset_path, payload_snapshot,
+        relative_display, resolve_app_server_settings, validation_snapshot,
     };
 
     fn fixture_root(name: &str) -> PathBuf {
@@ -482,6 +531,14 @@ mod tests {
             ),
         )
         .expect("config");
+    }
+
+    fn app_state(root: &Path) -> AppState {
+        let config = load_config(root).expect("config should load").config;
+        AppState {
+            workspace_root: root.to_path_buf(),
+            config,
+        }
     }
 
     #[cfg(unix)]
@@ -845,14 +902,7 @@ mod tests {
 
     #[tokio::test]
     async fn api_route_returns_payload_json() {
-        let router = app_router(AppState {
-            payload: Arc::new(AppPayload {
-                workspace_root: "/repo".to_string(),
-                spec_root: "/repo/docs/syu".to_string(),
-                source_documents: Vec::new(),
-                validation: Default::default(),
-            }),
-        });
+        let router = app_router(app_state(&fixture_root("passing")));
 
         let response = router
             .oneshot(
@@ -869,14 +919,115 @@ mod tests {
             .await
             .expect("body");
         let json = String::from_utf8(body.to_vec()).expect("utf8");
-        assert!(json.contains("\"workspace_root\":\"/repo\""));
+        assert!(json.contains("\"workspace_root\""));
+        assert!(json.contains("\"source_documents\""));
+    }
+
+    #[tokio::test]
+    async fn api_version_changes_when_workspace_files_change() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        let root = tempdir.path();
+        create_workspace_skeleton(root);
+        write_config(root, "127.0.0.1", 3000);
+        fs::write(
+            root.join("docs/syu/philosophy/foundation.yaml"),
+            "category: Philosophy\nversion: 1\nlanguage: en\n\nphilosophies:\n  - id: PHIL-001\n    title: Original title\n    product_design_principle: Keep it small.\n    coding_guideline: Keep it explicit.\n    linked_policies: []\n",
+        )
+        .expect("philosophy");
+
+        let router = app_router(app_state(root));
+
+        let first = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/version")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(first.status(), StatusCode::OK);
+        let first_body = to_bytes(first.into_body(), usize::MAX).await.expect("body");
+        let first_version: AppVersion = serde_json::from_slice(&first_body).expect("json");
+
+        fs::write(
+            root.join("docs/syu/philosophy/foundation.yaml"),
+            "category: Philosophy\nversion: 1\nlanguage: en\n\nphilosophies:\n  - id: PHIL-001\n    title: Updated title\n    product_design_principle: Keep it small.\n    coding_guideline: Keep it explicit.\n    linked_policies: []\n",
+        )
+        .expect("updated philosophy");
+
+        let second = router
+            .oneshot(
+                Request::builder()
+                    .uri("/api/version")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        let second_body = to_bytes(second.into_body(), usize::MAX)
+            .await
+            .expect("body");
+        let second_version: AppVersion = serde_json::from_slice(&second_body).expect("json");
+
+        assert_ne!(first_version.snapshot, second_version.snapshot);
+    }
+
+    #[tokio::test]
+    async fn api_payload_refreshes_when_workspace_files_change() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        let root = tempdir.path();
+        create_workspace_skeleton(root);
+        write_config(root, "127.0.0.1", 3000);
+        fs::write(
+            root.join("docs/syu/philosophy/foundation.yaml"),
+            "category: Philosophy\nversion: 1\nlanguage: en\n\nphilosophies:\n  - id: PHIL-001\n    title: Original title\n    product_design_principle: Keep it small.\n    coding_guideline: Keep it explicit.\n    linked_policies: []\n",
+        )
+        .expect("philosophy");
+
+        let router = app_router(app_state(root));
+
+        let first = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/app-data.json")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        let first_body = to_bytes(first.into_body(), usize::MAX).await.expect("body");
+        let first_json = String::from_utf8(first_body.to_vec()).expect("utf8");
+
+        fs::write(
+            root.join("docs/syu/philosophy/foundation.yaml"),
+            "category: Philosophy\nversion: 1\nlanguage: en\n\nphilosophies:\n  - id: PHIL-001\n    title: Updated title\n    product_design_principle: Keep it small.\n    coding_guideline: Keep it explicit.\n    linked_policies: []\n",
+        )
+        .expect("updated philosophy");
+
+        let second = router
+            .oneshot(
+                Request::builder()
+                    .uri("/api/app-data.json")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        let second_body = to_bytes(second.into_body(), usize::MAX)
+            .await
+            .expect("body");
+        let second_json = String::from_utf8(second_body.to_vec()).expect("utf8");
+
+        assert_ne!(first_json, second_json);
+        assert!(second_json.contains("Updated title"));
     }
 
     #[tokio::test]
     async fn api_like_paths_return_not_found() {
-        let router = app_router(AppState {
-            payload: Arc::new(AppPayload::default()),
-        });
+        let router = app_router(app_state(&fixture_root("passing")));
 
         let response = router
             .oneshot(
@@ -893,9 +1044,7 @@ mod tests {
 
     #[tokio::test]
     async fn static_routes_serve_embedded_app() {
-        let router = app_router(AppState {
-            payload: Arc::new(AppPayload::default()),
-        });
+        let router = app_router(app_state(&fixture_root("passing")));
 
         let root = router
             .clone()
@@ -927,9 +1076,7 @@ mod tests {
 
     #[tokio::test]
     async fn unknown_assets_return_not_found() {
-        let router = app_router(AppState {
-            payload: Arc::new(AppPayload::default()),
-        });
+        let router = app_router(app_state(&fixture_root("passing")));
 
         let response = router
             .oneshot(

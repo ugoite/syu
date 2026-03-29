@@ -159,12 +159,18 @@ process supervisors instead of a fixed `sleep`.
 
 ## Refreshing the data
 
-The browser UI is a snapshot of the workspace at the time `syu app` was started. To see changes you have made to spec files:
+`syu app` polls for spec snapshot changes about every two seconds. When a YAML
+file under the spec root changes, the browser reloads the workspace data without
+requiring a server restart.
 
-1. Stop the server (`Ctrl-C`)
-2. Re-run `syu app .`
+The refresh banner appears briefly while the UI swaps in the new snapshot.
 
-Live reload is not supported yet — the server must be restarted to pick up changes.
+Two caveats still matter:
+
+1. The browser keeps your current deep link when possible, but if the selected
+   item disappears you may land on the first available item in that section.
+2. Changes outside the spec snapshot flow, such as app server flags, still
+   require restarting `syu app`.
 
 ---
 
