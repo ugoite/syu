@@ -49,7 +49,7 @@ struct HealthStatus {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct AppVersion {
-    snapshot: u64,
+    snapshot: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -132,19 +132,21 @@ fn app_router(state: AppState) -> Router {
         .with_state(state)
 }
 
-async fn app_data(
-    State(state): State<AppState>,
-) -> std::result::Result<Json<AppPayload>, AppError> {
-    let payload = load_current_payload(&state)?;
-    Ok(Json(payload))
+async fn app_data(State(state): State<AppState>) -> std::result::Result<Response, AppError> {
+    let (snapshot, payload) = load_snapshot_payload(&state)?;
+    let mut response = Json(payload).into_response();
+    response.headers_mut().insert(
+        "x-syu-snapshot",
+        HeaderValue::from_str(&snapshot).context("invalid snapshot header value")?,
+    );
+    Ok(response)
 }
 
 async fn app_version(
     State(state): State<AppState>,
 ) -> std::result::Result<Json<AppVersion>, AppError> {
-    let payload = load_current_payload(&state)?;
     Ok(Json(AppVersion {
-        snapshot: payload_snapshot(&payload)?,
+        snapshot: load_current_snapshot(&state)?,
     }))
 }
 
@@ -163,11 +165,68 @@ fn load_current_payload(state: &AppState) -> Result<AppPayload> {
     build_app_payload_from_config(&state.workspace_root, &state.config)
 }
 
-fn payload_snapshot(payload: &AppPayload) -> Result<u64> {
-    let serialized = serde_json::to_string(payload).context("failed to serialize app payload")?;
+fn load_snapshot_payload(state: &AppState) -> Result<(String, AppPayload)> {
+    let snapshot = load_current_snapshot(state)?;
+    let payload = load_current_payload(state)?;
+    Ok((snapshot, payload))
+}
+
+fn load_current_snapshot(state: &AppState) -> Result<String> {
+    let spec_root = resolve_spec_root(&state.workspace_root, &state.config);
+    spec_snapshot(&spec_root)
+}
+
+fn spec_snapshot(spec_root: &Path) -> Result<String> {
+    if !spec_root.is_dir() {
+        bail!(
+            "failed to read spec root `{}` because it is not a directory",
+            spec_root.display()
+        );
+    }
+    let mut files = Vec::new();
+    collect_snapshot_inputs(spec_root, spec_root, &mut files)?;
+    files.sort_by(|left, right| left.0.cmp(&right.0));
     let mut hasher = DefaultHasher::new();
-    serialized.hash(&mut hasher);
-    Ok(hasher.finish())
+    for (path, content) in files {
+        path.hash(&mut hasher);
+        content.hash(&mut hasher);
+    }
+    Ok(format!("{:016x}", hasher.finish()))
+}
+
+fn collect_snapshot_inputs(
+    root: &Path,
+    current: &Path,
+    files: &mut Vec<(String, Vec<u8>)>,
+) -> Result<()> {
+    if !current.is_dir() {
+        return Ok(());
+    }
+
+    let mut entries = fs::read_dir(current)
+        .with_context(|| format!("failed to read directory `{}`", current.display()))?
+        .collect::<std::io::Result<Vec<_>>>()
+        .with_context(|| format!("failed to enumerate directory `{}`", current.display()))?;
+    entries.sort_by_key(|entry| entry.path());
+
+    for entry in entries {
+        let path = entry.path();
+        if path.is_dir() {
+            collect_snapshot_inputs(root, &path, files)?;
+            continue;
+        }
+
+        if !is_yaml_file(&path) {
+            continue;
+        }
+
+        let relative = relative_display(root, &path)?;
+        let content = fs::read(&path)
+            .with_context(|| format!("failed to read snapshot source `{}`", path.display()))?;
+        files.push((relative, content));
+    }
+
+    Ok(())
 }
 
 async fn serve_static(uri: Uri) -> Response {
@@ -238,29 +297,28 @@ fn content_type_for_path(path: &str) -> &'static str {
 
 fn wait_for_ready(local_addr: SocketAddr) -> Result<()> {
     for _ in 0..50 {
-        match std::net::TcpStream::connect_timeout(&local_addr.into(), Duration::from_millis(100)) {
-            Ok(mut stream) => {
-                stream
-                    .set_read_timeout(Some(Duration::from_millis(100)))
-                    .context("failed to configure readiness probe read timeout")?;
-                stream
-                    .set_write_timeout(Some(Duration::from_millis(100)))
-                    .context("failed to configure readiness probe write timeout")?;
-                write!(
-                    stream,
-                    "GET /health HTTP/1.1\r\nHost: {local_addr}\r\nConnection: close\r\n\r\n"
-                )
-                .context("failed to send readiness probe request")?;
-                stream
-                    .flush()
-                    .context("failed to flush readiness probe request")?;
+        if let Ok(mut stream) =
+            std::net::TcpStream::connect_timeout(&local_addr, Duration::from_millis(100))
+        {
+            stream
+                .set_read_timeout(Some(Duration::from_millis(100)))
+                .context("failed to configure readiness probe read timeout")?;
+            stream
+                .set_write_timeout(Some(Duration::from_millis(100)))
+                .context("failed to configure readiness probe write timeout")?;
+            write!(
+                stream,
+                "GET /health HTTP/1.1\r\nHost: {local_addr}\r\nConnection: close\r\n\r\n"
+            )
+            .context("failed to send readiness probe request")?;
+            stream
+                .flush()
+                .context("failed to flush readiness probe request")?;
 
-                let mut response = String::new();
-                if stream.read_to_string(&mut response).is_ok() && response.contains("200 OK") {
-                    return Ok(());
-                }
+            let mut response = String::new();
+            if stream.read_to_string(&mut response).is_ok() && response.contains("200 OK") {
+                return Ok(());
             }
-            Err(_) => {}
         }
 
         std::thread::sleep(Duration::from_millis(50));
@@ -470,11 +528,8 @@ impl From<anyhow::Error> for AppError {
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("app data refresh failed: {}", self.0),
-        )
-            .into_response()
+        eprintln!("syu app request failed: {:#}", self.0);
+        (StatusCode::INTERNAL_SERVER_ERROR, "app data refresh failed").into_response()
     }
 }
 
@@ -482,7 +537,10 @@ impl IntoResponse for AppError {
 mod tests {
     use std::{
         fs,
+        io::Write as _,
+        net::TcpListener,
         path::{Path, PathBuf},
+        thread,
     };
 
     #[cfg(unix)]
@@ -501,10 +559,11 @@ mod tests {
     };
 
     use super::{
-        AppPayload, AppServerSettings, AppState, AppVersion, SectionKind, Severity, app_router,
-        build_app_payload, collect_feature_sources, collect_yaml_sources_recursive,
-        content_type_for_path, is_asset_like, normalized_asset_path, payload_snapshot,
-        relative_display, resolve_app_server_settings, validation_snapshot,
+        AppServerSettings, AppState, AppVersion, SectionKind, Severity, app_router,
+        build_app_payload, collect_feature_sources, collect_snapshot_inputs,
+        collect_yaml_sources_recursive, content_type_for_path, is_asset_like,
+        normalized_asset_path, relative_display, resolve_app_server_settings, spec_snapshot,
+        validation_snapshot, wait_for_ready,
     };
 
     fn fixture_root(name: &str) -> PathBuf {
@@ -915,6 +974,10 @@ mod tests {
             .expect("response");
 
         assert_eq!(response.status(), StatusCode::OK);
+        assert!(
+            response.headers().contains_key("x-syu-snapshot"),
+            "payload responses should expose the snapshot header"
+        );
         let body = to_bytes(response.into_body(), usize::MAX)
             .await
             .expect("body");
@@ -972,6 +1035,99 @@ mod tests {
         let second_version: AppVersion = serde_json::from_slice(&second_body).expect("json");
 
         assert_ne!(first_version.snapshot, second_version.snapshot);
+    }
+
+    #[test]
+    fn spec_snapshot_changes_when_yaml_content_changes() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        let spec_root = create_workspace_skeleton(tempdir.path());
+        let philosophy = spec_root.join("philosophy/foundation.yaml");
+        fs::write(
+            &philosophy,
+            "category: Philosophy\nversion: 1\nlanguage: en\n\nphilosophies:\n  - id: PHIL-001\n    title: Alpha title\n    product_design_principle: Keep it small.\n    coding_guideline: Keep it explicit.\n    linked_policies: []\n",
+        )
+        .expect("philosophy");
+
+        let first = spec_snapshot(&spec_root).expect("snapshot");
+
+        fs::write(
+            &philosophy,
+            "category: Philosophy\nversion: 1\nlanguage: en\n\nphilosophies:\n  - id: PHIL-001\n    title: Beta title\n    product_design_principle: Keep it small.\n    coding_guideline: Keep it explicit.\n    linked_policies: []\n",
+        )
+        .expect("updated philosophy");
+
+        let second = spec_snapshot(&spec_root).expect("snapshot");
+        assert_ne!(first, second);
+    }
+
+    #[test]
+    fn collect_snapshot_inputs_ignores_non_directories() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        let file = tempdir.path().join("single.yaml");
+        fs::write(&file, "version: 1\n").expect("file");
+
+        let mut files = Vec::new();
+        collect_snapshot_inputs(tempdir.path(), &file, &mut files).expect("snapshot inputs");
+        assert!(files.is_empty());
+    }
+
+    #[test]
+    fn collect_snapshot_inputs_skips_non_yaml_files() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        fs::write(tempdir.path().join("notes.txt"), "ignore me").expect("notes");
+
+        let mut files = Vec::new();
+        collect_snapshot_inputs(tempdir.path(), tempdir.path(), &mut files)
+            .expect("snapshot inputs");
+        assert!(files.is_empty());
+    }
+
+    #[test]
+    fn wait_for_ready_reports_non_ready_servers() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener should bind");
+        let addr = listener.local_addr().expect("addr");
+
+        let server = thread::spawn(move || {
+            if let Ok((mut stream, _)) = listener.accept() {
+                let _ = stream
+                    .write_all(b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 2\r\n\r\nno");
+                let _ = stream.flush();
+            }
+        });
+
+        let error = wait_for_ready(addr).expect_err("non-ready servers should fail");
+        assert!(
+            error
+                .to_string()
+                .contains("local app server did not become ready")
+        );
+        server.join().expect("server thread");
+    }
+
+    #[tokio::test]
+    async fn api_errors_hide_internal_details_from_clients() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        write_config(tempdir.path(), "127.0.0.1", 3000);
+        let router = app_router(app_state(tempdir.path()));
+
+        let response = router
+            .oneshot(
+                Request::builder()
+                    .uri("/api/version")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        let body = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body");
+        assert_eq!(
+            String::from_utf8(body.to_vec()).expect("utf8"),
+            "app data refresh failed"
+        );
     }
 
     #[tokio::test]

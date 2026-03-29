@@ -159,9 +159,10 @@ process supervisors instead of a fixed `sleep`.
 
 ## Refreshing the data
 
-`syu app` polls for spec snapshot changes about every two seconds. When a YAML
-file under the spec root changes, the browser reloads the workspace data without
-requiring a server restart.
+The browser UI polls the `syu app` server's `/api/version` endpoint about every
+two seconds to detect spec snapshot changes. When a YAML file under the spec
+root changes, the browser reloads the workspace data without requiring a server
+restart.
 
 The refresh banner appears briefly while the UI swaps in the new snapshot.
 
@@ -169,8 +170,8 @@ Two caveats still matter:
 
 1. The browser keeps your current deep link when possible, but if the selected
    item disappears you may land on the first available item in that section.
-2. Changes outside the spec snapshot flow, such as app server flags, still
-   require restarting `syu app`.
+2. Changes outside the spec snapshot flow, such as app server flags or
+   configuration in `syu.yaml`, still require restarting `syu app`.
 
 ---
 

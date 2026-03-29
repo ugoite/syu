@@ -17,7 +17,7 @@ type WasmModule = {
 };
 
 type VersionPayload = {
-  snapshot: number;
+  snapshot: string;
 };
 
 type SectionSummary = {
@@ -50,7 +50,7 @@ function App() {
   const [focusedResultIndex, setFocusedResultIndex] = useState(-1);
   const [showOnboarding, setShowOnboarding] = useState(() => shouldShowOnboarding());
   const [navigationHistory, setNavigationHistory] = useState<string[]>([]);
-  const [snapshotVersion, setSnapshotVersion] = useState<number | null>(null);
+  const [snapshotVersion, setSnapshotVersion] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const applyWorkspace = useCallback((browserWorkspace: BrowserWorkspace) => {
@@ -98,10 +98,9 @@ function App() {
       }
 
       try {
-        const [wasmModule, dataResponse, versionResponse] = await Promise.all([
+        const [wasmModule, dataResponse] = await Promise.all([
           import("./wasm/syu_app_wasm.js") as Promise<WasmModule>,
           fetch("/api/app-data.json", { cache: "no-store" }),
-          fetch("/api/version", { cache: "no-store" }),
         ]);
 
         if (!dataResponse.ok) {
@@ -109,22 +108,25 @@ function App() {
             `Failed to load app data: ${dataResponse.status} ${dataResponse.statusText}`,
           );
         }
-        if (!versionResponse.ok) {
-          throw new Error(
-            `Failed to load app version: ${versionResponse.status} ${versionResponse.statusText}`,
-          );
+        const snapshot = dataResponse.headers.get("x-syu-snapshot");
+        if (!snapshot) {
+          throw new Error("Failed to load app snapshot header");
         }
 
         const payload = (await dataResponse.json()) as AppPayload;
-        const version = (await versionResponse.json()) as VersionPayload;
         await wasmModule.default();
         const browserWorkspace = wasmModule.build_browser_workspace_from_js(payload);
 
         setError(null);
-        setSnapshotVersion(version.snapshot);
+        setSnapshotVersion(snapshot);
         applyWorkspace(browserWorkspace);
       } catch (loadError) {
-        setError(loadError instanceof Error ? loadError.message : "Failed to load syu app");
+        if (refreshing) {
+          // eslint-disable-next-line no-console
+          console.error("Failed to refresh syu app workspace", loadError);
+        } else {
+          setError(loadError instanceof Error ? loadError.message : "Failed to load syu app");
+        }
       } finally {
         setLoading(false);
         if (refreshing) {
@@ -161,7 +163,8 @@ function App() {
         }
       } catch (pollError) {
         if (!cancelled) {
-          setError(pollError instanceof Error ? pollError.message : "Failed to refresh syu app");
+          // eslint-disable-next-line no-console
+          console.error("Failed to poll app version for refresh", pollError);
         }
       }
     }, 2000);
