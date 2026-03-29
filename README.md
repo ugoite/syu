@@ -101,7 +101,7 @@ syu validate .
 syu validate . --fix
 syu browse .
 syu list requirement
-syu show REQ-CORE-015
+syu show REQ-001
 syu app .
 syu report . --output reports/syu.md
 ```
