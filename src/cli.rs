@@ -17,9 +17,11 @@ New here?
   3. syu browse .    explore the spec in your terminal
   4. syu app .       start the local browser UI server";
 
-const APP_AFTER_HELP: &str = "\
-After startup, open the printed URL in your browser.
-Press Ctrl-C to stop the local app server.";
+const APP_AFTER_HELP: &str = concat!(
+    "After startup, open the printed URL in your browser.\n",
+    "Use GET /health for readiness checks once the app is serving.\n",
+    "Press Ctrl-C to stop the local app server."
+);
 
 #[derive(Debug, Parser)]
 #[command(
@@ -46,7 +48,7 @@ pub enum Commands {
     #[command(about = "Show one philosophy, policy, requirement, or feature by ID")]
     Show(ShowArgs),
     #[command(
-        about = "Start a local HTTP server and browser UI for workspace exploration",
+        about = "Start a local HTTP server and browser UI for workspace exploration, then print the URL to open in your browser",
         after_help = APP_AFTER_HELP
     )]
     App(AppArgs),
