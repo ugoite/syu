@@ -210,13 +210,14 @@ impl FilteredIssueView {
 
 impl TextReportSummary {
     fn from_config(config: &SyuConfig, definition_counts: &DefinitionCounts) -> Self {
-        let disabled_checks: Vec<_> = disabled_rule_groups(config)
+        let disabled_groups = disabled_rule_groups(config);
+        let disabled_codes: HashSet<_> = disabled_groups
+            .iter()
+            .flat_map(|group| group.codes.iter().copied())
+            .collect();
+        let disabled_checks: Vec<_> = disabled_groups
             .into_iter()
             .map(DisabledRuleNotice::from_group)
-            .collect();
-        let disabled_codes: HashSet<_> = disabled_checks
-            .iter()
-            .flat_map(|notice| disabled_rule_codes_for(notice.config_key).iter().copied())
             .collect();
         let enabled_rules: Vec<_> = all_rules()
             .into_iter()
@@ -276,15 +277,6 @@ fn disabled_rule_groups(config: &SyuConfig) -> Vec<DisabledRuleGroup> {
         });
     }
     groups
-}
-
-fn disabled_rule_codes_for(config_key: &str) -> &'static [&'static str] {
-    match config_key {
-        "validate.require_non_orphaned_items" => ORPHAN_RULE_CODES,
-        "validate.require_reciprocal_links" => RECIPROCAL_RULE_CODES,
-        "validate.require_symbol_trace_coverage" => COVERAGE_RULE_CODES,
-        _ => &[],
-    }
 }
 
 fn workspace_item_count(definition_counts: &DefinitionCounts) -> usize {
@@ -2085,13 +2077,16 @@ mod tests {
     use crate::{
         cli::{ValidationGenreFilter, ValidationSeverityFilter},
         config::SyuConfig,
-        model::{Feature, Issue, Philosophy, Policy, Requirement, TraceReference},
-        rules::referenced_rules,
+        model::{
+            DefinitionCounts, Feature, Issue, Philosophy, Policy, Requirement, TraceReference,
+        },
+        rules::{all_rules, referenced_rules},
         workspace::Workspace,
     };
 
     use super::{
-        FilteredIssueView, IssueFilters, TraceRole, apply_autofix, apply_autofix_for_reference,
+        FilteredIssueView, IssueFilters, ORPHAN_RULE_CODES, RECIPROCAL_RULE_CODES,
+        TextReportSummary, TraceRole, apply_autofix, apply_autofix_for_reference,
         collect_check_result, describe_trace_reference, filter_check_result,
         format_reference_location, preferred_trace_file_path, render_text_report,
         run_check_command, validate_duplicate_links, validate_duplicate_trace_references,
@@ -2243,6 +2238,79 @@ mod tests {
         assert!(report.contains("syu validate passed"));
         assert!(report.contains("issues:"));
         assert!(report.contains("[Warning] warn subject: message"));
+    }
+
+    #[test]
+    fn text_report_summary_counts_disabled_rule_groups_from_group_definitions() {
+        let config = SyuConfig {
+            validate: crate::config::ValidateConfig {
+                require_non_orphaned_items: false,
+                require_reciprocal_links: false,
+                require_symbol_trace_coverage: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let summary = TextReportSummary::from_config(
+            &config,
+            &DefinitionCounts {
+                philosophies: 1,
+                policies: 2,
+                requirements: 3,
+                features: 4,
+            },
+        );
+
+        assert_eq!(
+            summary.checked_rule_count,
+            all_rules().len() - ORPHAN_RULE_CODES.len() - RECIPROCAL_RULE_CODES.len()
+        );
+        assert_eq!(summary.workspace_item_count, 10);
+        assert_eq!(
+            summary
+                .disabled_checks
+                .iter()
+                .map(|notice| notice.describe())
+                .collect::<Vec<_>>(),
+            vec![
+                "validate.require_non_orphaned_items=false (1 rule)".to_string(),
+                "validate.require_reciprocal_links=false (1 rule)".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn render_text_report_uses_singular_disabled_rule_summary() {
+        let config = SyuConfig {
+            validate: crate::config::ValidateConfig {
+                require_non_orphaned_items: false,
+                require_reciprocal_links: true,
+                require_symbol_trace_coverage: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let summary = TextReportSummary::from_config(
+            &config,
+            &DefinitionCounts {
+                philosophies: 1,
+                policies: 1,
+                requirements: 1,
+                features: 1,
+            },
+        );
+        let result = crate::model::CheckResult {
+            workspace_root: PathBuf::from("."),
+            definition_counts: Default::default(),
+            trace_summary: Default::default(),
+            issues: Vec::new(),
+            referenced_rules: Vec::new(),
+        };
+
+        let report = render_text_report(true, &result, None, Some(&summary), false);
+
+        assert!(report.contains("note: 1 built-in rule is disabled by current config"));
     }
 
     #[test]
