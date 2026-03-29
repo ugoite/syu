@@ -38,6 +38,12 @@ struct AppState {
     payload: Arc<AppPayload>,
 }
 
+#[derive(serde::Serialize)]
+struct HealthStatus {
+    status: &'static str,
+    version: &'static str,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct AppServerSettings {
     bind: String,
@@ -69,6 +75,7 @@ pub fn run_app_command(args: &AppArgs) -> Result<i32> {
             .local_addr()
             .context("failed to inspect bind address")?;
         println!("syu app listening on http://{local_addr}");
+        println!("syu app ready: http://{local_addr}");
         println!("Open http://{local_addr} in your browser.");
         println!("Press Ctrl-C to stop.");
         std::io::stdout()
@@ -103,6 +110,7 @@ fn canonical_workspace_root(workspace_root: &Path) -> Result<PathBuf> {
 fn app_router(state: AppState) -> Router {
     Router::new()
         .route("/api/app-data.json", get(app_data))
+        .route("/health", get(health))
         .route("/healthz", get(healthz))
         .fallback(get(serve_static))
         .with_state(state)
@@ -110,6 +118,13 @@ fn app_router(state: AppState) -> Router {
 
 async fn app_data(State(state): State<AppState>) -> Json<AppPayload> {
     Json((*state.payload).clone())
+}
+
+async fn health() -> Json<HealthStatus> {
+    Json(HealthStatus {
+        status: "ok",
+        version: env!("CARGO_PKG_VERSION"),
+    })
 }
 
 async fn healthz() -> &'static str {
