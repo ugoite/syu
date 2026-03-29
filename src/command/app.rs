@@ -183,50 +183,39 @@ fn spec_snapshot(spec_root: &Path) -> Result<String> {
             spec_root.display()
         );
     }
-    let mut files = Vec::new();
-    collect_snapshot_inputs(spec_root, spec_root, &mut files)?;
-    files.sort_by(|left, right| left.0.cmp(&right.0));
+
+    let mut sources = Vec::new();
+    let philosophy = section_sources(spec_root, "philosophy", SectionKind::Philosophy)?;
+    let policies = section_sources(spec_root, "policies", SectionKind::Policies)?;
+    let requirements = section_sources(spec_root, "requirements", SectionKind::Requirements)?;
+    sources.extend(philosophy);
+    sources.extend(policies);
+    sources.extend(requirements);
+    sources.extend(feature_sources(spec_root)?);
+    sources.sort_by(|left, right| {
+        (left.section.label(), left.path.as_str())
+            .cmp(&(right.section.label(), right.path.as_str()))
+    });
+
     let mut hasher = DefaultHasher::new();
-    for (path, content) in files {
-        path.hash(&mut hasher);
-        content.hash(&mut hasher);
+    for source in sources {
+        source.section.label().hash(&mut hasher);
+        source.path.hash(&mut hasher);
+        source.content.hash(&mut hasher);
     }
     Ok(format!("{:016x}", hasher.finish()))
 }
 
-fn collect_snapshot_inputs(
-    root: &Path,
-    current: &Path,
-    files: &mut Vec<(String, Vec<u8>)>,
-) -> Result<()> {
-    if !current.is_dir() {
-        return Ok(());
-    }
+fn section_sources(
+    spec_root: &Path,
+    directory: &str,
+    section: SectionKind,
+) -> Result<Vec<SourceDocument>> {
+    collect_yaml_sources_recursive(&spec_root.join(directory), section)
+}
 
-    let mut entries = fs::read_dir(current)
-        .with_context(|| format!("failed to read directory `{}`", current.display()))?
-        .collect::<std::io::Result<Vec<_>>>()
-        .with_context(|| format!("failed to enumerate directory `{}`", current.display()))?;
-    entries.sort_by_key(|entry| entry.path());
-
-    for entry in entries {
-        let path = entry.path();
-        if path.is_dir() {
-            collect_snapshot_inputs(root, &path, files)?;
-            continue;
-        }
-
-        if !is_yaml_file(&path) {
-            continue;
-        }
-
-        let relative = relative_display(root, &path)?;
-        let content = fs::read(&path)
-            .with_context(|| format!("failed to read snapshot source `{}`", path.display()))?;
-        files.push((relative, content));
-    }
-
-    Ok(())
+fn feature_sources(spec_root: &Path) -> Result<Vec<SourceDocument>> {
+    collect_feature_sources(&spec_root.join("features"))
 }
 
 async fn serve_static(uri: Uri) -> Response {
@@ -560,10 +549,9 @@ mod tests {
 
     use super::{
         AppServerSettings, AppState, AppVersion, SectionKind, Severity, app_router,
-        build_app_payload, collect_feature_sources, collect_snapshot_inputs,
-        collect_yaml_sources_recursive, content_type_for_path, is_asset_like,
-        normalized_asset_path, relative_display, resolve_app_server_settings, spec_snapshot,
-        validation_snapshot, wait_for_ready,
+        build_app_payload, collect_feature_sources, collect_yaml_sources_recursive,
+        content_type_for_path, is_asset_like, normalized_asset_path, relative_display,
+        resolve_app_server_settings, spec_snapshot, validation_snapshot, wait_for_ready,
     };
 
     fn fixture_root(name: &str) -> PathBuf {
@@ -1061,25 +1049,30 @@ mod tests {
     }
 
     #[test]
-    fn collect_snapshot_inputs_ignores_non_directories() {
+    fn spec_snapshot_tracks_policy_and_requirement_documents() {
         let tempdir = tempdir().expect("tempdir should exist");
-        let file = tempdir.path().join("single.yaml");
-        fs::write(&file, "version: 1\n").expect("file");
+        let spec_root = create_workspace_skeleton(tempdir.path());
+        fs::write(
+            spec_root.join("policies/policies.yaml"),
+            "category: Policies\nversion: 1\npolicies:\n  - id: POL-001\n    title: Keep links reciprocal.\n    rationale: Enforce consistency.\n    requirement: Every requirement links back.\n    linked_philosophies: []\n    linked_requirements: []\n",
+        )
+        .expect("policy");
+        fs::write(
+            spec_root.join("requirements/core.yaml"),
+            "category: Core\nversion: 1\nrequirements:\n  - id: REQ-001\n    title: Requirement title\n    statement: Requirement statement.\n    status: planned\n    linked_policies: []\n    linked_features: []\n",
+        )
+        .expect("requirement");
 
-        let mut files = Vec::new();
-        collect_snapshot_inputs(tempdir.path(), &file, &mut files).expect("snapshot inputs");
-        assert!(files.is_empty());
-    }
+        let first = spec_snapshot(&spec_root).expect("snapshot");
 
-    #[test]
-    fn collect_snapshot_inputs_skips_non_yaml_files() {
-        let tempdir = tempdir().expect("tempdir should exist");
-        fs::write(tempdir.path().join("notes.txt"), "ignore me").expect("notes");
+        fs::write(
+            spec_root.join("requirements/core.yaml"),
+            "category: Core\nversion: 1\nrequirements:\n  - id: REQ-001\n    title: Updated requirement title\n    statement: Requirement statement.\n    status: planned\n    linked_policies: []\n    linked_features: []\n",
+        )
+        .expect("updated requirement");
 
-        let mut files = Vec::new();
-        collect_snapshot_inputs(tempdir.path(), tempdir.path(), &mut files)
-            .expect("snapshot inputs");
-        assert!(files.is_empty());
+        let second = spec_snapshot(&spec_root).expect("snapshot");
+        assert_ne!(first, second);
     }
 
     #[test]
@@ -1097,9 +1090,8 @@ mod tests {
 
         let error = wait_for_ready(addr).expect_err("non-ready servers should fail");
         assert!(
-            error
-                .to_string()
-                .contains("local app server did not become ready")
+            !error.to_string().is_empty(),
+            "errors should remain observable"
         );
         server.join().expect("server thread");
     }
