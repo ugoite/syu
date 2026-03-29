@@ -228,6 +228,11 @@ fn repository_declares_documentation_guides() {
     assert!(concepts.contains("Specification Reference"));
     assert!(getting_started.contains("New to `syu`?"));
     assert!(getting_started.contains("Start here once `syu` is installed:"));
+    assert!(getting_started.contains("install-syu.sh"));
+    assert!(getting_started.contains("SYU_VERSION=alpha"));
+    assert!(getting_started.contains(&format!(
+        "https://github.com/ugoite/syu/releases/download/v{current_version}/install-syu.sh"
+    )));
     assert!(getting_started.contains("syu validate . --fix"));
     assert!(getting_started.contains("syu browse ."));
     assert!(getting_started.contains("syu list feature"));
