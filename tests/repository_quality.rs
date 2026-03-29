@@ -161,7 +161,10 @@ fn repository_declares_installer_contract() {
     assert!(installer_smoke.contains("run_install_case"));
     assert!(installed_binary_smoke.contains("FEAT-QUALITY-001"));
     assert!(installed_binary_smoke.contains("cargo install --path"));
+    assert!(installed_binary_smoke.contains("--locked"));
+    assert!(installed_binary_smoke.contains("wait_for_app_url"));
     assert!(installed_binary_smoke.contains("wait_for_app_payload"));
+    assert!(installed_binary_smoke.contains("print_app_diagnostics"));
     assert!(installed_binary_smoke.contains("api/app-data.json"));
     assert!(mock_registry.contains("FEAT-INSTALL-001"));
     assert!(mock_registry.contains("build_artifacts"));

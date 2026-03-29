@@ -36,29 +36,62 @@ print(data["package"]["version"])
 PY
 }
 
-reserve_port() {
-  python3 - <<'PY'
-import socket
+print_app_diagnostics() {
+  local app_log="$1"
 
-sock = socket.socket()
-sock.bind(("127.0.0.1", 0))
-print(sock.getsockname()[1])
-sock.close()
+  echo "installed-binary smoke failed" >&2
+  if [[ -n "${app_pid:-}" ]]; then
+    if kill -0 "$app_pid" >/dev/null 2>&1; then
+      echo "app process is still running (pid=${app_pid})" >&2
+    else
+      echo "app process exited before readiness completed (pid=${app_pid})" >&2
+    fi
+  fi
+  if [[ -f "$app_log" ]]; then
+    echo "--- syu app log ---" >&2
+    cat "$app_log" >&2
+    echo "-------------------" >&2
+  fi
+}
+
+wait_for_app_url() {
+  local app_log="$1"
+
+  APP_LOG="$app_log" python3 - <<'PY'
+import os
+import pathlib
+import re
+import sys
+import time
+
+app_log = pathlib.Path(os.environ["APP_LOG"])
+pattern = re.compile(r"syu app listening on (http://\S+)")
+
+for _ in range(80):
+    if app_log.exists():
+        content = app_log.read_text(encoding="utf-8", errors="replace")
+        match = pattern.search(content)
+        if match:
+            print(match.group(1))
+            sys.exit(0)
+    time.sleep(0.1)
+
+sys.exit(1)
 PY
 }
 
 wait_for_app_payload() {
-  local port="$1"
+  local app_url="$1"
 
-  PORT="$port" python3 - <<'PY'
+  APP_URL="$app_url" python3 - <<'PY'
 import json
 import os
 import sys
 import time
 import urllib.request
 
-port = os.environ["PORT"]
-url = f"http://127.0.0.1:{port}/api/app-data.json"
+url = f"{os.environ['APP_URL']}/api/app-data.json"
+last_error = None
 
 for _ in range(80):
     try:
@@ -66,15 +99,19 @@ for _ in range(80):
             payload = json.load(response)
         if payload.get("workspace_root") and payload.get("spec_root"):
             sys.exit(0)
-    except Exception:
-        time.sleep(0.1)
+        last_error = f"incomplete payload keys from {url}: {sorted(payload.keys())}"
+    except Exception as error:
+        last_error = f"{type(error).__name__}: {error}"
+    time.sleep(0.1)
 
+if last_error:
+    print(last_error, file=sys.stderr)
 sys.exit(1)
 PY
 }
 
 main() {
-  local install_root binary_name installed_binary expected_version actual_version workspace port app_log
+  local install_root binary_name installed_binary expected_version actual_version workspace app_log app_url
 
   trap cleanup EXIT
   cd "$repo_root"
@@ -86,7 +123,7 @@ main() {
   expected_version="$(resolve_package_version)"
   workspace="${temp_root}/workspace"
 
-  cargo install --path "$repo_root" --root "$install_root" --force
+  cargo install --path "$repo_root" --root "$install_root" --force --locked
 
   actual_version="$("${installed_binary}" --version)"
   test "${actual_version}" = "syu ${expected_version}"
@@ -97,12 +134,19 @@ main() {
 
   "${installed_binary}" validate "$workspace" >/dev/null
 
-  port="$(reserve_port)"
   app_log="${temp_root}/app.log"
-  "${installed_binary}" app "$workspace" --bind 127.0.0.1 --port "$port" >"$app_log" 2>&1 &
+  "${installed_binary}" app "$workspace" --bind 127.0.0.1 --port 0 >"$app_log" 2>&1 &
   app_pid="$!"
 
-  wait_for_app_payload "$port"
+  if ! app_url="$(wait_for_app_url "$app_log")"; then
+    print_app_diagnostics "$app_log"
+    exit 1
+  fi
+
+  if ! wait_for_app_payload "$app_url"; then
+    print_app_diagnostics "$app_log"
+    exit 1
+  fi
 }
 
 main "$@"
