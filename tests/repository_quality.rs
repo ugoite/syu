@@ -235,7 +235,8 @@ fn repository_declares_documentation_guides() {
     assert!(getting_started.contains("syu app ."));
     assert!(getting_started.contains("Requirements are discovered"));
     assert!(getting_started.contains("implementation claims should stay deliberate"));
-    assert!(getting_started.contains("version: 0.0.1-alpha.7"));
+    assert!(getting_started.contains(&format!("version: {current_version}")));
+    assert!(getting_started.contains("kind: core"));
     assert!(getting_started.contains("freshly initialized project will not have them yet"));
     assert!(getting_started.contains("https://ugoite.github.io/syu/docs/generated/site-spec"));
     assert!(getting_started.contains("https://ugoite.github.io/syu/docs/generated/syu-report"));

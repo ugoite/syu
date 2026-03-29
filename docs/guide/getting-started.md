@@ -83,7 +83,8 @@ reviewable. That registry is a short YAML list of feature documents:
 ```yaml
 version: 0.0.1-alpha.7
 files:
-  - file: core/core.yaml
+  - kind: core
+    file: core/core.yaml
 ```
 
 Make sure links are reciprocal:
