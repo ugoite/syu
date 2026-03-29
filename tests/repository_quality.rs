@@ -233,6 +233,8 @@ fn repository_declares_documentation_guides() {
     assert!(getting_started.contains("syu list feature"));
     assert!(getting_started.contains("syu show REQ-CORE-015"));
     assert!(getting_started.contains("syu app ."));
+    assert!(getting_started.contains("install-syu.sh"));
+    assert!(getting_started.contains("SYU_VERSION=alpha"));
     assert!(getting_started.contains("status: implemented"));
     assert!(getting_started.contains("Keep exploring"));
     assert_eq!(
