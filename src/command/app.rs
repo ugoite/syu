@@ -897,7 +897,12 @@ mod tests {
         let addr = listener.local_addr().expect("addr");
 
         let waiter = thread::spawn(move || {
-            wait_for_ready_with_retry(addr, 5, Duration::from_millis(200), Duration::from_millis(5))
+            wait_for_ready_with_retry(
+                addr,
+                5,
+                Duration::from_millis(200),
+                Duration::from_millis(5),
+            )
         });
 
         let (mut stream, _) = listener.accept().expect("request should connect");
