@@ -259,6 +259,30 @@ fn validate_cli_override_can_forbid_planned_items() {
 }
 
 #[test]
+fn validate_cli_override_for_planned_items_mentions_cli_source() {
+    let tempdir = tempdir().expect("tempdir should exist");
+    write_planned_workspace(tempdir.path(), true);
+
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .arg("validate")
+        .arg(tempdir.path())
+        .arg("--allow-planned=false")
+        .output()
+        .expect("validate should run");
+
+    assert!(
+        !output.status.success(),
+        "CLI override should tighten planned items"
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("--allow-planned=false"));
+    assert!(!stdout.contains("syu.yaml forbids planned items"));
+    assert!(stdout.contains("rerun without `--allow-planned=false`"));
+}
+
+#[test]
 fn validate_cli_override_can_disable_orphan_checks() {
     let tempdir = tempdir().expect("tempdir should exist");
     write_orphan_workspace(tempdir.path());

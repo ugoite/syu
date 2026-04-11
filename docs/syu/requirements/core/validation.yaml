@@ -49,6 +49,7 @@ requirements:
           symbols:
             - validate_cli_override_can_allow_planned_items
             - validate_cli_override_can_forbid_planned_items
+            - validate_cli_override_for_planned_items_mentions_cli_source
             - validate_cli_override_can_disable_orphan_checks
             - validate_cli_override_can_disable_reciprocal_checks
         - file: src/command/check.rs

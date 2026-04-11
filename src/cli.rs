@@ -335,7 +335,7 @@ impl ValidationGenreFilter {
 mod tests {
     use clap::Parser;
 
-    use super::{Cli, Commands, LookupKind, ValidationGenreFilter, ValidationSeverityFilter};
+    use super::{Cli, LookupKind, ValidationGenreFilter, ValidationSeverityFilter};
 
     #[test]
     fn cli_enums_expose_expected_labels() {
@@ -365,14 +365,12 @@ mod tests {
         ])
         .expect("validate args should parse");
 
-        let Commands::Validate(args) = cli.command.expect("validate command") else {
-            panic!("expected validate command");
-        };
-
-        assert_eq!(args.allow_planned, Some(false));
-        assert_eq!(args.require_non_orphaned_items, Some(false));
-        assert_eq!(args.require_reciprocal_links, Some(true));
-        assert_eq!(args.require_symbol_trace_coverage, Some(true));
+        let rendered = format!("{cli:?}");
+        assert!(rendered.contains("command: Some(Validate("));
+        assert!(rendered.contains("allow_planned: Some(false)"));
+        assert!(rendered.contains("require_non_orphaned_items: Some(false)"));
+        assert!(rendered.contains("require_reciprocal_links: Some(true)"));
+        assert!(rendered.contains("require_symbol_trace_coverage: Some(true)"));
     }
 
     #[test]
