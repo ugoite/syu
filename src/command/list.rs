@@ -94,8 +94,13 @@ fn parse_list_positionals(positional: &[String]) -> Result<(Option<LookupKind>, 
             }
         }
         [kind_str, workspace_str, ..] => {
-            let kind = LookupKind::from_str(kind_str, true)
-                .map_err(|_| invalid_kind_error(kind_str, Some(workspace_str), None))?;
+            let kind = LookupKind::from_str(kind_str, true).map_err(|_| {
+                invalid_kind_error(
+                    kind_str,
+                    Some(workspace_str),
+                    suggested_lookup_kind(kind_str),
+                )
+            })?;
             Ok((Some(kind), PathBuf::from(workspace_str)))
         }
     }
@@ -249,5 +254,15 @@ mod tests {
         let msg = result.unwrap_err().to_string();
         assert!(msg.contains("did you mean `philosophy`"), "error: {msg}");
         assert!(msg.contains("syu list --help"), "hint missing: {msg}");
+    }
+
+    #[test]
+    // FEAT-LIST-001
+    fn parse_list_positionals_two_arg_kind_typo_returns_suggestion() {
+        let result = parse_list_positionals(&["philsophy".to_string(), ".".to_string()]);
+        assert!(result.is_err());
+        let msg = result.unwrap_err().to_string();
+        assert!(msg.contains("did you mean `philosophy`"), "error: {msg}");
+        assert!(msg.contains("syu list ."), "hint missing: {msg}");
     }
 }
