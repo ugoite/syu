@@ -52,6 +52,7 @@ check_generated_docs_freshness() {
     echo "Commit the regenerated docs/generated output after reviewing the diff." >&2
     git --no-pager status --short -- docs/generated >&2
     git --no-pager diff --stat -- docs/generated >&2
+    git --no-pager diff -- docs/generated >&2
     exit 1
   fi
 }
