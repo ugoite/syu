@@ -920,8 +920,13 @@ mod tests {
             }
         });
 
-        wait_for_ready_with_retry(addr, 5, Duration::from_millis(200), Duration::from_millis(5))
-            .expect("ready servers should succeed");
+        wait_for_ready_with_retry(
+            addr,
+            5,
+            Duration::from_millis(200),
+            Duration::from_millis(5),
+        )
+        .expect("ready servers should succeed");
         server.join().expect("server thread");
     }
 
