@@ -8,10 +8,11 @@ use std::{
     io::{Read, Write},
     net::{IpAddr, SocketAddr},
     path::{Path, PathBuf},
+    sync::{Arc, RwLock},
     time::Duration,
 };
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, anyhow, bail};
 use axum::{
     Json, Router,
     body::Body,
@@ -39,6 +40,62 @@ static APP_DIST: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/app/dist");
 struct AppState {
     workspace_root: PathBuf,
     config: SyuConfig,
+    current: Arc<RwLock<CurrentAppState>>,
+}
+
+#[derive(Debug, Clone)]
+struct CurrentAppData {
+    snapshot: String,
+    payload: AppPayload,
+}
+
+#[derive(Debug, Clone)]
+enum CurrentAppState {
+    Ready(CurrentAppData),
+    Error(String),
+}
+
+impl AppState {
+    fn new(workspace_root: PathBuf, config: SyuConfig) -> Self {
+        Self {
+            workspace_root,
+            config,
+            current: Arc::new(RwLock::new(CurrentAppState::Error(
+                "app data refresh failed".to_string(),
+            ))),
+        }
+    }
+
+    fn current_data(&self) -> Result<CurrentAppData> {
+        match self
+            .current
+            .read()
+            .map_err(|_| anyhow!("app refresh state lock poisoned"))?
+            .clone()
+        {
+            CurrentAppState::Ready(data) => Ok(data),
+            CurrentAppState::Error(message) => Err(anyhow!(message)),
+        }
+    }
+
+    fn refresh_current(&self) -> Result<()> {
+        let next = match load_snapshot_payload(&self.workspace_root, &self.config) {
+            Ok((snapshot, payload)) => CurrentAppState::Ready(CurrentAppData { snapshot, payload }),
+            Err(error) => CurrentAppState::Error(format!("{error:#}")),
+        };
+
+        let result = match &next {
+            CurrentAppState::Ready(_) => Ok(()),
+            CurrentAppState::Error(message) => Err(anyhow!(message.clone())),
+        };
+
+        *self
+            .current
+            .write()
+            .map_err(|_| anyhow!("app refresh state lock poisoned"))? = next;
+
+        result
+    }
 }
 
 #[derive(serde::Serialize)]
@@ -67,16 +124,16 @@ pub fn run_app_command(args: &AppArgs) -> Result<i32> {
         .parse::<IpAddr>()
         .with_context(|| format!("invalid bind address `{}`", settings.bind))?;
     build_app_payload_from_config(&workspace_root, &loaded.config)?;
+    let state = AppState::new(workspace_root, loaded.config);
+    let _ = state.refresh_current();
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
         .context("failed to create runtime for `syu app`")?;
 
     runtime.block_on(async move {
-        let router = app_router(AppState {
-            workspace_root,
-            config: loaded.config,
-        });
+        let router = app_router(state.clone());
+        let refresher = tokio::spawn(refresh_current_until_shutdown(state.clone()));
         let listener = tokio::net::TcpListener::bind((bind, settings.port))
             .await
             .with_context(|| format!("failed to bind `{bind}:{}`", settings.port))?;
@@ -100,7 +157,9 @@ pub fn run_app_command(args: &AppArgs) -> Result<i32> {
             .flush()
             .context("failed to flush stdout")?;
 
-        server.await.context("local app server task panicked")?
+        let result = server.await.context("local app server task panicked")?;
+        refresher.abort();
+        result
     })?;
 
     Ok(0)
@@ -133,11 +192,11 @@ fn app_router(state: AppState) -> Router {
 }
 
 async fn app_data(State(state): State<AppState>) -> std::result::Result<Response, AppError> {
-    let (snapshot, payload) = load_snapshot_payload(&state)?;
-    let mut response = Json(payload).into_response();
+    let current = state.current_data()?;
+    let mut response = Json(current.payload).into_response();
     response.headers_mut().insert(
         "x-syu-snapshot",
-        HeaderValue::from_str(&snapshot).context("invalid snapshot header value")?,
+        HeaderValue::from_str(&current.snapshot).context("invalid snapshot header value")?,
     );
     Ok(response)
 }
@@ -145,8 +204,9 @@ async fn app_data(State(state): State<AppState>) -> std::result::Result<Response
 async fn app_version(
     State(state): State<AppState>,
 ) -> std::result::Result<Json<AppVersion>, AppError> {
+    let current = state.current_data()?;
     Ok(Json(AppVersion {
-        snapshot: load_current_snapshot(&state)?,
+        snapshot: current.snapshot,
     }))
 }
 
@@ -161,18 +221,37 @@ async fn healthz() -> &'static str {
     "ok"
 }
 
-fn load_current_payload(state: &AppState) -> Result<AppPayload> {
-    build_app_payload_from_config(&state.workspace_root, &state.config)
+async fn refresh_current_until_shutdown(state: AppState) {
+    let mut interval = tokio::time::interval(Duration::from_secs(1));
+    interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+
+    loop {
+        interval.tick().await;
+        refresh_current_once(&state);
+    }
 }
 
-fn load_snapshot_payload(state: &AppState) -> Result<(String, AppPayload)> {
-    let snapshot = load_current_snapshot(state)?;
-    let payload = load_current_payload(state)?;
+fn refresh_current_once(state: &AppState) {
+    if let Err(error) = state.refresh_current() {
+        eprintln!("syu app refresh failed: {error:#}");
+    }
+}
+
+fn load_current_payload(workspace_root: &Path, config: &SyuConfig) -> Result<AppPayload> {
+    build_app_payload_from_config(workspace_root, config)
+}
+
+fn load_snapshot_payload(
+    workspace_root: &Path,
+    config: &SyuConfig,
+) -> Result<(String, AppPayload)> {
+    let snapshot = load_current_snapshot(workspace_root, config)?;
+    let payload = load_current_payload(workspace_root, config)?;
     Ok((snapshot, payload))
 }
 
-fn load_current_snapshot(state: &AppState) -> Result<String> {
-    let spec_root = resolve_spec_root(&state.workspace_root, &state.config);
+fn load_current_snapshot(workspace_root: &Path, config: &SyuConfig) -> Result<String> {
+    let spec_root = resolve_spec_root(workspace_root, config);
     spec_snapshot(&spec_root)
 }
 
@@ -550,8 +629,9 @@ mod tests {
     use super::{
         AppServerSettings, AppState, AppVersion, SectionKind, Severity, app_router,
         build_app_payload, collect_feature_sources, collect_yaml_sources_recursive,
-        content_type_for_path, is_asset_like, normalized_asset_path, relative_display,
-        resolve_app_server_settings, spec_snapshot, validation_snapshot, wait_for_ready,
+        content_type_for_path, is_asset_like, normalized_asset_path, refresh_current_once,
+        relative_display, resolve_app_server_settings, spec_snapshot, validation_snapshot,
+        wait_for_ready,
     };
 
     fn fixture_root(name: &str) -> PathBuf {
@@ -582,10 +662,9 @@ mod tests {
 
     fn app_state(root: &Path) -> AppState {
         let config = load_config(root).expect("config should load").config;
-        AppState {
-            workspace_root: root.to_path_buf(),
-            config,
-        }
+        let state = AppState::new(root.to_path_buf(), config);
+        let _ = state.refresh_current();
+        state
     }
 
     #[cfg(unix)]
@@ -986,7 +1065,8 @@ mod tests {
         )
         .expect("philosophy");
 
-        let router = app_router(app_state(root));
+        let state = app_state(root);
+        let router = app_router(state.clone());
 
         let first = router
             .clone()
@@ -1007,6 +1087,7 @@ mod tests {
             "category: Philosophy\nversion: 1\nlanguage: en\n\nphilosophies:\n  - id: PHIL-001\n    title: Updated title\n    product_design_principle: Keep it small.\n    coding_guideline: Keep it explicit.\n    linked_policies: []\n",
         )
         .expect("updated philosophy");
+        state.refresh_current().expect("refresh should succeed");
 
         let second = router
             .oneshot(
@@ -1096,6 +1177,15 @@ mod tests {
         server.join().expect("server thread");
     }
 
+    #[test]
+    fn refresh_current_once_keeps_refresh_failures_non_fatal() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        write_config(tempdir.path(), "127.0.0.1", 3000);
+        let state = app_state(tempdir.path());
+
+        refresh_current_once(&state);
+    }
+
     #[tokio::test]
     async fn api_errors_hide_internal_details_from_clients() {
         let tempdir = tempdir().expect("tempdir should exist");
@@ -1134,7 +1224,8 @@ mod tests {
         )
         .expect("philosophy");
 
-        let router = app_router(app_state(root));
+        let state = app_state(root);
+        let router = app_router(state.clone());
 
         let first = router
             .clone()
@@ -1154,6 +1245,7 @@ mod tests {
             "category: Philosophy\nversion: 1\nlanguage: en\n\nphilosophies:\n  - id: PHIL-001\n    title: Updated title\n    product_design_principle: Keep it small.\n    coding_guideline: Keep it explicit.\n    linked_policies: []\n",
         )
         .expect("updated philosophy");
+        state.refresh_current().expect("refresh should succeed");
 
         let second = router
             .oneshot(
