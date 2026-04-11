@@ -896,22 +896,23 @@ mod tests {
         let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener should bind");
         let addr = listener.local_addr().expect("addr");
 
-        let server = thread::spawn(move || {
-            for _ in 0..5 {
-                if let Ok((mut stream, _)) = listener.accept() {
-                    let mut buffer = [0_u8; 1024];
-                    let _ = stream.read(&mut buffer);
-                    let _ = stream.write_all(
-                        b"HTTP/1.1 200 OK\r\nContent-Length: 15\r\nConnection: close\r\n\r\n{\"status\":\"ok\"}",
-                    );
-                    let _ = stream.flush();
-                }
-            }
+        let waiter = thread::spawn(move || {
+            wait_for_ready_with_retry(addr, 5, Duration::from_millis(200), Duration::from_millis(5))
         });
 
-        wait_for_ready_with_retry(addr, 5, Duration::from_millis(20), Duration::from_millis(1))
+        let (mut stream, _) = listener.accept().expect("request should connect");
+        let mut buffer = [0_u8; 1024];
+        let _ = stream.read(&mut buffer);
+        let _ = stream.write_all(
+            b"HTTP/1.1 200 OK\r\nContent-Length: 15\r\nConnection: close\r\n\r\n{\"status\":\"ok\"}",
+        );
+        let _ = stream.flush();
+        drop(stream);
+
+        waiter
+            .join()
+            .expect("waiter thread")
             .expect("ready servers should succeed");
-        server.join().expect("server thread");
     }
 
     #[test]
