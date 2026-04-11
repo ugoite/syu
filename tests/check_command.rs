@@ -322,6 +322,56 @@ fn check_command_reports_feature_documents_missing_from_registry() {
 
 #[test]
 // REQ-CORE-001
+fn check_command_reports_malformed_unregistered_feature_documents_on_candidate_path() {
+    let tempdir = tempdir().expect("tempdir should exist");
+    write_unregistered_feature_workspace(tempdir.path());
+    fs::write(
+        tempdir.path().join("docs/syu/features/extra/stray.yaml"),
+        "features: [",
+    )
+    .expect("invalid feature candidate should exist");
+
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .arg("validate")
+        .arg(tempdir.path())
+        .output()
+        .expect("command should run");
+
+    assert!(
+        !output.status.success(),
+        "stdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("SYU-workspace-registry-001"),
+        "stdout:\n{stdout}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        stdout.contains("docs/syu/features/extra/stray.yaml"),
+        "stdout:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("failed to parse feature candidate"),
+        "stdout:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("Fix `docs/syu/features/extra/stray.yaml`"),
+        "stdout:\n{stdout}"
+    );
+    assert!(
+        !stdout
+            .contains("Failed to compare feature files against `docs/syu/features/features.yaml`"),
+        "stdout:\n{stdout}"
+    );
+}
+
+#[test]
+// REQ-CORE-001
 fn check_command_filters_visible_issues_by_spec_id() {
     let output = Command::cargo_bin("syu")
         .expect("binary should build")
