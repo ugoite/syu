@@ -45,7 +45,7 @@ function App() {
   const [selectedSection, setSelectedSection] = useState<SectionKind>("philosophy");
   const [selectedDocumentPath, setSelectedDocumentPath] = useState("");
   const [selectedItemId, setSelectedItemId] = useState("");
-  const [selectedIssueIndex, setSelectedIssueIndex] = useState<number | null>(null);
+  const [selectedIssueKey, setSelectedIssueKey] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [focusedResultIndex, setFocusedResultIndex] = useState(-1);
   const [showOnboarding, setShowOnboarding] = useState(() => shouldShowOnboarding());
@@ -82,11 +82,18 @@ function App() {
       setSelectedItemId(firstDocument?.items[0]?.id ?? "");
     }
 
-    setSelectedIssueIndex((current) => {
-      if (current != null && current < browserWorkspace.validation.issues.length) {
+    setSelectedIssueKey((current) => {
+      if (
+        current &&
+        browserWorkspace.validation.issues.some(
+          (issue) => validationIssueSelectionKey(issue) === current,
+        )
+      ) {
         return current;
       }
-      return browserWorkspace.validation.issues.length > 0 ? 0 : null;
+
+      const firstIssue = browserWorkspace.validation.issues[0];
+      return firstIssue ? validationIssueSelectionKey(firstIssue) : null;
     });
   }, []);
 
@@ -248,11 +255,18 @@ function App() {
     if (!workspace || workspace.validation.issues.length === 0) {
       return null;
     }
-    if (selectedIssueIndex != null && selectedIssueIndex < workspace.validation.issues.length) {
-      return selectedIssueIndex;
+
+    if (selectedIssueKey) {
+      const selectedIndex = workspace.validation.issues.findIndex(
+        (issue) => validationIssueSelectionKey(issue) === selectedIssueKey,
+      );
+      if (selectedIndex >= 0) {
+        return selectedIndex;
+      }
     }
+
     return 0;
-  }, [selectedIssueIndex, workspace]);
+  }, [selectedIssueKey, workspace]);
 
   const activeIssue = useMemo(() => {
     if (!workspace || activeIssueIndex == null) {
@@ -958,7 +972,7 @@ function App() {
                       <button
                         key={`${issueKey}-${index}`}
                         type="button"
-                        onClick={() => setSelectedIssueIndex(index)}
+                        onClick={() => setSelectedIssueKey(issueKey)}
                         className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
                           activeIssueIndex === index
                             ? issue.severity === "error"
@@ -1026,6 +1040,7 @@ function isSectionKind(value: string): value is SectionKind {
 function validationIssueSelectionKey(issue: ValidationIssue): string {
   return [
     issue.code,
+    issue.severity,
     issue.subject,
     issue.location ?? "",
     issue.message,
