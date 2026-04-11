@@ -323,11 +323,12 @@ pub fn run_check_command(args: &CheckArgs) -> Result<i32> {
             } else {
                 None
             };
-            let result = if should_fix {
-                collect_check_result(&args.workspace)
+            let workspace = if should_fix {
+                with_validate_overrides(load_workspace(&args.workspace)?, args)
             } else {
-                collect_check_result_from_workspace(&workspace)
+                with_validate_overrides(workspace, args)
             };
+            let result = collect_check_result_from_workspace(&workspace);
             let text_summary =
                 TextReportSummary::from_config(&workspace.config, &result.definition_counts);
             (result, fix_summary, Some(text_summary))
@@ -565,6 +566,22 @@ fn effective_fix(args: &CheckArgs, config: &SyuConfig) -> bool {
     } else {
         config.validate.default_fix
     }
+}
+
+fn with_validate_overrides(mut workspace: Workspace, args: &CheckArgs) -> Workspace {
+    if let Some(value) = args.allow_planned {
+        workspace.config.validate.allow_planned = value;
+    }
+    if let Some(value) = args.require_non_orphaned_items {
+        workspace.config.validate.require_non_orphaned_items = value;
+    }
+    if let Some(value) = args.require_reciprocal_links {
+        workspace.config.validate.require_reciprocal_links = value;
+    }
+    if let Some(value) = args.require_symbol_trace_coverage {
+        workspace.config.validate.require_symbol_trace_coverage = value;
+    }
+    workspace
 }
 
 #[allow(clippy::question_mark)]
@@ -2347,6 +2364,10 @@ mod tests {
             id: Vec::new(),
             fix: false,
             no_fix: false,
+            allow_planned: None,
+            require_non_orphaned_items: None,
+            require_reciprocal_links: None,
+            require_symbol_trace_coverage: None,
             quiet: false,
         })
         .expect("command should render load errors");
@@ -2409,6 +2430,10 @@ mod tests {
             id: Vec::new(),
             fix: true,
             no_fix: false,
+            allow_planned: None,
+            require_non_orphaned_items: None,
+            require_reciprocal_links: None,
+            require_symbol_trace_coverage: None,
             quiet: false,
         })
         .expect_err("autofix failures should bubble up");
