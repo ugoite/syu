@@ -3,11 +3,11 @@
 
 use std::{
     collections::hash_map::DefaultHasher,
-    fs,
+    env, fs,
     hash::{Hash, Hasher},
     io::{Read, Write},
     net::{IpAddr, SocketAddr},
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
     sync::{Arc, RwLock},
     time::Duration,
 };
@@ -463,17 +463,68 @@ fn build_app_payload_from_config(workspace_root: &Path, config: &SyuConfig) -> R
 }
 
 fn browser_root_labels(workspace_root: &Path, spec_root: &Path) -> (String, String) {
-    let workspace_label = workspace_root
-        .file_name()
-        .map(|name| name.to_string_lossy().into_owned())
-        .filter(|label| !label.is_empty())
-        .unwrap_or_else(|| "workspace".to_string());
+    let workspace_label = redacted_root_label(workspace_root);
     let spec_label = match relative_display(workspace_root, spec_root) {
         Ok(relative) if relative.is_empty() => ".".to_string(),
         Ok(relative) => relative,
         Err(_) => "external spec root".to_string(),
     };
     (workspace_label, spec_label)
+}
+
+fn redacted_root_label(path: &Path) -> String {
+    if let Some(label) = redacted_relative_label(env::current_dir().ok(), path, ".") {
+        return label;
+    }
+
+    let home = env::var_os("HOME")
+        .or_else(|| env::var_os("USERPROFILE"))
+        .map(PathBuf::from);
+    if let Some(label) = redacted_relative_label(home, path, "~") {
+        return label;
+    }
+
+    let fallback = trailing_path_components_label(path, 2);
+    if !fallback.is_empty() {
+        return fallback;
+    }
+
+    "workspace".to_string()
+}
+
+fn redacted_relative_label(root: Option<PathBuf>, path: &Path, prefix: &str) -> Option<String> {
+    let root = root?;
+    let root = root.canonicalize().unwrap_or(root);
+    let relative = path.strip_prefix(&root).ok()?;
+    let relative = path_label(relative);
+    if relative.is_empty() {
+        Some(prefix.to_string())
+    } else {
+        Some(format!("{prefix}/{relative}"))
+    }
+}
+
+fn trailing_path_components_label(path: &Path, count: usize) -> String {
+    let segments: Vec<_> = path
+        .components()
+        .filter_map(|component| match component {
+            Component::Normal(segment) => Some(segment.to_os_string()),
+            _ => None,
+        })
+        .collect();
+    if segments.is_empty() {
+        return String::new();
+    }
+
+    let mut label = PathBuf::new();
+    for segment in segments.iter().skip(segments.len().saturating_sub(count)) {
+        label.push(segment);
+    }
+    path_label(&label)
+}
+
+fn path_label(path: &Path) -> String {
+    path.to_string_lossy().replace('\\', "/")
 }
 
 fn collect_feature_sources(feature_root: &Path) -> Result<Vec<SourceDocument>> {
@@ -672,8 +723,8 @@ mod tests {
         browser_root_labels, build_app_payload, collect_feature_sources,
         collect_yaml_sources_recursive, content_type_for_path, is_asset_like,
         normalized_asset_path, readiness_probe_request_sent, readiness_probe_succeeds,
-        refresh_current_once, relative_display, resolve_app_server_settings, spec_snapshot,
-        validation_snapshot, wait_for_ready_with_retry,
+        redacted_root_label, refresh_current_once, relative_display, resolve_app_server_settings,
+        spec_snapshot, validation_snapshot, wait_for_ready_with_retry,
     };
 
     fn fixture_root(name: &str) -> PathBuf {
@@ -837,7 +888,10 @@ mod tests {
     #[test]
     fn build_app_payload_collects_current_workspace_sources() {
         let payload = build_app_payload(&fixture_root("passing")).expect("payload should build");
-        assert_eq!(payload.workspace_root, "passing");
+        assert_eq!(
+            payload.workspace_root,
+            "./tests/fixtures/workspaces/passing"
+        );
         assert_eq!(payload.spec_root, "docs/syu");
         assert!(
             payload
@@ -859,8 +913,21 @@ mod tests {
         let workspace_root = Path::new("/tmp/workspace");
         let spec_root = Path::new("/tmp/shared-spec/docs/syu");
         let (workspace_label, spec_label) = browser_root_labels(workspace_root, spec_root);
-        assert_eq!(workspace_label, "workspace");
+        assert_eq!(workspace_label, "tmp/workspace");
         assert_eq!(spec_label, "external spec root");
+    }
+
+    #[test]
+    fn redacted_root_label_uses_home_relative_paths() {
+        let home = std::env::var_os("HOME")
+            .or_else(|| std::env::var_os("USERPROFILE"))
+            .map(PathBuf::from)
+            .expect("a home directory environment variable should exist for tests");
+        let workspace_root = home.join("src/example/spec-workspace");
+        assert_eq!(
+            redacted_root_label(&workspace_root),
+            "~/src/example/spec-workspace"
+        );
     }
 
     #[test]
