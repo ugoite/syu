@@ -26,6 +26,38 @@ fn search_command_matches_ids_and_titles() {
 
 #[test]
 // REQ-CORE-019
+fn search_command_matches_philosophy_ids_and_titles() {
+    let id_output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .arg("search")
+        .arg("PHIL-TRACE-001")
+        .arg(fixture_path("passing"))
+        .output()
+        .expect("philosophy id search should run");
+
+    assert!(id_output.status.success());
+    assert!(
+        String::from_utf8_lossy(&id_output.stdout)
+            .contains("PHIL-TRACE-001\tphilosophy\tTrace everything")
+    );
+
+    let title_output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .arg("search")
+        .arg("everything")
+        .arg(fixture_path("passing"))
+        .output()
+        .expect("philosophy title search should run");
+
+    assert!(title_output.status.success());
+    assert!(
+        String::from_utf8_lossy(&title_output.stdout)
+            .contains("PHIL-TRACE-001\tphilosophy\tTrace everything")
+    );
+}
+
+#[test]
+// REQ-CORE-019
 fn search_command_matches_summaries_and_descriptions() {
     let summary_output = Command::cargo_bin("syu")
         .expect("binary should build")
@@ -133,4 +165,22 @@ fn search_command_reads_items_from_workspaces_with_validation_errors() {
         "validation issues should not block search"
     );
     assert!(String::from_utf8_lossy(&output.stdout).contains("REQ-FAIL-001"));
+}
+
+#[test]
+// REQ-CORE-019
+fn search_command_rejects_whitespace_only_queries() {
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .arg("search")
+        .arg("   ")
+        .arg(fixture_path("passing"))
+        .output()
+        .expect("command should run");
+
+    assert_eq!(output.status.code(), Some(2));
+    assert!(
+        String::from_utf8_lossy(&output.stderr)
+            .contains("search query must not be empty or whitespace")
+    );
 }
