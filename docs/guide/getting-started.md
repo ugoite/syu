@@ -60,14 +60,23 @@ Or scaffold another directory:
 syu init path/to/workspace --name my-project
 ```
 
-This creates `syu.yaml` and a starter `docs/syu/` tree.
+Need a closer starting point for a repository that is already Rust-first,
+Python-first, or polyglot?
+
+```bash
+syu init . --template rust-only
+```
+
+This creates `syu.yaml` and a starter `docs/syu/` tree. `--template` keeps the
+same four layers but swaps the starter IDs, file layout, and copy so the first
+edit looks more like the repository style you already expect.
 
 Starter requirements and features begin as `status: planned`. Keep them planned
 until you are ready to declare real tests and implementation traces.
 
 ## 2. Fill in the starter spec
 
-Start by editing:
+Start by editing the generated files:
 
 - `docs/syu/philosophy/foundation.yaml`
 - `docs/syu/policies/policies.yaml`
@@ -223,6 +232,10 @@ The repository includes complete examples:
 - `examples/rust-only`
 - `examples/python-only`
 - `examples/polyglot`
+
+If one of those examples is already close to your repository, use the matching
+`syu init --template ...` option so the starter scaffold begins nearer to that
+shape.
 
 ## Keep exploring
 

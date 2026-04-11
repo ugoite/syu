@@ -47,6 +47,24 @@ description: "Generated reference for docs/syu/features/cli/init.yaml"
       - **file**: src/cli.rs
         - **symbols**:
           - InitArgs
+- **id**: FEAT-INIT-004
+  - **title**: Language-oriented starter templates
+  - **summary**: Allow `syu init --template` to scaffold small rust-only, python-only, and polyglot starter layouts that better match the repository style from the first commit.
+  - **status**: implemented
+  - **linked_requirements**:
+    - REQ-CORE-009
+  - **implementations**:
+    - **rust**:
+      - **file**: src/command/init.rs
+        - **symbols**:
+          - run_init_command
+          - scaffold_files
+          - requirement_document_path
+          - feature_document_path
+      - **file**: src/cli.rs
+        - **symbols**:
+          - InitArgs
+          - StarterTemplate
 
 ## Source YAML
 
@@ -85,4 +103,22 @@ features:
         - file: src/cli.rs
           symbols:
             - InitArgs
+  - id: FEAT-INIT-004
+    title: Language-oriented starter templates
+    summary: Allow `syu init --template` to scaffold small rust-only, python-only, and polyglot starter layouts that better match the repository style from the first commit.
+    status: implemented
+    linked_requirements:
+      - REQ-CORE-009
+    implementations:
+      rust:
+        - file: src/command/init.rs
+          symbols:
+            - run_init_command
+            - scaffold_files
+            - requirement_document_path
+            - feature_document_path
+        - file: src/cli.rs
+          symbols:
+            - InitArgs
+            - StarterTemplate
 ```

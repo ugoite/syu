@@ -130,6 +130,15 @@ are attached to a terminal.
 - `docs/syu/requirements/`
 - `docs/syu/features/`
 
+Want a closer starting point for a repository that is already clearly
+Rust-first, Python-first, or polyglot? Start with a lightweight template:
+
+```bash
+syu init . --template rust-only
+syu init . --template python-only
+syu init . --template polyglot
+```
+
 ## Commands
 
 ### `syu init`
@@ -139,9 +148,12 @@ Bootstrap a new workspace:
 ```bash
 syu init .
 syu init path/to/workspace --name my-project
+syu init . --template rust-only
 ```
 
-Use `--force` to overwrite generated files.
+Use `--force` to overwrite generated files. Use `--template` when you want the
+starter IDs, file layout, and scaffold copy to start closer to the repository
+style you already expect.
 
 ### `syu validate`
 

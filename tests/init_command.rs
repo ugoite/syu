@@ -62,6 +62,87 @@ fn init_command_bootstraps_a_workspace_that_validate_accepts() {
 
 #[test]
 // REQ-CORE-009
+fn init_command_bootstraps_language_templates_that_validate_accept() {
+    for (template, requirement_path, feature_path, requirement_id, feature_id) in [
+        (
+            "rust-only",
+            "docs/syu/requirements/core/rust.yaml",
+            "docs/syu/features/languages/rust.yaml",
+            "REQ-RUST-001",
+            "FEAT-RUST-001",
+        ),
+        (
+            "python-only",
+            "docs/syu/requirements/core/python.yaml",
+            "docs/syu/features/languages/python.yaml",
+            "REQ-PY-001",
+            "FEAT-PY-001",
+        ),
+        (
+            "polyglot",
+            "docs/syu/requirements/core/polyglot.yaml",
+            "docs/syu/features/languages/polyglot.yaml",
+            "REQ-MIX-001",
+            "FEAT-MIX-001",
+        ),
+    ] {
+        let tempdir = tempdir().expect("tempdir should exist");
+        let workspace = tempdir.path().join(template);
+
+        let init = Command::cargo_bin("syu")
+            .expect("binary should build")
+            .arg("init")
+            .arg(&workspace)
+            .arg("--template")
+            .arg(template)
+            .output()
+            .expect("init should run");
+
+        assert!(
+            init.status.success(),
+            "template={template}\nstdout:\n{}\nstderr:\n{}",
+            String::from_utf8_lossy(&init.stdout),
+            String::from_utf8_lossy(&init.stderr)
+        );
+        assert!(
+            workspace.join(requirement_path).exists(),
+            "missing {requirement_path}"
+        );
+        assert!(
+            workspace.join(feature_path).exists(),
+            "missing {feature_path}"
+        );
+
+        let requirement =
+            fs::read_to_string(workspace.join(requirement_path)).expect("requirement should exist");
+        let feature =
+            fs::read_to_string(workspace.join(feature_path)).expect("feature should exist");
+        assert!(
+            requirement.contains(requirement_id),
+            "missing {requirement_id}"
+        );
+        assert!(feature.contains(feature_id), "missing {feature_id}");
+        assert!(requirement.contains("status: planned"));
+        assert!(feature.contains("status: planned"));
+
+        let validate = Command::cargo_bin("syu")
+            .expect("binary should build")
+            .arg("validate")
+            .arg(&workspace)
+            .output()
+            .expect("validate should run");
+
+        assert!(
+            validate.status.success(),
+            "template={template}\nstdout:\n{}\nstderr:\n{}",
+            String::from_utf8_lossy(&validate.stdout),
+            String::from_utf8_lossy(&validate.stderr)
+        );
+    }
+}
+
+#[test]
+// REQ-CORE-009
 fn init_command_requires_force_when_generated_files_exist() {
     let tempdir = tempdir().expect("tempdir should exist");
     fs::write(

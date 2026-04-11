@@ -15,6 +15,13 @@ mkdir filestore && cd filestore
 syu init .
 ```
 
+For a repository that is already clearly Rust-first, Python-first, or
+polyglot, you can start from a closer scaffold instead:
+
+```bash
+syu init . --template rust-only
+```
+
 `syu init` creates:
 
 ```

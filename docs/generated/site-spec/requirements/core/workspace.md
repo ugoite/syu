@@ -25,7 +25,9 @@ description: "Generated reference for docs/syu/requirements/core/workspace.yaml"
       the running CLI and a valid `docs/syu/` tree whose starter requirements
       and features begin as `planned` so users can begin from a working
       structure instead of manually creating directories and placeholder YAML
-      files.
+      files. `syu init --template` MUST also support small `rust-only`,
+      `python-only`, and `polyglot` starter layouts so adopters can begin
+      closer to their repository style without copying example files by hand.
   - **priority**: high
   - **status**: implemented
   - **linked_policies**:
@@ -34,6 +36,7 @@ description: "Generated reference for docs/syu/requirements/core/workspace.yaml"
   - **linked_features**:
     - FEAT-INIT-001
     - FEAT-INIT-002
+    - FEAT-INIT-004
   - **tests**:
     - **rust**:
       - **file**: tests/init_command.rs
@@ -171,7 +174,9 @@ requirements:
       the running CLI and a valid `docs/syu/` tree whose starter requirements
       and features begin as `planned` so users can begin from a working
       structure instead of manually creating directories and placeholder YAML
-      files.
+      files. `syu init --template` MUST also support small `rust-only`,
+      `python-only`, and `polyglot` starter layouts so adopters can begin
+      closer to their repository style without copying example files by hand.
     priority: high
     status: implemented
     linked_policies:
@@ -180,6 +185,7 @@ requirements:
     linked_features:
       - FEAT-INIT-001
       - FEAT-INIT-002
+      - FEAT-INIT-004
     tests:
       rust:
         - file: tests/init_command.rs
