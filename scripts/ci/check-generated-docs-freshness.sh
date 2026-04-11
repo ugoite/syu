@@ -3,6 +3,23 @@
 
 set -euo pipefail
 
+write_sha256() {
+  local path="$1"
+
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$path"
+    return 0
+  fi
+
+  if command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$path"
+    return 0
+  fi
+
+  echo "sha256sum or shasum is required to snapshot docs/generated" >&2
+  exit 1
+}
+
 snapshot_generated_docs() {
   if [[ ! -d docs/generated ]]; then
     printf '__missing__\n'
@@ -10,7 +27,7 @@ snapshot_generated_docs() {
   fi
 
   while IFS= read -r path; do
-    sha256sum "$path"
+    write_sha256 "$path"
   done < <(find docs/generated -type f | LC_ALL=C sort)
 }
 
@@ -22,7 +39,7 @@ check_generated_docs_freshness() {
   repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
   before_snapshot="$(mktemp)"
   after_snapshot="$(mktemp)"
-  trap "rm -f '$before_snapshot' '$after_snapshot'" EXIT
+  trap 'rm -f "${before_snapshot:-}" "${after_snapshot:-}"' EXIT
 
   cd "$repo_root"
   snapshot_generated_docs >"$before_snapshot"

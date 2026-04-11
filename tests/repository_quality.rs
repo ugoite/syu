@@ -278,6 +278,9 @@ fn repository_declares_documentation_guides() {
     assert!(getting_started.contains(&format!("version: {current_version}")));
     assert!(getting_started.contains("kind: core"));
     assert!(getting_started.contains("freshly initialized project will not have them yet"));
+    assert!(generated_docs_freshness.contains("write_sha256"));
+    assert!(generated_docs_freshness.contains("sha256sum or shasum is required"));
+    assert!(generated_docs_freshness.contains("shasum -a 256"));
     assert!(getting_started.contains("https://ugoite.github.io/syu/docs/generated/site-spec"));
     assert!(getting_started.contains("https://ugoite.github.io/syu/docs/generated/syu-report"));
     assert!(getting_started.contains("status: implemented"));
