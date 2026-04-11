@@ -130,6 +130,10 @@ are attached to a terminal.
 - `docs/syu/requirements/`
 - `docs/syu/features/`
 
+Prefer another repository layout such as `docs/spec` or `spec/contracts`?
+Use `syu init . --spec-root docs/spec` to scaffold the same starter tree there
+and write the matching `spec.root` value into `syu.yaml`.
+
 Want a closer starting point for a repository that is already clearly
 Rust-first, Python-first, or polyglot? Start with a lightweight template:
 
@@ -137,6 +141,13 @@ Rust-first, Python-first, or polyglot? Start with a lightweight template:
 syu init . --template rust-only
 syu init . --template python-only
 syu init . --template polyglot
+```
+
+You can combine both flags when you want a custom spec root and a closer
+starter layout:
+
+```bash
+syu init . --spec-root spec/contracts --template rust-only
 ```
 
 ## Commands
@@ -149,11 +160,13 @@ Bootstrap a new workspace:
 syu init .
 syu init path/to/workspace --name my-project
 syu init . --template rust-only
+syu init . --spec-root docs/spec
 ```
 
 Use `--force` to overwrite generated files. Use `--template` when you want the
 starter IDs, file layout, and scaffold copy to start closer to the repository
-style you already expect.
+style you already expect. Use `--spec-root` to scaffold into a
+repository-relative spec tree without moving the generated files by hand later.
 
 ### `syu validate`
 

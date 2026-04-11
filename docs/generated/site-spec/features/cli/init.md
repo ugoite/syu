@@ -47,6 +47,22 @@ description: "Generated reference for docs/syu/features/cli/init.yaml"
       - **file**: src/cli.rs
         - **symbols**:
           - InitArgs
+- **id**: FEAT-INIT-003
+  - **title**: Custom spec.root bootstrap
+  - **summary**: Allow `syu init --spec-root` to scaffold the starter workspace into another repository-relative specification tree and emit the matching `spec.root` in `syu.yaml`.
+  - **status**: implemented
+  - **linked_requirements**:
+    - REQ-CORE-009
+  - **implementations**:
+    - **rust**:
+      - **file**: src/command/init.rs
+        - **symbols**:
+          - run_init_command
+          - resolve_init_spec_root
+          - scaffold_files
+      - **file**: src/cli.rs
+        - **symbols**:
+          - InitArgs
 - **id**: FEAT-INIT-004
   - **title**: Language-oriented starter templates
   - **summary**: Allow `syu init --template` to scaffold small rust-only, python-only, and polyglot starter layouts that better match the repository style from the first commit.
@@ -61,6 +77,7 @@ description: "Generated reference for docs/syu/features/cli/init.yaml"
           - scaffold_files
           - requirement_document_path
           - feature_document_path
+          - feature_registry_template
       - **file**: src/cli.rs
         - **symbols**:
           - InitArgs
@@ -103,6 +120,22 @@ features:
         - file: src/cli.rs
           symbols:
             - InitArgs
+  - id: FEAT-INIT-003
+    title: Custom spec.root bootstrap
+    summary: Allow `syu init --spec-root` to scaffold the starter workspace into another repository-relative specification tree and emit the matching `spec.root` in `syu.yaml`.
+    status: implemented
+    linked_requirements:
+      - REQ-CORE-009
+    implementations:
+      rust:
+        - file: src/command/init.rs
+          symbols:
+            - run_init_command
+            - resolve_init_spec_root
+            - scaffold_files
+        - file: src/cli.rs
+          symbols:
+            - InitArgs
   - id: FEAT-INIT-004
     title: Language-oriented starter templates
     summary: Allow `syu init --template` to scaffold small rust-only, python-only, and polyglot starter layouts that better match the repository style from the first commit.
@@ -117,6 +150,7 @@ features:
             - scaffold_files
             - requirement_document_path
             - feature_document_path
+            - feature_registry_template
         - file: src/cli.rs
           symbols:
             - InitArgs

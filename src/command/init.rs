@@ -1,18 +1,22 @@
 // REQ-CORE-009
 // FEAT-INIT-004
+// FEAT-INIT-003
 // FEAT-INIT-002
 
 use anyhow::{Result, bail};
 use std::{
     fs,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
 };
 
 use crate::{
     cli::{InitArgs, OutputFormat, StarterTemplate},
     command::shell_quote_path,
     config::{SyuConfig, render_config},
+    coverage::normalize_relative_path,
 };
+
+const DEFAULT_SPEC_ROOT: &str = "docs/syu";
 
 #[cfg(test)]
 const GENERATED_PATHS: &[&str] = &[
@@ -31,8 +35,9 @@ pub fn run_init_command(args: &InitArgs) -> Result<i32> {
         .name
         .clone()
         .unwrap_or_else(|| infer_project_name(&workspace));
+    let spec_root = resolve_init_spec_root(args.spec_root.as_deref())?;
 
-    let files = scaffold_files(&project_name, args.template);
+    let files = scaffold_files(&project_name, &spec_root, args.template);
     ensure_writable_targets(
         &workspace,
         files.iter().map(|(path, _)| PathBuf::from(path)),
@@ -62,9 +67,11 @@ pub fn run_init_command(args: &InitArgs) -> Result<i32> {
         }
         OutputFormat::Text => {
             let workspace_arg = shell_quote_path(&workspace);
-            let spec_root = workspace.join("docs/syu");
-            let requirement_path = workspace.join(requirement_document_path(args.template));
-            let feature_path = workspace.join(feature_document_path(args.template));
+            let absolute_spec_root = workspace.join(&spec_root);
+            let philosophy_path = spec_root.join("philosophy/foundation.yaml");
+            let policy_path = spec_root.join("policies/policies.yaml");
+            let requirement_path = spec_root.join(requirement_document_path(args.template));
+            let feature_path = spec_root.join(feature_document_path(args.template));
             println!("initialized syu workspace at {}", workspace.display());
             println!();
             println!("Created files:");
@@ -75,25 +82,17 @@ pub fn run_init_command(args: &InitArgs) -> Result<i32> {
             println!("What to do next:");
             println!(
                 "  1. Edit the spec files in {}/ to describe your project",
-                spec_root.display()
+                absolute_spec_root.display()
             );
-            println!("     - docs/syu/philosophy/foundation.yaml  (core principles)");
-            println!("     - docs/syu/policies/policies.yaml       (governance rules)");
+            println!("     - {}  (core principles)", path_label(&philosophy_path));
+            println!("     - {}  (governance rules)", path_label(&policy_path));
             println!(
                 "     - {}  (concrete requirements)",
-                path_label(
-                    requirement_path
-                        .strip_prefix(&workspace)
-                        .expect("workspace-relative requirement path")
-                )
+                path_label(&requirement_path)
             );
             println!(
                 "     - {}  (feature definitions)",
-                path_label(
-                    feature_path
-                        .strip_prefix(&workspace)
-                        .expect("workspace-relative feature path")
-                )
+                path_label(&feature_path)
             );
             println!("  2. Run `syu validate {workspace_arg}` to check your spec for consistency");
             println!(
@@ -113,6 +112,25 @@ fn prepare_workspace_root(path: &Path) -> Result<PathBuf> {
 
     fs::create_dir_all(path)?;
     path.canonicalize().map_err(Into::into)
+}
+
+fn resolve_init_spec_root(spec_root: Option<&Path>) -> Result<PathBuf> {
+    let raw = spec_root.unwrap_or_else(|| Path::new(DEFAULT_SPEC_ROOT));
+    let normalized = normalize_relative_path(raw);
+
+    if normalized.as_os_str().is_empty()
+        || normalized.is_absolute()
+        || normalized
+            .components()
+            .any(|component| !matches!(component, Component::Normal(_)))
+    {
+        bail!(
+            "`--spec-root` must stay within the workspace root as a relative path: `{}`",
+            raw.display()
+        );
+    }
+
+    Ok(PathBuf::from(path_label(&normalized)))
 }
 
 fn infer_project_name(workspace: &Path) -> String {
@@ -150,37 +168,43 @@ fn ensure_writable_targets(
     bail!("refusing to overwrite existing files without --force: {paths}");
 }
 
-fn scaffold_files(project_name: &str, template: StarterTemplate) -> Vec<(String, String)> {
+fn scaffold_files(
+    project_name: &str,
+    spec_root: &Path,
+    template: StarterTemplate,
+) -> Vec<(String, String)> {
     vec![
         (
             "syu.yaml".to_string(),
-            render_default_config().expect("config template should render"),
+            render_default_config(spec_root).expect("config template should render"),
         ),
         (
-            "docs/syu/philosophy/foundation.yaml".to_string(),
+            path_label(&spec_root.join("philosophy/foundation.yaml")),
             philosophy_template(project_name, template),
         ),
         (
-            "docs/syu/policies/policies.yaml".to_string(),
+            path_label(&spec_root.join("policies/policies.yaml")),
             policy_template(project_name, template),
         ),
         (
-            requirement_document_path(template).to_string(),
+            path_label(&spec_root.join(requirement_document_path(template))),
             requirement_template(project_name, template),
         ),
         (
-            "docs/syu/features/features.yaml".to_string(),
+            path_label(&spec_root.join("features/features.yaml")),
             feature_registry_template(template),
         ),
         (
-            feature_document_path(template).to_string(),
+            path_label(&spec_root.join(feature_document_path(template))),
             feature_template(project_name, template),
         ),
     ]
 }
 
-fn render_default_config() -> Result<String> {
-    render_config(&SyuConfig::default())
+fn render_default_config(spec_root: &Path) -> Result<String> {
+    let mut config = SyuConfig::default();
+    config.spec.root = spec_root.to_path_buf();
+    render_config(&config)
 }
 
 fn philosophy_template(project_name: &str, template: StarterTemplate) -> String {
@@ -235,13 +259,14 @@ fn requirement_template(project_name: &str, template: StarterTemplate) -> String
 }
 
 fn feature_registry_template(template: StarterTemplate) -> String {
+    let feature_document = Path::new(feature_document_path(template))
+        .strip_prefix("features/")
+        .expect("feature path should stay under features/");
     format!(
         "version: \"{}\"\nupdated: \"generated by syu init\"\n\nfiles:\n  - kind: {}\n    file: {}\n",
         SyuConfig::default().version,
         feature_kind(template),
-        feature_document_path(template)
-            .strip_prefix("docs/syu/features/")
-            .expect("feature path should stay under docs/syu/features")
+        path_label(feature_document)
     )
 }
 
@@ -264,19 +289,19 @@ fn feature_template(project_name: &str, template: StarterTemplate) -> String {
 
 fn requirement_document_path(template: StarterTemplate) -> &'static str {
     match template {
-        StarterTemplate::Generic => "docs/syu/requirements/core/core.yaml",
-        StarterTemplate::RustOnly => "docs/syu/requirements/core/rust.yaml",
-        StarterTemplate::PythonOnly => "docs/syu/requirements/core/python.yaml",
-        StarterTemplate::Polyglot => "docs/syu/requirements/core/polyglot.yaml",
+        StarterTemplate::Generic => "requirements/core/core.yaml",
+        StarterTemplate::RustOnly => "requirements/core/rust.yaml",
+        StarterTemplate::PythonOnly => "requirements/core/python.yaml",
+        StarterTemplate::Polyglot => "requirements/core/polyglot.yaml",
     }
 }
 
 fn feature_document_path(template: StarterTemplate) -> &'static str {
     match template {
-        StarterTemplate::Generic => "docs/syu/features/core/core.yaml",
-        StarterTemplate::RustOnly => "docs/syu/features/languages/rust.yaml",
-        StarterTemplate::PythonOnly => "docs/syu/features/languages/python.yaml",
-        StarterTemplate::Polyglot => "docs/syu/features/languages/polyglot.yaml",
+        StarterTemplate::Generic => "features/core/core.yaml",
+        StarterTemplate::RustOnly => "features/languages/rust.yaml",
+        StarterTemplate::PythonOnly => "features/languages/python.yaml",
+        StarterTemplate::Polyglot => "features/languages/polyglot.yaml",
     }
 }
 
@@ -302,8 +327,9 @@ mod tests {
     use crate::cli::{InitArgs, StarterTemplate};
 
     use super::{
-        GENERATED_PATHS, ensure_writable_targets, feature_document_path, feature_kind,
-        infer_project_name, requirement_document_path, run_init_command, scaffold_files,
+        DEFAULT_SPEC_ROOT, GENERATED_PATHS, ensure_writable_targets, feature_document_path,
+        feature_kind, infer_project_name, path_label, requirement_document_path,
+        resolve_init_spec_root, run_init_command, scaffold_files,
     };
 
     #[test]
@@ -316,7 +342,11 @@ mod tests {
 
     #[test]
     fn scaffold_files_include_all_expected_templates() {
-        let files = scaffold_files("demo", StarterTemplate::Generic);
+        let files = scaffold_files(
+            "demo",
+            std::path::Path::new(DEFAULT_SPEC_ROOT),
+            StarterTemplate::Generic,
+        );
         let paths: Vec<_> = files.into_iter().map(|(path, _)| path).collect();
         assert_eq!(paths.len(), GENERATED_PATHS.len());
         for expected in GENERATED_PATHS {
@@ -346,6 +376,7 @@ mod tests {
         let args = InitArgs {
             workspace: workspace.clone(),
             name: Some("demo".to_string()),
+            spec_root: None,
             template: StarterTemplate::Generic,
             force: false,
             format: crate::cli::OutputFormat::Text,
@@ -371,6 +402,7 @@ mod tests {
         let args = InitArgs {
             workspace: tempdir.path().to_path_buf(),
             name: Some("forced".to_string()),
+            spec_root: None,
             template: StarterTemplate::Generic,
             force: true,
             format: crate::cli::OutputFormat::Text,
@@ -386,7 +418,11 @@ mod tests {
 
     #[test]
     fn scaffold_files_default_to_planned_status() {
-        let files = scaffold_files("demo", StarterTemplate::Generic);
+        let files = scaffold_files(
+            "demo",
+            std::path::Path::new(DEFAULT_SPEC_ROOT),
+            StarterTemplate::Generic,
+        );
         let requirement = files
             .iter()
             .find(|(path, _)| path == "docs/syu/requirements/core/core.yaml")
@@ -409,6 +445,7 @@ mod tests {
         let error = run_init_command(&InitArgs {
             workspace: file_path.clone(),
             name: None,
+            spec_root: None,
             template: StarterTemplate::Generic,
             force: false,
             format: crate::cli::OutputFormat::Text,
@@ -431,6 +468,7 @@ mod tests {
         let error = run_init_command(&InitArgs {
             workspace,
             name: Some("demo".to_string()),
+            spec_root: None,
             template: StarterTemplate::Generic,
             force: false,
             format: crate::cli::OutputFormat::Text,
@@ -450,6 +488,7 @@ mod tests {
         let error = run_init_command(&InitArgs {
             workspace,
             name: Some("demo".to_string()),
+            spec_root: None,
             template: StarterTemplate::Generic,
             force: true,
             format: crate::cli::OutputFormat::Text,
@@ -466,6 +505,7 @@ mod tests {
         let args = InitArgs {
             workspace: workspace.clone(),
             name: Some("demo".to_string()),
+            spec_root: None,
             template: StarterTemplate::Generic,
             force: false,
             format: crate::cli::OutputFormat::Json,
@@ -484,18 +524,21 @@ mod tests {
 
     #[test]
     fn scaffold_files_support_language_oriented_templates() {
+        let spec_root = std::path::Path::new(DEFAULT_SPEC_ROOT);
         for template in [
             StarterTemplate::RustOnly,
             StarterTemplate::PythonOnly,
             StarterTemplate::Polyglot,
         ] {
-            let files = scaffold_files("demo", template);
+            let files = scaffold_files("demo", spec_root, template);
             let paths: Vec<_> = files.iter().map(|(path, _)| path.as_str()).collect();
             assert!(paths.contains(&"syu.yaml"));
             assert!(paths.contains(&"docs/syu/philosophy/foundation.yaml"));
             assert!(paths.contains(&"docs/syu/policies/policies.yaml"));
-            assert!(paths.contains(&requirement_document_path(template)));
-            assert!(paths.contains(&feature_document_path(template)));
+            let requirement_path = path_label(&spec_root.join(requirement_document_path(template)));
+            let feature_path = path_label(&spec_root.join(feature_document_path(template)));
+            assert!(paths.contains(&requirement_path.as_str()));
+            assert!(paths.contains(&feature_path.as_str()));
 
             let registry = files
                 .iter()
@@ -503,5 +546,48 @@ mod tests {
                 .expect("feature registry should exist");
             assert!(registry.1.contains(feature_kind(template)));
         }
+    }
+
+    #[test]
+    fn scaffold_files_support_language_templates_in_custom_spec_roots() {
+        let spec_root = std::path::Path::new("spec/contracts");
+        let files = scaffold_files("demo", spec_root, StarterTemplate::RustOnly);
+        let paths: Vec<_> = files.iter().map(|(path, _)| path.as_str()).collect();
+
+        assert!(paths.contains(&"spec/contracts/philosophy/foundation.yaml"));
+        assert!(paths.contains(&"spec/contracts/policies/policies.yaml"));
+        assert!(paths.contains(&"spec/contracts/requirements/core/rust.yaml"));
+        assert!(paths.contains(&"spec/contracts/features/languages/rust.yaml"));
+
+        let registry = files
+            .iter()
+            .find(|(path, _)| path == "spec/contracts/features/features.yaml")
+            .expect("feature registry should exist");
+        assert!(registry.1.contains("kind: rust"));
+        assert!(registry.1.contains("file: languages/rust.yaml"));
+    }
+
+    #[test]
+    fn resolve_init_spec_root_normalizes_relative_paths() {
+        assert_eq!(
+            resolve_init_spec_root(Some(std::path::Path::new("./spec/./contracts")))
+                .expect("spec root should normalize"),
+            std::path::PathBuf::from("spec/contracts")
+        );
+        assert_eq!(
+            resolve_init_spec_root(None).expect("default spec root should resolve"),
+            std::path::PathBuf::from(DEFAULT_SPEC_ROOT)
+        );
+    }
+
+    #[test]
+    fn resolve_init_spec_root_rejects_paths_outside_workspace() {
+        let parent = resolve_init_spec_root(Some(std::path::Path::new("../spec")))
+            .expect_err("parent paths should fail");
+        assert!(parent.to_string().contains("--spec-root"));
+
+        let absolute = resolve_init_spec_root(Some(std::path::Path::new("/tmp/spec")))
+            .expect_err("absolute paths should fail");
+        assert!(absolute.to_string().contains("--spec-root"));
     }
 }

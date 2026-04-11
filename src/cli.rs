@@ -3,6 +3,7 @@
 // FEAT-BROWSE-001
 // FEAT-BROWSE-002
 // FEAT-INIT-004
+// FEAT-INIT-003
 // FEAT-LIST-002
 // FEAT-REPORT-001
 // FEAT-INIT-002
@@ -28,7 +29,8 @@ const INIT_AFTER_HELP: &str = "\
 Examples:
   syu init .
   syu init . --template rust-only
-  syu init path/to/workspace --name my-project --template polyglot";
+  syu init . --spec-root docs/spec
+  syu init path/to/workspace --name my-project --spec-root spec/contracts --template polyglot";
 
 const WORKSPACE_HELP: &str = "Workspace root containing syu.yaml and the configured spec tree";
 
@@ -290,6 +292,12 @@ pub struct InitArgs {
     #[arg(long)]
     pub name: Option<String>,
 
+    #[arg(
+        help = "Repository-relative spec.root to scaffold (for example docs/spec or spec/contracts)"
+    )]
+    #[arg(long)]
+    pub spec_root: Option<PathBuf>,
+
     #[arg(help = "Starter layout to scaffold (generic, rust-only, python-only, or polyglot)")]
     #[arg(long, value_enum, default_value_t = StarterTemplate::Generic)]
     pub template: StarterTemplate,
@@ -412,5 +420,15 @@ mod tests {
         let rendered = format!("{cli:?}");
         assert!(rendered.contains("command: Some(Init("));
         assert!(rendered.contains("template: RustOnly"));
+    }
+
+    #[test]
+    fn init_args_accept_custom_spec_root() {
+        let cli = Cli::try_parse_from(["syu", "init", ".", "--spec-root", "docs/spec"])
+            .expect("init args should parse");
+
+        let rendered = format!("{cli:?}");
+        assert!(rendered.contains("command: Some(Init("));
+        assert!(rendered.contains("spec_root: Some(\"docs/spec\")"));
     }
 }

@@ -250,6 +250,7 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("scripts/install-precommit.sh"));
     assert!(readme.contains("https://ugoite.github.io/syu/"));
     assert!(readme.contains("docs/syu/config/"));
+    assert!(readme.contains("--spec-root"));
     assert!(!readme.contains("cargo run -- init ."));
 
     assert!(concepts.contains("philosophy"));
@@ -275,6 +276,7 @@ fn repository_declares_documentation_guides() {
     assert!(getting_started.contains("syu app ."));
     assert!(getting_started.contains("install-syu.sh"));
     assert!(getting_started.contains("SYU_VERSION=alpha"));
+    assert!(getting_started.contains("--spec-root"));
     assert!(getting_started.contains("Requirements are discovered"));
     assert!(getting_started.contains("implementation claims should stay deliberate"));
     assert!(getting_started.contains(&format!("version: {current_version}")));
@@ -300,6 +302,7 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("Understand the model first?"));
     assert!(configuration.contains("validate.default_fix"));
     assert!(configuration.contains("validate.allow_planned"));
+    assert!(configuration.contains("--spec-root"));
     assert!(configuration.contains(&format!("version: {current_version}")));
     assert!(configuration.contains("docs/syu/config/overview.yaml"));
     assert!(configuration.contains("docs/syu/config/validate.yaml"));

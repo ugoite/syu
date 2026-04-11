@@ -15,12 +15,22 @@ mkdir filestore && cd filestore
 syu init .
 ```
 
+If the repository already uses another documentation layout, initialize there
+instead:
+
+```bash
+syu init . --spec-root docs/spec
+```
+
 For a repository that is already clearly Rust-first, Python-first, or
 polyglot, you can start from a closer scaffold instead:
 
 ```bash
 syu init . --template rust-only
 ```
+
+You can combine both flags, but the walkthrough below assumes the default
+generic starter under `docs/syu` so the file names match verbatim.
 
 `syu init` creates:
 
@@ -42,6 +52,11 @@ The relevant part of `syu.yaml` points the validator at that tree:
 spec:
   root: docs/syu
 ```
+
+`--spec-root` changes both the generated directory and this `spec.root` value,
+so you do not need to move the scaffold by hand after bootstrap. `--template`
+keeps the same four layers but may swap the starter IDs and the initial
+requirement/feature file names to better match the repository style.
 
 ---
 

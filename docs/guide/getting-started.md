@@ -60,6 +60,13 @@ Or scaffold another directory:
 syu init path/to/workspace --name my-project
 ```
 
+Need another repository layout from the first command? Scaffold a custom spec
+root directly:
+
+```bash
+syu init . --spec-root docs/spec
+```
+
 Need a closer starting point for a repository that is already Rust-first,
 Python-first, or polyglot?
 
@@ -67,26 +74,42 @@ Python-first, or polyglot?
 syu init . --template rust-only
 ```
 
-This creates `syu.yaml` and a starter `docs/syu/` tree. `--template` keeps the
-same four layers but swaps the starter IDs, file layout, and copy so the first
-edit looks more like the repository style you already expect.
+You can also combine both flags:
+
+```bash
+syu init . --spec-root docs/spec --template rust-only
+```
+
+This creates `syu.yaml` and a starter spec tree. By default the tree lives
+under `docs/syu/`; `--spec-root` writes the same scaffold into another
+repository-relative path and records that location in `syu.yaml`. `--template`
+keeps the same four layers but swaps the starter IDs, requirement/feature file
+names, and copy so the first edit looks more like the repository style you
+already expect.
 
 Starter requirements and features begin as `status: planned`. Keep them planned
 until you are ready to declare real tests and implementation traces.
 
 ## 2. Fill in the starter spec
 
-Start by editing the generated files:
+Start by editing the generated files under your configured `spec.root`
+(default: `docs/syu`):
 
-- `docs/syu/philosophy/foundation.yaml`
-- `docs/syu/policies/policies.yaml`
-- `docs/syu/requirements/core/core.yaml`
-- `docs/syu/features/core/core.yaml`
+- `<spec.root>/philosophy/foundation.yaml`
+- `<spec.root>/policies/policies.yaml`
+- `<spec.root>/requirements/core/core.yaml` (template starters may use
+  `requirements/core/rust.yaml`, `requirements/core/python.yaml`, or
+  `requirements/core/polyglot.yaml`)
+- `<spec.root>/features/core/core.yaml` (template starters may use
+  `features/languages/rust.yaml`, `features/languages/python.yaml`, or
+  `features/languages/polyglot.yaml`)
 
 As the workspace grows, you can group requirement and feature files into nested
-folders. Keep feature discovery explicit by updating `docs/syu/features/features.yaml`
-whenever you add or move a feature document. `syu validate` reports feature YAML
-files on disk that are missing from that registry.
+folders. Keep feature discovery explicit by updating
+`<spec.root>/features/features.yaml` (default:
+`docs/syu/features/features.yaml`) whenever you add or move a feature document.
+`syu validate` reports feature YAML files on disk that are missing from that
+registry.
 
 Requirements are discovered by walking the `requirements/` tree, but features use
 an explicit registry because implementation claims should stay deliberate and
