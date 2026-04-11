@@ -248,3 +248,23 @@ fn write_trace_map(
 fn collapse_whitespace(value: &str) -> String {
     value.split_whitespace().collect::<Vec<_>>().join(" ")
 }
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use super::shell_quote_path;
+
+    #[test]
+    fn shell_quote_path_wraps_empty_paths() {
+        assert_eq!(shell_quote_path(Path::new("")), "''");
+    }
+
+    #[test]
+    fn shell_quote_path_escapes_special_characters() {
+        assert_eq!(
+            shell_quote_path(Path::new("workspace with 'quotes'")),
+            "'workspace with '\\''quotes'\\'''"
+        );
+    }
+}
