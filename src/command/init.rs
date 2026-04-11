@@ -78,9 +78,7 @@ pub fn run_init_command(args: &InitArgs) -> Result<i32> {
             println!("     - docs/syu/policies/policies.yaml       (governance rules)");
             println!("     - docs/syu/requirements/core/core.yaml  (concrete requirements)");
             println!("     - docs/syu/features/core/core.yaml      (feature definitions)");
-            println!(
-                "  2. Run `syu validate {workspace_arg}` to check your spec for consistency"
-            );
+            println!("  2. Run `syu validate {workspace_arg}` to check your spec for consistency");
             println!(
                 "  3. Run `syu browse {workspace_arg}` for terminal exploration, or `syu app {workspace_arg}` for the browser UI"
             );
