@@ -13,6 +13,7 @@ use serde::Serialize;
 
 use crate::{
     cli::{CheckArgs, OutputFormat, ValidationGenreFilter, ValidationSeverityFilter},
+    command::shell_quote_path,
     config::SyuConfig,
     coverage::{normalize_relative_path, validate_symbol_trace_coverage},
     inspect::{apply_symbol_doc_fix, inspect_symbol, supports_rich_inspection},
@@ -55,6 +56,7 @@ struct IssueFilters {
     severities: BTreeSet<ValidationSeverityFilter>,
     genres: BTreeSet<ValidationGenreFilter>,
     rules: BTreeSet<String>,
+    ids: BTreeSet<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -65,6 +67,8 @@ struct FilteredIssueView {
     genres: Vec<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     rules: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    ids: Vec<String>,
     displayed_issue_count: usize,
     total_issue_count: usize,
     hidden_issue_count: usize,
@@ -144,11 +148,21 @@ impl IssueFilters {
                 .filter(|rule| !rule.is_empty())
                 .map(ToOwned::to_owned)
                 .collect(),
+            ids: args
+                .id
+                .iter()
+                .map(|id| id.trim())
+                .filter(|id| !id.is_empty())
+                .map(ToOwned::to_owned)
+                .collect(),
         }
     }
 
     fn is_active(&self) -> bool {
-        !self.severities.is_empty() || !self.genres.is_empty() || !self.rules.is_empty()
+        !self.severities.is_empty()
+            || !self.genres.is_empty()
+            || !self.rules.is_empty()
+            || !self.ids.is_empty()
     }
 
     fn matches(&self, issue: &Issue) -> bool {
@@ -163,6 +177,15 @@ impl IssueFilters {
                     self.genres
                         .iter()
                         .any(|candidate| candidate.as_str() == genre)
+                }))
+            && (self.ids.is_empty()
+                || self.ids.iter().any(|id| {
+                    issue.subject.ends_with(id)
+                        || issue.message.contains(id)
+                        || issue
+                            .suggestion
+                            .as_deref()
+                            .is_some_and(|suggestion| suggestion.contains(id))
                 }))
     }
 }
@@ -185,6 +208,7 @@ impl FilteredIssueView {
                 .map(|genre| genre.as_str().to_string())
                 .collect(),
             rules: filters.rules.iter().cloned().collect(),
+            ids: filters.ids.iter().cloned().collect(),
             displayed_issue_count,
             total_issue_count,
             hidden_issue_count: total_issue_count.saturating_sub(displayed_issue_count),
@@ -202,6 +226,9 @@ impl FilteredIssueView {
         }
         if !self.rules.is_empty() {
             parts.push(format!("rule={}", self.rules.join(",")));
+        }
+        if !self.ids.is_empty() {
+            parts.push(format!("id={}", self.ids.join(",")));
         }
 
         parts.join(" ")
@@ -331,6 +358,7 @@ pub fn run_check_command(args: &CheckArgs) -> Result<i32> {
                 render_text_report(
                     overall_success,
                     &result,
+                    args.workspace.as_path(),
                     filtered_view.as_ref(),
                     text_summary.as_ref(),
                     args.quiet,
@@ -664,6 +692,7 @@ fn apply_autofix_for_reference(
 fn render_text_report(
     overall_success: bool,
     result: &CheckResult,
+    workspace_arg: &Path,
     filtered_view: Option<&FilteredIssueView>,
     text_summary: Option<&TextReportSummary>,
     quiet: bool,
@@ -817,26 +846,27 @@ fn render_text_report(
     }
 
     if overall_success && result.issues.is_empty() && !quiet {
+        let workspace_arg = shell_quote_path(workspace_arg);
         writeln!(&mut output).expect("writing to String must succeed");
         writeln!(&mut output, "What to do next:").expect("writing to String must succeed");
         writeln!(
             &mut output,
-            "  syu app .        open the browser UI to explore your workspace"
+            "  syu app {workspace_arg}        open the browser UI to explore your workspace"
         )
         .expect("writing to String must succeed");
         writeln!(
             &mut output,
-            "  syu browse .     browse interactively in the terminal"
+            "  syu browse {workspace_arg}     browse interactively in the terminal"
         )
         .expect("writing to String must succeed");
         writeln!(
             &mut output,
-            "  syu report .     generate a markdown validation report"
+            "  syu report {workspace_arg}     generate a markdown validation report"
         )
         .expect("writing to String must succeed");
         writeln!(
             &mut output,
-            "  syu show <ID>    inspect a single spec item in detail"
+            "  syu show <ID> {workspace_arg}    inspect a single spec item in detail"
         )
         .expect("writing to String must succeed");
     }
@@ -2154,6 +2184,7 @@ mod tests {
             severity: Vec::new(),
             genre: Vec::new(),
             rule: Vec::new(),
+            id: Vec::new(),
             fix: false,
             no_fix: false,
             quiet: false,
@@ -2215,6 +2246,7 @@ mod tests {
             severity: Vec::new(),
             genre: Vec::new(),
             rule: Vec::new(),
+            id: Vec::new(),
             fix: true,
             no_fix: false,
             quiet: false,
@@ -2234,7 +2266,7 @@ mod tests {
             referenced_rules: Vec::new(),
         };
 
-        let report = render_text_report(true, &result, None, None, false);
+        let report = render_text_report(true, &result, Path::new("."), None, None, false);
         assert!(report.contains("syu validate passed"));
         assert!(report.contains("issues:"));
         assert!(report.contains("[Warning] warn subject: message"));
@@ -2308,7 +2340,7 @@ mod tests {
             referenced_rules: Vec::new(),
         };
 
-        let report = render_text_report(true, &result, None, Some(&summary), false);
+        let report = render_text_report(true, &result, Path::new("."), None, Some(&summary), false);
 
         assert!(report.contains("note: 1 built-in rule is disabled by current config"));
     }
@@ -2330,6 +2362,7 @@ mod tests {
             severities: [ValidationSeverityFilter::Warning].into_iter().collect(),
             genres: [ValidationGenreFilter::Graph].into_iter().collect(),
             rules: BTreeSet::new(),
+            ids: BTreeSet::new(),
         };
 
         let (filtered, filtered_view) = filter_check_result(result, &filters);
@@ -2357,12 +2390,20 @@ mod tests {
             severities: vec!["warning".to_string()],
             genres: Vec::new(),
             rules: Vec::new(),
+            ids: Vec::new(),
             displayed_issue_count: 0,
             total_issue_count: 2,
             hidden_issue_count: 2,
         };
 
-        let report = render_text_report(false, &result, Some(&filtered_view), None, false);
+        let report = render_text_report(
+            false,
+            &result,
+            Path::new("."),
+            Some(&filtered_view),
+            None,
+            false,
+        );
 
         assert!(report.contains("syu validate failed (filtered view)"));
         assert!(report.contains("filters: severity=warning"));
@@ -2376,12 +2417,28 @@ mod tests {
             severities: Vec::new(),
             genres: vec!["trace".to_string()],
             rules: Vec::new(),
+            ids: Vec::new(),
             displayed_issue_count: 1,
             total_issue_count: 1,
             hidden_issue_count: 0,
         };
 
         assert_eq!(filtered_view.describe_filters(), "genre=trace");
+    }
+
+    #[test]
+    fn filtered_issue_view_describes_id_filters() {
+        let filtered_view = FilteredIssueView {
+            severities: Vec::new(),
+            genres: Vec::new(),
+            rules: Vec::new(),
+            ids: vec!["REQ-001".to_string()],
+            displayed_issue_count: 1,
+            total_issue_count: 3,
+            hidden_issue_count: 2,
+        };
+
+        assert_eq!(filtered_view.describe_filters(), "id=REQ-001");
     }
 
     #[test]

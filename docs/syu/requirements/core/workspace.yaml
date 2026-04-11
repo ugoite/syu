@@ -25,6 +25,9 @@ requirements:
         - file: src/command/init.rs
           symbols:
             - '*'
+        - file: src/command/mod.rs
+          symbols:
+            - '*'
         - file: src/config.rs
           symbols:
             - '*'
@@ -120,6 +123,9 @@ requirements:
           symbols:
             - '*'
         - file: tests/show_command.rs
+          symbols:
+            - '*'
+        - file: src/command/show.rs
           symbols:
             - '*'
         - file: src/lib.rs
