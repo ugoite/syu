@@ -40,11 +40,13 @@ pub fn run_add_command(args: &AddArgs) -> Result<i32> {
     }
 
     let feature_kind = match args.layer {
-        LookupKind::Feature => Some(normalize_feature_kind(
-            args.kind
+        LookupKind::Feature => {
+            let kind = args
+                .kind
                 .as_deref()
-                .unwrap_or(parsed_id.folder_slug.as_str()),
-        )?),
+                .unwrap_or(parsed_id.folder_slug.as_str());
+            Some(normalize_feature_kind(kind)?)
+        }
         _ => None,
     };
     let target = resolve_target_path(
@@ -55,17 +57,22 @@ pub fn run_add_command(args: &AddArgs) -> Result<i32> {
         feature_kind.as_deref(),
     )?;
     let created_target_file = !target.absolute.exists();
-
-    write_stub_document(args.layer, &parsed_id, feature_kind.as_deref(), &target)?;
-
-    let registry_updated = if args.layer == LookupKind::Feature {
-        update_feature_registry(
+    let feature_registry_update = if args.layer == LookupKind::Feature {
+        Some(prepare_feature_registry_update(
             &workspace,
             &target.absolute,
             feature_kind
                 .as_deref()
                 .expect("features require a registry kind"),
-        )?
+        )?)
+    } else {
+        None
+    };
+
+    write_stub_document(args.layer, &parsed_id, feature_kind.as_deref(), &target)?;
+
+    let registry_updated = if let Some(update) = feature_registry_update {
+        write_feature_registry_update(update)?
     } else {
         false
     };
@@ -127,6 +134,11 @@ impl ParsedId {
 #[derive(Debug, Clone)]
 struct TargetPath {
     absolute: PathBuf,
+}
+
+struct FeatureRegistryUpdate {
+    path: PathBuf,
+    updated_contents: Option<String>,
 }
 
 fn normalize_definition_id(raw: &str, layer: LookupKind) -> Result<String> {
@@ -255,16 +267,7 @@ fn resolve_explicit_file(workspace: &Workspace, raw: &Path) -> Result<PathBuf> {
         return Ok(workspace_relative);
     }
 
-    let spec_relative = workspace.spec_root.join(&normalized);
-    if spec_relative.starts_with(&workspace.spec_root) {
-        return Ok(spec_relative);
-    }
-
-    bail!(
-        "`--file` must point inside `{}` or be relative to that spec root: `{}`",
-        workspace.spec_root.display(),
-        raw.display()
-    );
+    Ok(workspace.spec_root.join(normalized))
 }
 
 fn ensure_target_within_spec_root(
@@ -315,9 +318,11 @@ fn write_stub_document(
     feature_kind: Option<&str>,
     target: &TargetPath,
 ) -> Result<()> {
-    if let Some(parent) = target.absolute.parent() {
-        fs::create_dir_all(parent)?;
-    }
+    target
+        .absolute
+        .parent()
+        .map(fs::create_dir_all)
+        .transpose()?;
 
     if target.absolute.exists() {
         validate_existing_document(layer, &target.absolute, parsed_id)?;
@@ -441,11 +446,11 @@ fn render_item_block(layer: LookupKind, parsed_id: &ParsedId) -> String {
     }
 }
 
-fn update_feature_registry(
+fn prepare_feature_registry_update(
     workspace: &Workspace,
     feature_document: &Path,
     kind: &str,
-) -> Result<bool> {
+) -> Result<FeatureRegistryUpdate> {
     let registry_path = workspace.spec_root.join("features/features.yaml");
     let raw = fs::read_to_string(&registry_path).with_context(|| {
         format!(
@@ -481,7 +486,10 @@ fn update_feature_registry(
                 existing.kind
             );
         }
-        return Ok(false);
+        return Ok(FeatureRegistryUpdate {
+            path: registry_path,
+            updated_contents: None,
+        });
     }
 
     let mut updated = raw;
@@ -489,10 +497,20 @@ fn update_feature_registry(
         updated.pop();
     }
     updated.push_str(&format!("\n  - kind: {kind}\n    file: {portable}\n"));
-    fs::write(&registry_path, updated).with_context(|| {
+    Ok(FeatureRegistryUpdate {
+        path: registry_path,
+        updated_contents: Some(updated),
+    })
+}
+
+fn write_feature_registry_update(update: FeatureRegistryUpdate) -> Result<bool> {
+    let Some(updated) = update.updated_contents else {
+        return Ok(false);
+    };
+    fs::write(&update.path, updated).with_context(|| {
         format!(
             "failed to update feature registry `{}`",
-            registry_path.display()
+            update.path.display()
         )
     })?;
     Ok(true)
@@ -575,9 +593,7 @@ fn title_case_slug(slug: &str) -> String {
         .filter(|segment| !segment.is_empty())
         .map(|segment| {
             let mut chars = segment.chars();
-            let Some(first) = chars.next() else {
-                return String::new();
-            };
+            let first = chars.next().expect("empty segments are filtered out");
             format!("{}{}", first.to_ascii_uppercase(), chars.as_str())
         })
         .collect::<Vec<_>>()
@@ -586,16 +602,48 @@ fn title_case_slug(slug: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::{
+        fs,
+        path::{Path, PathBuf},
+    };
 
-    use tempfile::tempdir;
+    use tempfile::{TempDir, tempdir};
 
     use crate::{cli::LookupKind, config::SyuConfig, workspace::Workspace};
 
     use super::{
-        ParsedId, default_document_path, normalize_definition_id, normalize_feature_kind,
-        resolve_explicit_file, title_case_slug,
+        FeatureRegistryUpdate, ParsedId, TargetPath, default_document_path, default_folder_slug,
+        default_title, ensure_target_within_spec_root, normalize_definition_id,
+        normalize_feature_kind, prepare_feature_registry_update, render_item_block,
+        render_new_document, resolve_explicit_file, title_case_slug, validate_existing_document,
+        write_feature_registry_update, write_stub_document,
     };
+
+    fn test_workspace() -> (TempDir, Workspace) {
+        let tempdir = tempdir().expect("tempdir should exist");
+        let root = tempdir.path().join("workspace");
+        let spec_root = root.join("docs/spec");
+        fs::create_dir_all(&spec_root).expect("spec root should be created");
+        (
+            tempdir,
+            Workspace {
+                root,
+                spec_root,
+                config: SyuConfig::default(),
+                philosophies: Vec::new(),
+                policies: Vec::new(),
+                requirements: Vec::new(),
+                features: Vec::new(),
+            },
+        )
+    }
+
+    fn write_file(path: &Path, contents: &str) {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("parent directory should exist");
+        }
+        fs::write(path, contents).expect("test fixture file should be written");
+    }
 
     #[test]
     fn normalize_definition_id_enforces_expected_prefixes() {
@@ -606,6 +654,16 @@ mod tests {
         );
         assert!(normalize_definition_id("FEAT-AUTH-001", LookupKind::Requirement).is_err());
         assert!(normalize_definition_id("REQ-AUTH", LookupKind::Requirement).is_err());
+    }
+
+    #[test]
+    fn normalize_definition_id_covers_policy_and_invalid_character_cases() {
+        assert_eq!(
+            normalize_definition_id("pol-001", LookupKind::Policy)
+                .expect("policy ids should normalize"),
+            "POL-001"
+        );
+        assert!(normalize_definition_id("POL 001", LookupKind::Policy).is_err());
     }
 
     #[test]
@@ -629,17 +687,21 @@ mod tests {
     }
 
     #[test]
+    fn helper_defaults_cover_policy_and_feature_layers() {
+        let parsed = ParsedId::parse(LookupKind::Policy, "POL-001").expect("policy id");
+
+        assert_eq!(
+            default_document_path(LookupKind::Policy, &parsed, None),
+            PathBuf::from("policies/policies.yaml")
+        );
+        assert_eq!(default_title(LookupKind::Policy), "New policy");
+        assert_eq!(default_title(LookupKind::Feature), "New feature");
+        assert_eq!(default_folder_slug(LookupKind::Policy), "policies");
+    }
+
+    #[test]
     fn resolve_explicit_file_accepts_workspace_and_spec_relative_paths() {
-        let tempdir = tempdir().expect("tempdir should exist");
-        let workspace = Workspace {
-            root: tempdir.path().join("workspace"),
-            spec_root: tempdir.path().join("workspace/docs/spec"),
-            config: SyuConfig::default(),
-            philosophies: Vec::new(),
-            policies: Vec::new(),
-            requirements: Vec::new(),
-            features: Vec::new(),
-        };
+        let (_tempdir, workspace) = test_workspace();
 
         assert_eq!(
             resolve_explicit_file(
@@ -657,6 +719,14 @@ mod tests {
     }
 
     #[test]
+    fn resolve_explicit_file_rejects_absolute_and_invalid_paths() {
+        let (_tempdir, workspace) = test_workspace();
+
+        assert!(resolve_explicit_file(&workspace, Path::new("/tmp/escape.yaml")).is_err());
+        assert!(resolve_explicit_file(&workspace, Path::new("../escape.yaml")).is_err());
+    }
+
+    #[test]
     fn normalize_feature_kind_rejects_invalid_values() {
         assert_eq!(
             normalize_feature_kind("auth-login").expect("valid kind"),
@@ -669,5 +739,214 @@ mod tests {
     #[test]
     fn title_case_slug_expands_hyphenated_names() {
         assert_eq!(title_case_slug("auth-login"), "Auth Login");
+    }
+
+    #[test]
+    fn ensure_target_within_spec_root_rejects_invalid_targets() {
+        let (_tempdir, workspace) = test_workspace();
+
+        assert!(
+            ensure_target_within_spec_root(
+                &workspace,
+                LookupKind::Requirement,
+                &workspace.root.join("outside.yaml")
+            )
+            .is_err()
+        );
+        assert!(
+            ensure_target_within_spec_root(
+                &workspace,
+                LookupKind::Requirement,
+                &workspace.spec_root.join("requirements/core.txt")
+            )
+            .is_err()
+        );
+        assert!(
+            ensure_target_within_spec_root(
+                &workspace,
+                LookupKind::Policy,
+                &workspace.spec_root.join("requirements/core.yaml")
+            )
+            .is_err()
+        );
+        assert!(
+            ensure_target_within_spec_root(
+                &workspace,
+                LookupKind::Policy,
+                &workspace.spec_root.join("policies/policies.yaml")
+            )
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn write_stub_document_creates_new_parent_directories() {
+        let (_tempdir, workspace) = test_workspace();
+        let parsed = ParsedId::parse(LookupKind::Requirement, "REQ-AUTH-001").expect("id");
+        let target = TargetPath {
+            absolute: workspace.spec_root.join("requirements/auth/auth.yaml"),
+        };
+
+        write_stub_document(LookupKind::Requirement, &parsed, None, &target)
+            .expect("stub write should succeed");
+
+        assert!(target.absolute.exists());
+    }
+
+    #[test]
+    fn validate_existing_document_reports_read_errors() {
+        let (_tempdir, workspace) = test_workspace();
+        let parsed = ParsedId::parse(LookupKind::Philosophy, "PHIL-001").expect("id");
+
+        assert!(
+            validate_existing_document(
+                LookupKind::Philosophy,
+                &workspace.spec_root.join("philosophy/missing.yaml"),
+                &parsed
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn validate_existing_document_rejects_invalid_yaml_for_all_layers() {
+        let (_tempdir, workspace) = test_workspace();
+        let invalid = "not: [valid";
+
+        let philosophy_path = workspace.spec_root.join("philosophy/foundation.yaml");
+        write_file(&philosophy_path, invalid);
+        assert!(
+            validate_existing_document(
+                LookupKind::Philosophy,
+                &philosophy_path,
+                &ParsedId::parse(LookupKind::Philosophy, "PHIL-001").expect("philosophy id")
+            )
+            .is_err()
+        );
+
+        let policy_path = workspace.spec_root.join("policies/policies.yaml");
+        write_file(&policy_path, invalid);
+        assert!(
+            validate_existing_document(
+                LookupKind::Policy,
+                &policy_path,
+                &ParsedId::parse(LookupKind::Policy, "POL-001").expect("policy id")
+            )
+            .is_err()
+        );
+
+        let requirement_path = workspace.spec_root.join("requirements/core/core.yaml");
+        write_file(&requirement_path, invalid);
+        assert!(
+            validate_existing_document(
+                LookupKind::Requirement,
+                &requirement_path,
+                &ParsedId::parse(LookupKind::Requirement, "REQ-CORE-001").expect("requirement id")
+            )
+            .is_err()
+        );
+
+        let feature_path = workspace.spec_root.join("features/core/core.yaml");
+        write_file(&feature_path, invalid);
+        assert!(
+            validate_existing_document(
+                LookupKind::Feature,
+                &feature_path,
+                &ParsedId::parse(LookupKind::Feature, "FEAT-CORE-001").expect("feature id")
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn validate_existing_document_rejects_requirement_prefix_mismatches() {
+        let (_tempdir, workspace) = test_workspace();
+        let path = workspace.spec_root.join("requirements/core/core.yaml");
+        write_file(
+            &path,
+            "category: Core Requirements\nprefix: REQ-OTHER\n\nrequirements:\n  - id: REQ-OTHER-001\n    title: Other\n    description: |\n      Example.\n    priority: high\n    status: planned\n    linked_policies: []\n    linked_features: []\n    tests: {}\n",
+        );
+
+        assert!(
+            validate_existing_document(
+                LookupKind::Requirement,
+                &path,
+                &ParsedId::parse(LookupKind::Requirement, "REQ-CORE-001").expect("requirement id")
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn validate_existing_document_accepts_matching_requirement_prefixes() {
+        let (_tempdir, workspace) = test_workspace();
+        let path = workspace.spec_root.join("requirements/core/core.yaml");
+        write_file(
+            &path,
+            "category: Core Requirements\nprefix: REQ-CORE\n\nrequirements:\n  - id: REQ-CORE-001\n    title: Core\n    description: |\n      Example.\n    priority: high\n    status: planned\n    linked_policies: []\n    linked_features: []\n    tests: {}\n",
+        );
+
+        validate_existing_document(
+            LookupKind::Requirement,
+            &path,
+            &ParsedId::parse(LookupKind::Requirement, "REQ-CORE-001").expect("requirement id"),
+        )
+        .expect("matching prefixes should validate");
+    }
+
+    #[test]
+    fn render_helpers_cover_non_requirement_layers() {
+        let philosophy = ParsedId::parse(LookupKind::Philosophy, "PHIL-001").expect("id");
+        let policy = ParsedId::parse(LookupKind::Policy, "POL-001").expect("id");
+        let feature = ParsedId::parse(LookupKind::Feature, "FEAT-AUTH-LOGIN-001").expect("id");
+
+        assert!(
+            render_new_document(LookupKind::Philosophy, &philosophy, None)
+                .contains("category: Philosophy")
+        );
+        assert!(
+            render_new_document(LookupKind::Policy, &policy, None).contains("category: Policies")
+        );
+        assert!(render_item_block(LookupKind::Policy, &policy).contains("linked_requirements"));
+        assert!(
+            render_new_document(LookupKind::Feature, &feature, Some("auth"))
+                .contains("category: Auth Features")
+        );
+    }
+
+    #[test]
+    fn prepare_feature_registry_update_reports_read_parse_and_root_errors() {
+        let (_tempdir, workspace) = test_workspace();
+        let feature_path = workspace.spec_root.join("features/auth/login.yaml");
+
+        assert!(prepare_feature_registry_update(&workspace, &feature_path, "auth").is_err());
+
+        let registry_path = workspace.spec_root.join("features/features.yaml");
+        write_file(&registry_path, "version: 1\nfiles: [");
+        assert!(prepare_feature_registry_update(&workspace, &feature_path, "auth").is_err());
+
+        write_file(
+            &registry_path,
+            "version: \"1\"\nfiles:\n  - kind: core\n    file: core/core.yaml\n",
+        );
+        assert!(
+            prepare_feature_registry_update(
+                &workspace,
+                &workspace.spec_root.join("requirements/core/core.yaml"),
+                "auth"
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn write_feature_registry_update_reports_write_errors() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        let update = FeatureRegistryUpdate {
+            path: tempdir.path().to_path_buf(),
+            updated_contents: Some("version: \"1\"\nfiles: []\n".to_string()),
+        };
+
+        assert!(write_feature_registry_update(update).is_err());
     }
 }
