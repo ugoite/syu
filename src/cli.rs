@@ -356,11 +356,8 @@ impl ValidationGenreFilter {
 
 #[cfg(test)]
 mod tests {
+    use super::{Cli, LookupKind, ValidationGenreFilter, ValidationSeverityFilter};
     use clap::Parser;
-
-    use super::{
-        Cli, Commands, LookupKind, StarterTemplate, ValidationGenreFilter, ValidationSeverityFilter,
-    };
 
     #[test]
     fn cli_enums_expose_expected_labels() {
@@ -412,9 +409,8 @@ mod tests {
         let cli = Cli::try_parse_from(["syu", "init", ".", "--template", "rust-only"])
             .expect("init args should parse");
 
-        let Some(Commands::Init(args)) = cli.command else {
-            panic!("expected init command");
-        };
-        assert_eq!(args.template, StarterTemplate::RustOnly);
+        let rendered = format!("{cli:?}");
+        assert!(rendered.contains("command: Some(Init("));
+        assert!(rendered.contains("template: RustOnly"));
     }
 }
