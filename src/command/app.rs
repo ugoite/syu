@@ -895,29 +895,34 @@ mod tests {
     fn wait_for_ready_accepts_ok_health_responses() {
         let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener should bind");
         let addr = listener.local_addr().expect("addr");
+        listener
+            .set_nonblocking(true)
+            .expect("listener should become nonblocking");
 
-        let waiter = thread::spawn(move || {
-            wait_for_ready_with_retry(
-                addr,
-                5,
-                Duration::from_millis(200),
-                Duration::from_millis(5),
-            )
+        let server = thread::spawn(move || {
+            let deadline = std::time::Instant::now() + Duration::from_secs(1);
+
+            while std::time::Instant::now() < deadline {
+                match listener.accept() {
+                    Ok((mut stream, _)) => {
+                        let mut buffer = [0_u8; 1024];
+                        let _ = stream.read(&mut buffer);
+                        let _ = stream.write_all(
+                            b"HTTP/1.1 200 OK\r\nContent-Length: 15\r\nConnection: close\r\n\r\n{\"status\":\"ok\"}",
+                        );
+                        let _ = stream.flush();
+                    }
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                        thread::sleep(Duration::from_millis(5));
+                    }
+                    Err(_) => break,
+                }
+            }
         });
 
-        let (mut stream, _) = listener.accept().expect("request should connect");
-        let mut buffer = [0_u8; 1024];
-        let _ = stream.read(&mut buffer);
-        let _ = stream.write_all(
-            b"HTTP/1.1 200 OK\r\nContent-Length: 15\r\nConnection: close\r\n\r\n{\"status\":\"ok\"}",
-        );
-        let _ = stream.flush();
-        drop(stream);
-
-        waiter
-            .join()
-            .expect("waiter thread")
+        wait_for_ready_with_retry(addr, 5, Duration::from_millis(200), Duration::from_millis(5))
             .expect("ready servers should succeed");
+        server.join().expect("server thread");
     }
 
     #[test]
