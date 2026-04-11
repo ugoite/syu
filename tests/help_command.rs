@@ -26,7 +26,7 @@ fn root_help_includes_start_here_guidance() {
 
 #[test]
 fn workspace_help_uses_current_directory_default_consistently() {
-    for command in ["browse", "show", "app", "validate", "report"] {
+    for command in ["browse", "show", "app", "validate", "check", "report"] {
         let output = Command::cargo_bin("syu")
             .expect("binary should build")
             .args([command, "--help"])
