@@ -340,10 +340,8 @@ impl ValidationGenreFilter {
 
 #[cfg(test)]
 mod tests {
+    use super::{Cli, LookupKind, ValidationGenreFilter, ValidationSeverityFilter};
     use clap::Parser;
-    use std::path::PathBuf;
-
-    use super::{Cli, Commands, LookupKind, ValidationGenreFilter, ValidationSeverityFilter};
 
     #[test]
     fn cli_enums_expose_expected_labels() {
@@ -395,9 +393,8 @@ mod tests {
         let cli = Cli::try_parse_from(["syu", "init", ".", "--spec-root", "docs/spec"])
             .expect("init args should parse");
 
-        let Some(Commands::Init(args)) = cli.command else {
-            panic!("expected init command");
-        };
-        assert_eq!(args.spec_root, Some(PathBuf::from("docs/spec")));
+        let rendered = format!("{cli:?}");
+        assert!(rendered.contains("command: Some(Init("));
+        assert!(rendered.contains("spec_root: Some(\"docs/spec\")"));
     }
 }
