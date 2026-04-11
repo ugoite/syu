@@ -2,6 +2,7 @@
 // FEAT-APP-001
 // FEAT-BROWSE-001
 // FEAT-BROWSE-002
+// FEAT-INIT-003
 // FEAT-LIST-002
 // FEAT-REPORT-001
 // FEAT-INIT-002
@@ -280,6 +281,12 @@ pub struct InitArgs {
     #[arg(long)]
     pub name: Option<String>,
 
+    #[arg(
+        help = "Repository-relative spec.root to scaffold (for example docs/spec or spec/contracts)"
+    )]
+    #[arg(long)]
+    pub spec_root: Option<PathBuf>,
+
     #[arg(help = "Overwrite generated files when they already exist")]
     #[arg(long)]
     pub force: bool,
@@ -334,8 +341,9 @@ impl ValidationGenreFilter {
 #[cfg(test)]
 mod tests {
     use clap::Parser;
+    use std::path::PathBuf;
 
-    use super::{Cli, LookupKind, ValidationGenreFilter, ValidationSeverityFilter};
+    use super::{Cli, Commands, LookupKind, ValidationGenreFilter, ValidationSeverityFilter};
 
     #[test]
     fn cli_enums_expose_expected_labels() {
@@ -380,5 +388,16 @@ mod tests {
 
         let message = error.to_string();
         assert!(message.contains("--allow-planned"));
+    }
+
+    #[test]
+    fn init_args_accept_custom_spec_root() {
+        let cli = Cli::try_parse_from(["syu", "init", ".", "--spec-root", "docs/spec"])
+            .expect("init args should parse");
+
+        let Some(Commands::Init(args)) = cli.command else {
+            panic!("expected init command");
+        };
+        assert_eq!(args.spec_root, Some(PathBuf::from("docs/spec")));
     }
 }
