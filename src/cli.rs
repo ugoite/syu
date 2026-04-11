@@ -1,5 +1,6 @@
 // FEAT-DOCS-001
 // FEAT-APP-001
+// FEAT-SEARCH-001
 // FEAT-BROWSE-001
 // FEAT-BROWSE-002
 // FEAT-INIT-005
@@ -44,6 +45,12 @@ Examples:
   syu list requirement docs/syu
   syu list docs/syu requirement";
 
+const SEARCH_AFTER_HELP: &str = "\
+Examples:
+  syu search audit
+  syu search traceability --kind requirement
+  syu search FEAT-CHECK-001 --format json";
+
 #[derive(Debug, Parser)]
 #[command(
     name = "syu",
@@ -71,6 +78,11 @@ pub enum Commands {
     List(ListArgs),
     #[command(about = "Show one philosophy, policy, requirement, or feature by ID")]
     Show(ShowArgs),
+    #[command(
+        about = "Search spec items by ID, title, summary, or description",
+        after_help = SEARCH_AFTER_HELP
+    )]
+    Search(SearchArgs),
     #[command(
         about = "Start a local HTTP server and browser UI for workspace exploration, then print the URL to open in your browser",
         after_help = APP_AFTER_HELP
@@ -165,6 +177,26 @@ pub struct ShowArgs {
     pub workspace: PathBuf,
 
     #[arg(help = "Output format for the selected item")]
+    #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
+    pub format: OutputFormat,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct SearchArgs {
+    #[arg(
+        help = "Case-insensitive search query matched against IDs, titles, summaries, and descriptions"
+    )]
+    pub query: String,
+
+    #[arg(help = WORKSPACE_HELP)]
+    #[arg(default_value = ".")]
+    pub workspace: PathBuf,
+
+    #[arg(help = "Limit matches to one layer kind")]
+    #[arg(long, value_enum)]
+    pub kind: Option<LookupKind>,
+
+    #[arg(help = "Output format for matched items")]
     #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
     pub format: OutputFormat,
 }
@@ -454,6 +486,28 @@ mod tests {
         let rendered = format!("{cli:?}");
         assert!(rendered.contains("command: Some(Init("));
         assert!(rendered.contains("spec_root: Some(\"docs/spec\")"));
+    }
+
+    #[test]
+    fn search_args_accept_kind_filters_and_json_output() {
+        let cli = Cli::try_parse_from([
+            "syu",
+            "search",
+            "traceability",
+            ".",
+            "--kind",
+            "feature",
+            "--format",
+            "json",
+        ])
+        .expect("search args should parse");
+
+        let rendered = format!("{cli:?}");
+        assert!(rendered.contains("command: Some(Search("));
+        assert!(rendered.contains("query: \"traceability\""));
+        assert!(rendered.contains("workspace: \".\""));
+        assert!(rendered.contains("kind: Some(Feature)"));
+        assert!(rendered.contains("format: Json"));
     }
 
     #[test]

@@ -1,3 +1,4 @@
+// FEAT-SEARCH-001
 // FEAT-BROWSE-001
 
 pub mod cli;
@@ -20,6 +21,7 @@ enum Dispatch {
     Browse(cli::BrowseArgs),
     List(cli::ListArgs),
     Show(cli::ShowArgs),
+    Search(cli::SearchArgs),
     App(cli::AppArgs),
     PrintHelp,
     Validate(cli::ValidateArgs),
@@ -32,6 +34,7 @@ fn dispatch(cli: cli::Cli, stdin_is_terminal: bool, stdout_is_terminal: bool) ->
         Some(cli::Commands::Browse(args)) => Dispatch::Browse(args),
         Some(cli::Commands::List(args)) => Dispatch::List(args),
         Some(cli::Commands::Show(args)) => Dispatch::Show(args),
+        Some(cli::Commands::Search(args)) => Dispatch::Search(args),
         Some(cli::Commands::App(args)) => Dispatch::App(args),
         None if stdin_is_terminal && stdout_is_terminal => {
             Dispatch::Browse(cli::BrowseArgs::default())
@@ -48,6 +51,7 @@ fn run_dispatch(dispatch: Dispatch) -> Result<i32> {
         Dispatch::Browse(args) => command::browse::run_browse_command(&args),
         Dispatch::List(args) => command::list::run_list_command(&args),
         Dispatch::Show(args) => command::show::run_show_command(&args),
+        Dispatch::Search(args) => command::search::run_search_command(&args),
         Dispatch::App(args) => command::app::run_app_command(&args),
         Dispatch::PrintHelp => {
             let mut command = cli::Cli::command();
@@ -74,7 +78,9 @@ pub fn run() -> Result<i32> {
 mod tests {
     use std::path::{Path, PathBuf};
 
-    use crate::cli::{AppArgs, Cli, Commands, ListArgs, OutputFormat, ShowArgs};
+    use crate::cli::{
+        AppArgs, Cli, Commands, ListArgs, LookupKind, OutputFormat, SearchArgs, ShowArgs,
+    };
 
     // REQ-CORE-015
     #[test]
@@ -148,6 +154,32 @@ mod tests {
                 if id == "REQ-CORE-018"
                     && workspace == Path::new("workspace")
                     && format == OutputFormat::Text
+        ));
+    }
+
+    #[test]
+    // REQ-CORE-019
+    fn dispatches_search_subcommands_without_rewriting_them() {
+        let search = super::dispatch(
+            Cli {
+                command: Some(Commands::Search(SearchArgs {
+                    query: "traceability".to_string(),
+                    workspace: PathBuf::from("workspace"),
+                    kind: Some(LookupKind::Feature),
+                    format: OutputFormat::Json,
+                })),
+            },
+            true,
+            true,
+        );
+
+        assert!(matches!(
+            search,
+            super::Dispatch::Search(crate::cli::SearchArgs { query, workspace, kind, format })
+                if query == "traceability"
+                    && workspace == Path::new("workspace")
+                    && kind == Some(LookupKind::Feature)
+                    && format == OutputFormat::Json
         ));
     }
 }
