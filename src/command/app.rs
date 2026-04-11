@@ -433,6 +433,7 @@ fn build_app_payload(workspace_root: &Path) -> Result<AppPayload> {
 
 fn build_app_payload_from_config(workspace_root: &Path, config: &SyuConfig) -> Result<AppPayload> {
     let spec_root = resolve_spec_root(workspace_root, config);
+    let (workspace_label, spec_label) = browser_root_labels(workspace_root, &spec_root);
 
     let mut source_documents = Vec::new();
     source_documents.extend(collect_yaml_sources_recursive(
@@ -454,11 +455,25 @@ fn build_app_payload_from_config(workspace_root: &Path, config: &SyuConfig) -> R
     });
 
     Ok(AppPayload {
-        workspace_root: workspace_root.display().to_string(),
-        spec_root: spec_root.display().to_string(),
+        workspace_root: workspace_label,
+        spec_root: spec_label,
         source_documents,
         validation: validation_snapshot(collect_check_result(workspace_root)),
     })
+}
+
+fn browser_root_labels(workspace_root: &Path, spec_root: &Path) -> (String, String) {
+    let workspace_label = workspace_root
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .filter(|label| !label.is_empty())
+        .unwrap_or_else(|| "workspace".to_string());
+    let spec_label = match relative_display(workspace_root, spec_root) {
+        Ok(relative) if relative.is_empty() => ".".to_string(),
+        Ok(relative) => relative,
+        Err(_) => "external spec root".to_string(),
+    };
+    (workspace_label, spec_label)
 }
 
 fn collect_feature_sources(feature_root: &Path) -> Result<Vec<SourceDocument>> {
@@ -654,10 +669,11 @@ mod tests {
 
     use super::{
         AppServerSettings, AppState, AppVersion, SectionKind, Severity, app_router,
-        build_app_payload, collect_feature_sources, collect_yaml_sources_recursive,
-        content_type_for_path, is_asset_like, normalized_asset_path, readiness_probe_request_sent,
-        readiness_probe_succeeds, refresh_current_once, relative_display,
-        resolve_app_server_settings, spec_snapshot, validation_snapshot, wait_for_ready_with_retry,
+        browser_root_labels, build_app_payload, collect_feature_sources,
+        collect_yaml_sources_recursive, content_type_for_path, is_asset_like,
+        normalized_asset_path, readiness_probe_request_sent, readiness_probe_succeeds,
+        refresh_current_once, relative_display, resolve_app_server_settings, spec_snapshot,
+        validation_snapshot, wait_for_ready_with_retry,
     };
 
     fn fixture_root(name: &str) -> PathBuf {
@@ -821,8 +837,8 @@ mod tests {
     #[test]
     fn build_app_payload_collects_current_workspace_sources() {
         let payload = build_app_payload(&fixture_root("passing")).expect("payload should build");
-        assert!(payload.workspace_root.contains("passing"));
-        assert!(payload.spec_root.contains("docs/syu"));
+        assert_eq!(payload.workspace_root, "passing");
+        assert_eq!(payload.spec_root, "docs/syu");
         assert!(
             payload
                 .source_documents
@@ -836,6 +852,15 @@ mod tests {
                 .any(|source| source.section == SectionKind::Features)
         );
         assert_eq!(payload.validation.definition_counts.features, 3);
+    }
+
+    #[test]
+    fn browser_root_labels_redact_external_spec_roots() {
+        let workspace_root = Path::new("/tmp/workspace");
+        let spec_root = Path::new("/tmp/shared-spec/docs/syu");
+        let (workspace_label, spec_label) = browser_root_labels(workspace_root, spec_root);
+        assert_eq!(workspace_label, "workspace");
+        assert_eq!(spec_label, "external spec root");
     }
 
     #[test]
