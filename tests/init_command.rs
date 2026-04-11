@@ -329,6 +329,10 @@ fn init_command_allows_layer_specific_id_prefix_overrides() {
         .arg("rust-only")
         .arg("--id-prefix")
         .arg("store")
+        .arg("--philosophy-prefix")
+        .arg("phil-guiding")
+        .arg("--policy-prefix")
+        .arg("pol-governance")
         .arg("--requirement-prefix")
         .arg("req-auth")
         .arg("--feature-prefix")
@@ -345,12 +349,16 @@ fn init_command_allows_layer_specific_id_prefix_overrides() {
 
     let philosophy = fs::read_to_string(workspace.join("docs/syu/philosophy/foundation.yaml"))
         .expect("philosophy should exist");
+    let policy = fs::read_to_string(workspace.join("docs/syu/policies/policies.yaml"))
+        .expect("policy should exist");
     let requirement = fs::read_to_string(workspace.join("docs/syu/requirements/core/rust.yaml"))
         .expect("requirement should exist");
     let feature = fs::read_to_string(workspace.join("docs/syu/features/languages/rust.yaml"))
         .expect("feature should exist");
 
-    assert!(philosophy.contains("id: PHIL-STORE-001"));
+    assert!(philosophy.contains("id: PHIL-GUIDING-001"));
+    assert!(philosophy.contains("linked_policies:\n      - POL-GOVERNANCE-001"));
+    assert!(policy.contains("id: POL-GOVERNANCE-001"));
     assert!(requirement.contains("prefix: REQ-AUTH"));
     assert!(requirement.contains("id: REQ-AUTH-001"));
     assert!(feature.contains("id: FEAT-AUTH-001"));

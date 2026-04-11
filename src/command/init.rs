@@ -523,8 +523,8 @@ mod tests {
             spec_root: None,
             template: StarterTemplate::RustOnly,
             id_prefix: Some("store".to_string()),
-            philosophy_prefix: None,
-            policy_prefix: None,
+            philosophy_prefix: Some("phil-guiding".to_string()),
+            policy_prefix: Some("pol-governance".to_string()),
             requirement_prefix: Some("req-auth".to_string()),
             feature_prefix: Some("feat-auth".to_string()),
             force: false,
@@ -532,8 +532,8 @@ mod tests {
         };
 
         let prefixes = resolve_init_id_prefixes(&args).expect("prefixes should resolve");
-        assert_eq!(prefixes.philosophy, "PHIL-STORE");
-        assert_eq!(prefixes.policy, "POL-STORE");
+        assert_eq!(prefixes.philosophy, "PHIL-GUIDING");
+        assert_eq!(prefixes.policy, "POL-GOVERNANCE");
         assert_eq!(prefixes.requirement, "REQ-AUTH");
         assert_eq!(prefixes.feature, "FEAT-AUTH");
     }
@@ -556,6 +556,52 @@ mod tests {
 
         let error = resolve_init_id_prefixes(&args).expect_err("typed stems should be rejected");
         assert!(error.to_string().contains("--id-prefix"));
+    }
+
+    #[test]
+    fn resolve_init_id_prefixes_rejects_typed_overrides_without_expected_prefix() {
+        let args = InitArgs {
+            workspace: std::path::PathBuf::from("."),
+            name: None,
+            spec_root: None,
+            template: StarterTemplate::Generic,
+            id_prefix: None,
+            philosophy_prefix: Some("store".to_string()),
+            policy_prefix: None,
+            requirement_prefix: None,
+            feature_prefix: None,
+            force: false,
+            format: crate::cli::OutputFormat::Text,
+        };
+
+        let error =
+            resolve_init_id_prefixes(&args).expect_err("typed overrides should require a prefix");
+        let message = error.to_string();
+        assert!(message.contains("--philosophy-prefix"));
+        assert!(message.contains("PHIL"));
+    }
+
+    #[test]
+    fn resolve_init_id_prefixes_rejects_invalid_override_tokens() {
+        let args = InitArgs {
+            workspace: std::path::PathBuf::from("."),
+            name: None,
+            spec_root: None,
+            template: StarterTemplate::Generic,
+            id_prefix: None,
+            philosophy_prefix: None,
+            policy_prefix: None,
+            requirement_prefix: None,
+            feature_prefix: Some("feat_store".to_string()),
+            force: false,
+            format: crate::cli::OutputFormat::Text,
+        };
+
+        let error = resolve_init_id_prefixes(&args)
+            .expect_err("invalid override tokens should be rejected");
+        let message = error.to_string();
+        assert!(message.contains("--feature-prefix"));
+        assert!(message.contains("single hyphens"));
     }
 
     #[test]
