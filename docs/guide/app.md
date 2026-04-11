@@ -111,7 +111,8 @@ evidence still needs to be added before the item becomes implemented.
 The validation panel appears at the bottom of the page and lists the current
 issues from the workspace snapshot that `syu app` loaded itself. You do not
 need to run `syu validate` first: the app computes the same validation snapshot
-when it starts and whenever the browser refresh flow loads updated spec data.
+when it starts, refreshes it while the tab stays visible, and catches up again
+when you return to the tab after spec changes.
 
 Each row shows:
 
@@ -147,10 +148,10 @@ Use the validation flow in this order:
 2. Pick the requirement document you are working on from the sidebar.
 3. Open a requirement with `status: planned`.
 4. In the detail pane, look for the planned placeholder under **Tests**.
-5. Add the missing trace entries in YAML, then wait for the browser refresh flow
-   to load the updated snapshot while the tab stays visible. Run `syu validate
-   .` separately only if you also want the same validation details in a
-   terminal.
+5. Add the missing trace entries in YAML, then keep the app tab visible or
+   switch back to it so the browser refresh flow loads the updated snapshot.
+   Run `syu validate .` separately only if you also want the same validation
+   details in a terminal.
 
 ### I got a validation error - how do I find the affected item?
 
