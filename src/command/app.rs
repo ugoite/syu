@@ -227,14 +227,19 @@ fn wait_for_ready_with_retry(
             stream
                 .set_write_timeout(Some(connect_timeout))
                 .context("failed to configure readiness probe write timeout")?;
-            write!(
+            if write!(
                 stream,
                 "GET /health HTTP/1.1\r\nHost: {local_addr}\r\nConnection: close\r\n\r\n"
             )
-            .context("failed to send readiness probe request")?;
-            stream
-                .flush()
-                .context("failed to flush readiness probe request")?;
+            .is_err()
+            {
+                std::thread::sleep(retry_delay);
+                continue;
+            }
+            if stream.flush().is_err() {
+                std::thread::sleep(retry_delay);
+                continue;
+            }
 
             let mut response = String::new();
             if stream.read_to_string(&mut response).is_ok() && response.contains("200 OK") {
