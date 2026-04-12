@@ -726,11 +726,65 @@ fn print_add_summary(
     }
     println!();
     println!("Next steps:");
-    println!("  1. Edit the generated stub fields and reciprocal links");
-    println!(
-        "  2. Run `syu validate {}` once the new item is linked",
+    for (index, step) in add_follow_up_steps(workspace, layer, id, target)
+        .into_iter()
+        .enumerate()
+    {
+        println!("  {}. {step}", index + 1);
+    }
+}
+
+fn add_follow_up_steps(
+    workspace: &Workspace,
+    layer: LookupKind,
+    id: &str,
+    target: &Path,
+) -> Vec<String> {
+    let target_label = display_workspace_path(workspace, target);
+    let mut steps = vec![format!(
+        "Edit {target_label} and fill the stub fields for `{id}`."
+    )];
+
+    match layer {
+        LookupKind::Philosophy => {
+            steps.push(format!(
+                "Add at least one `linked_policies:` entry in `{id}`."
+            ));
+            steps.push(format!(
+                "Update each linked policy so it links back to `{id}`."
+            ));
+        }
+        LookupKind::Policy => {
+            steps.push(format!(
+                "Add at least one `linked_philosophies:` entry and one `linked_requirements:` entry in `{id}`."
+            ));
+            steps.push(format!(
+                "Update each linked philosophy and requirement so they link back to `{id}`."
+            ));
+        }
+        LookupKind::Requirement => {
+            steps.push(format!(
+                "Add at least one `linked_policies:` entry and one `linked_features:` entry in `{id}`."
+            ));
+            steps.push(format!(
+                "Update each linked policy and feature so they link back to `{id}`."
+            ));
+        }
+        LookupKind::Feature => {
+            steps.push(format!(
+                "Add at least one `linked_requirements:` entry in `{id}`."
+            ));
+            steps.push(format!(
+                "Update each linked requirement so it links back to `{id}`."
+            ));
+        }
+    }
+
+    steps.push(format!(
+        "Run `syu validate {}` once the reciprocal links are in place.",
         shell_quote_path(&workspace.root)
-    );
+    ));
+    steps
 }
 
 fn display_workspace_path(workspace: &Workspace, path: &Path) -> String {
@@ -799,8 +853,8 @@ mod tests {
     };
 
     use super::{
-        AddPromptIo, FeatureRegistryUpdate, ParsedId, TargetPath, default_document_path,
-        default_folder_slug, default_title, ensure_target_within_spec_root,
+        AddPromptIo, FeatureRegistryUpdate, ParsedId, TargetPath, add_follow_up_steps,
+        default_document_path, default_folder_slug, default_title, ensure_target_within_spec_root,
         normalize_definition_id, normalize_feature_kind, prepare_feature_registry_update,
         prompt_for_parsed_id, render_item_block, render_new_document,
         resolve_add_invocation_with_prompt_io, resolve_explicit_file, resolve_feature_kind,
@@ -907,6 +961,51 @@ mod tests {
         assert_eq!(default_title(LookupKind::Policy), "New policy");
         assert_eq!(default_title(LookupKind::Feature), "New feature");
         assert_eq!(default_folder_slug(LookupKind::Policy), "policies");
+    }
+
+    #[test]
+    fn add_follow_up_steps_explain_reciprocal_links_for_each_layer() {
+        let (_tempdir, workspace) = test_workspace();
+        let philosophy_target = workspace.spec_root.join("philosophy/foundation.yaml");
+        let policy_target = workspace.spec_root.join("policies/policies.yaml");
+        let requirement_target = workspace.spec_root.join("requirements/auth/auth.yaml");
+        let feature_target = workspace.spec_root.join("features/auth/login.yaml");
+
+        let philosophy_steps = add_follow_up_steps(
+            &workspace,
+            LookupKind::Philosophy,
+            "PHIL-001",
+            &philosophy_target,
+        );
+        let policy_steps =
+            add_follow_up_steps(&workspace, LookupKind::Policy, "POL-001", &policy_target);
+        let requirement_steps = add_follow_up_steps(
+            &workspace,
+            LookupKind::Requirement,
+            "REQ-AUTH-001",
+            &requirement_target,
+        );
+        let feature_steps = add_follow_up_steps(
+            &workspace,
+            LookupKind::Feature,
+            "FEAT-AUTH-LOGIN-001",
+            &feature_target,
+        );
+
+        assert!(philosophy_steps[1].contains("linked_policies"));
+        assert!(philosophy_steps[2].contains("linked policy"));
+        assert!(policy_steps[1].contains("linked_philosophies"));
+        assert!(policy_steps[1].contains("linked_requirements"));
+        assert!(requirement_steps[1].contains("linked_policies"));
+        assert!(requirement_steps[1].contains("linked_features"));
+        assert!(feature_steps[1].contains("linked_requirements"));
+        assert!(feature_steps[2].contains("linked requirement"));
+        assert!(
+            feature_steps
+                .last()
+                .expect("feature guidance should include validation")
+                .contains("syu validate")
+        );
     }
 
     #[test]
