@@ -264,10 +264,10 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("docs/guide/tutorial.md"));
     assert!(readme.contains("docs/guide/troubleshooting.md"));
     assert!(readme.contains("shortest install-to-validate path"));
-    assert!(readme.contains("[Why four layers?](#why-four-layers)"));
-    assert!(readme.contains("compact first-run command card"));
+    assert!(readme.contains("the in-page four-layer refresher is"));
+    assert!(readme.contains("**Getting started**"));
     assert!(readme.contains("same first workspace setup explained step by step"));
-    assert!(readme.contains("Need the slower narrated version of the same first-run flow?"));
+    assert!(readme.contains("[Why four layers?](#why-four-layers)"));
     assert!(readme.contains("Step 0: required"));
     assert!(readme.contains("Generate a requirement stub"));
     assert!(readme.contains("add at least one `linked_policies:` entry"));

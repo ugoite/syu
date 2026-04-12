@@ -31,9 +31,12 @@ verified.
 
 Pick the newcomer path that matches what you need next:
 
-- **Quick start**: stay in this README when you want the shortest path from install
-  to `syu validate .` and only need a short layer refresher before the first
-  commands.
+- **Quick start**: stay in this README when the in-page four-layer refresher is
+  enough and you want the shortest path from install to `syu validate .`.
+- **Getting started**: follow
+  [`docs/guide/getting-started.md`](docs/guide/getting-started.md) when you want
+  the same first workspace setup explained step by step before the first
+  validation run.
 - **Tutorial**: follow [`docs/guide/tutorial.md`](docs/guide/tutorial.md) when you
   want a realistic end-to-end repository story instead of a short scaffold flow.
 - **Troubleshooting**: jump to
@@ -163,14 +166,9 @@ below. The rest of this section assumes you installed the published CLI.
 
 ## Quick start
 
-Stay in this README for the shortest install-to-validate path. If you skipped
-[`docs/guide/concepts.md`](docs/guide/concepts.md), use the
-[Why four layers?](#why-four-layers) section above as the refresher on
-`philosophy`, `policy`, `requirements`, and `features`.
-
-Treat the rest of this section as a compact first-run command card. If you want
-the same first workspace setup explained step by step, switch to
-[`docs/guide/getting-started.md`](docs/guide/getting-started.md).
+Stay in this README for the shortest install-to-validate path. If you want a
+quick refresher on the four-layer model before the commands, use
+[Why four layers?](#why-four-layers) above.
 
 The first manual edit in this quick start happens in the generated requirement
 YAML: add `linked_policies:` and `linked_features:` there, then update the
@@ -204,9 +202,6 @@ syu app .                            # 4. Browse in the browser
 
 Use `syu browse .` when you want terminal-first exploration, or `syu app .`
 when you want the local browser UI.
-
-Need the slower narrated version of the same first-run flow? Follow
-[`docs/guide/getting-started.md`](docs/guide/getting-started.md).
 
 ```bash
 syu init .
