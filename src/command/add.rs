@@ -3,6 +3,7 @@
 
 use std::{
     fs,
+    io::{self, IsTerminal, Write},
     path::{Component, Path, PathBuf},
 };
 
@@ -21,47 +22,36 @@ use crate::{
 use super::{lookup::WorkspaceLookup, shell_quote_path};
 
 pub fn run_add_command(args: &AddArgs) -> Result<i32> {
-    let workspace = load_workspace(&args.workspace)?;
-    let parsed_id = ParsedId::parse(args.layer, &args.id)?;
-
     if args.layer != LookupKind::Feature && args.kind.is_some() {
         bail!("`--kind` is only supported when scaffolding features");
     }
+    let resolved = resolve_add_invocation(args)?;
+    let workspace = load_workspace(&resolved.workspace)?;
     if WorkspaceLookup::new(&workspace)
-        .find(&parsed_id.normalized)
+        .find(&resolved.parsed_id.normalized)
         .is_some()
     {
         bail!(
             "{} `{}` already exists in `{}`",
             args.layer.label(),
-            parsed_id.normalized,
+            resolved.parsed_id.normalized,
             workspace.root.display()
         );
     }
-
-    let feature_kind = match args.layer {
-        LookupKind::Feature => {
-            let kind = args
-                .kind
-                .as_deref()
-                .unwrap_or(parsed_id.folder_slug.as_str());
-            Some(normalize_feature_kind(kind)?)
-        }
-        _ => None,
-    };
     let target = resolve_target_path(
         &workspace,
         args.layer,
-        args.file.as_deref(),
-        &parsed_id,
-        feature_kind.as_deref(),
+        resolved.file.as_deref(),
+        &resolved.parsed_id,
+        resolved.feature_kind.as_deref(),
     )?;
     let created_target_file = !target.absolute.exists();
     let feature_registry_update = if args.layer == LookupKind::Feature {
         Some(prepare_feature_registry_update(
             &workspace,
             &target.absolute,
-            feature_kind
+            resolved
+                .feature_kind
                 .as_deref()
                 .expect("features require a registry kind"),
         )?)
@@ -69,7 +59,12 @@ pub fn run_add_command(args: &AddArgs) -> Result<i32> {
         None
     };
 
-    write_stub_document(args.layer, &parsed_id, feature_kind.as_deref(), &target)?;
+    write_stub_document(
+        args.layer,
+        &resolved.parsed_id,
+        resolved.feature_kind.as_deref(),
+        &target,
+    )?;
 
     let registry_updated = if let Some(update) = feature_registry_update {
         write_feature_registry_update(update)?
@@ -80,12 +75,20 @@ pub fn run_add_command(args: &AddArgs) -> Result<i32> {
     print_add_summary(
         &workspace,
         args.layer,
-        &parsed_id.normalized,
+        &resolved.parsed_id.normalized,
         &target.absolute,
         created_target_file,
         registry_updated,
     );
     Ok(0)
+}
+
+#[derive(Debug, Clone)]
+struct ResolvedAddInvocation {
+    workspace: PathBuf,
+    parsed_id: ParsedId,
+    feature_kind: Option<String>,
+    file: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone)]
@@ -139,6 +142,153 @@ struct TargetPath {
 struct FeatureRegistryUpdate {
     path: PathBuf,
     updated_contents: Option<String>,
+}
+
+fn resolve_add_invocation(args: &AddArgs) -> Result<ResolvedAddInvocation> {
+    let (raw_id, workspace) = resolve_workspace_and_id(args)?;
+    let parsed_id = match raw_id {
+        Some(id) => ParsedId::parse(args.layer, &id)?,
+        None => prompt_for_parsed_id(args.layer)?,
+    };
+    let feature_kind = match args.layer {
+        LookupKind::Feature => Some(resolve_feature_kind(args, &parsed_id)?),
+        _ => None,
+    };
+    let file = resolve_interactive_file_prompt(args, &parsed_id, feature_kind.as_deref())?;
+
+    Ok(ResolvedAddInvocation {
+        workspace,
+        parsed_id,
+        feature_kind,
+        file,
+    })
+}
+
+fn resolve_workspace_and_id(args: &AddArgs) -> Result<(Option<String>, PathBuf)> {
+    let mut id = args.id.clone();
+    let mut workspace = args.workspace.clone();
+
+    if args.interactive
+        && workspace == Path::new(".")
+        && id.as_deref().is_some_and(|candidate| {
+            ParsedId::parse(args.layer, candidate).is_err() && Path::new(candidate).exists()
+        })
+    {
+        workspace = PathBuf::from(
+            id.take()
+                .expect("interactive workspace override should still be present"),
+        );
+    }
+
+    Ok((id, workspace))
+}
+
+fn resolve_feature_kind(args: &AddArgs, parsed_id: &ParsedId) -> Result<String> {
+    if let Some(kind) = args.kind.as_deref() {
+        return normalize_feature_kind(kind);
+    }
+    if args.interactive {
+        ensure_prompt_terminal(
+            "`syu add --interactive` requires a terminal to prompt for a feature kind",
+        )?;
+        loop {
+            let raw = prompt_with_default("Feature kind", parsed_id.folder_slug.as_str())?;
+            match normalize_feature_kind(&raw) {
+                Ok(kind) => return Ok(kind),
+                Err(error) => eprintln!("{error:#}"),
+            }
+        }
+    }
+
+    normalize_feature_kind(parsed_id.folder_slug.as_str())
+}
+
+fn resolve_interactive_file_prompt(
+    args: &AddArgs,
+    parsed_id: &ParsedId,
+    feature_kind: Option<&str>,
+) -> Result<Option<PathBuf>> {
+    if let Some(file) = &args.file {
+        return Ok(Some(file.clone()));
+    }
+    if !args.interactive {
+        return Ok(None);
+    }
+
+    ensure_prompt_terminal(
+        "`syu add --interactive` requires a terminal to prompt for a file path",
+    )?;
+    let default_relative = default_document_path(args.layer, parsed_id, feature_kind);
+    Ok(
+        prompt_optional_path("YAML file", &default_relative.display().to_string())?
+            .map(PathBuf::from),
+    )
+}
+
+fn prompt_for_parsed_id(layer: LookupKind) -> Result<ParsedId> {
+    ensure_prompt_terminal(
+        "interactive `syu add` prompts require a terminal; provide the ID explicitly when stdin/stdout are not terminals",
+    )?;
+
+    loop {
+        let raw = prompt_required("Definition ID")?;
+        match ParsedId::parse(layer, &raw) {
+            Ok(parsed) => return Ok(parsed),
+            Err(error) => eprintln!("{error:#}"),
+        }
+    }
+}
+
+fn ensure_prompt_terminal(message: &str) -> Result<()> {
+    if io::stdin().is_terminal() && io::stdout().is_terminal() {
+        return Ok(());
+    }
+
+    bail!("{message}");
+}
+
+fn prompt_required(label: &str) -> Result<String> {
+    loop {
+        let raw = prompt_line(label, None)?;
+        if !raw.is_empty() {
+            return Ok(raw);
+        }
+        eprintln!("{label} is required.");
+    }
+}
+
+fn prompt_with_default(label: &str, default: &str) -> Result<String> {
+    let raw = prompt_line(label, Some(default))?;
+    if raw.is_empty() {
+        Ok(default.to_string())
+    } else {
+        Ok(raw)
+    }
+}
+
+fn prompt_optional_path(label: &str, default: &str) -> Result<Option<String>> {
+    let raw = prompt_line(label, Some(default))?;
+    if raw.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(raw))
+    }
+}
+
+fn prompt_line(label: &str, default: Option<&str>) -> Result<String> {
+    match default {
+        Some(value) => print!("{label} [{value}]: "),
+        None => print!("{label}: "),
+    }
+    io::stdout()
+        .flush()
+        .context("failed to flush interactive `syu add` prompt")?;
+
+    let mut input = String::new();
+    io::stdin()
+        .read_line(&mut input)
+        .context("failed to read interactive `syu add` input")?;
+    Ok(input.trim().to_string())
 }
 
 fn normalize_definition_id(raw: &str, layer: LookupKind) -> Result<String> {
