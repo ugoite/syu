@@ -102,6 +102,41 @@ struct ParsedId {
     file_slug: String,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct ReciprocalLinkField {
+    yaml_key: &'static str,
+    linked_kind_label: &'static str,
+}
+
+const PHILOSOPHY_RECIPROCAL_LINK_FIELDS: &[ReciprocalLinkField] = &[ReciprocalLinkField {
+    yaml_key: "linked_policies",
+    linked_kind_label: "policy",
+}];
+const POLICY_RECIPROCAL_LINK_FIELDS: &[ReciprocalLinkField] = &[
+    ReciprocalLinkField {
+        yaml_key: "linked_philosophies",
+        linked_kind_label: "philosophy",
+    },
+    ReciprocalLinkField {
+        yaml_key: "linked_requirements",
+        linked_kind_label: "requirement",
+    },
+];
+const REQUIREMENT_RECIPROCAL_LINK_FIELDS: &[ReciprocalLinkField] = &[
+    ReciprocalLinkField {
+        yaml_key: "linked_policies",
+        linked_kind_label: "policy",
+    },
+    ReciprocalLinkField {
+        yaml_key: "linked_features",
+        linked_kind_label: "feature",
+    },
+];
+const FEATURE_RECIPROCAL_LINK_FIELDS: &[ReciprocalLinkField] = &[ReciprocalLinkField {
+    yaml_key: "linked_requirements",
+    linked_kind_label: "requirement",
+}];
+
 impl ParsedId {
     fn parse(layer: LookupKind, raw: &str) -> Result<Self> {
         let normalized = normalize_definition_id(raw, layer)?;
@@ -606,23 +641,97 @@ fn render_new_document(
     }
 }
 
+fn reciprocal_link_fields(layer: LookupKind) -> &'static [ReciprocalLinkField] {
+    match layer {
+        LookupKind::Philosophy => PHILOSOPHY_RECIPROCAL_LINK_FIELDS,
+        LookupKind::Policy => POLICY_RECIPROCAL_LINK_FIELDS,
+        LookupKind::Requirement => REQUIREMENT_RECIPROCAL_LINK_FIELDS,
+        LookupKind::Feature => FEATURE_RECIPROCAL_LINK_FIELDS,
+    }
+}
+
+fn render_reciprocal_link_stub(layer: LookupKind) -> String {
+    reciprocal_link_fields(layer)
+        .iter()
+        .map(|field| format!("    {}: []", field.yaml_key))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn format_instruction_list(items: &[String]) -> String {
+    match items {
+        [] => String::new(),
+        [item] => item.clone(),
+        [first, second] => format!("{first} and {second}"),
+        _ => {
+            let mut joined = items[..items.len() - 1].join(", ");
+            joined.push_str(", and ");
+            joined.push_str(&items[items.len() - 1]);
+            joined
+        }
+    }
+}
+
+fn reciprocal_link_entry_instruction(layer: LookupKind, id: &str) -> String {
+    let fields = reciprocal_link_fields(layer)
+        .iter()
+        .map(|field| format!("`{}:`", field.yaml_key))
+        .collect::<Vec<_>>();
+
+    match fields.as_slice() {
+        [field] => format!("Add at least one {field} entry in `{id}`."),
+        [first, second] => {
+            format!("Add at least one {first} entry and one {second} entry in `{id}`.")
+        }
+        _ => {
+            let clauses = fields
+                .iter()
+                .map(|field| format!("at least one {field} entry"))
+                .collect::<Vec<_>>();
+            format!("Add {} in `{id}`.", format_instruction_list(&clauses))
+        }
+    }
+}
+
+fn reciprocal_link_back_instruction(layer: LookupKind, id: &str) -> String {
+    let linked_kinds = reciprocal_link_fields(layer)
+        .iter()
+        .map(|field| field.linked_kind_label.to_string())
+        .collect::<Vec<_>>();
+    let verb = if linked_kinds.len() == 1 {
+        "it links"
+    } else {
+        "they link"
+    };
+
+    format!(
+        "Update each linked {} so {verb} back to `{id}`.",
+        format_instruction_list(&linked_kinds)
+    )
+}
+
 fn render_item_block(layer: LookupKind, parsed_id: &ParsedId) -> String {
+    let reciprocal_links = render_reciprocal_link_stub(layer);
     match layer {
         LookupKind::Philosophy => format!(
-            "  - id: {}\n    title: {}\n    product_design_principle: |\n      Describe the durable product design principle for {}.\n    coding_guideline: |\n      Describe the coding guideline that keeps {} actionable in day-to-day work.\n    linked_policies: []",
-            parsed_id.normalized, parsed_id.title, parsed_id.normalized, parsed_id.normalized
+            "  - id: {}\n    title: {}\n    product_design_principle: |\n      Describe the durable product design principle for {}.\n    coding_guideline: |\n      Describe the coding guideline that keeps {} actionable in day-to-day work.\n{}",
+            parsed_id.normalized,
+            parsed_id.title,
+            parsed_id.normalized,
+            parsed_id.normalized,
+            reciprocal_links
         ),
         LookupKind::Policy => format!(
-            "  - id: {}\n    title: {}\n    summary: Document the rule enforced by {}.\n    description: |\n      Describe how this policy turns philosophy into a concrete contributor rule.\n    linked_philosophies: []\n    linked_requirements: []",
-            parsed_id.normalized, parsed_id.title, parsed_id.normalized
+            "  - id: {}\n    title: {}\n    summary: Document the rule enforced by {}.\n    description: |\n      Describe how this policy turns philosophy into a concrete contributor rule.\n{}",
+            parsed_id.normalized, parsed_id.title, parsed_id.normalized, reciprocal_links
         ),
         LookupKind::Requirement => format!(
-            "  - id: {}\n    title: {}\n    description: |\n      Describe the concrete requirement that {} adds to the repository.\n    priority: high\n    status: planned\n    linked_policies: []\n    linked_features: []\n    tests: {{}}",
-            parsed_id.normalized, parsed_id.title, parsed_id.normalized
+            "  - id: {}\n    title: {}\n    description: |\n      Describe the concrete requirement that {} adds to the repository.\n    priority: high\n    status: planned\n{}\n    tests: {{}}",
+            parsed_id.normalized, parsed_id.title, parsed_id.normalized, reciprocal_links
         ),
         LookupKind::Feature => format!(
-            "  - id: {}\n    title: {}\n    summary: Describe the shipped capability that {} represents.\n    status: planned\n    linked_requirements: []\n    implementations: {{}}",
-            parsed_id.normalized, parsed_id.title, parsed_id.normalized
+            "  - id: {}\n    title: {}\n    summary: Describe the shipped capability that {} represents.\n    status: planned\n{}\n    implementations: {{}}",
+            parsed_id.normalized, parsed_id.title, parsed_id.normalized, reciprocal_links
         ),
     }
 }
@@ -744,41 +853,8 @@ fn add_follow_up_steps(
     let mut steps = vec![format!(
         "Edit {target_label} and fill the stub fields for `{id}`."
     )];
-
-    match layer {
-        LookupKind::Philosophy => {
-            steps.push(format!(
-                "Add at least one `linked_policies:` entry in `{id}`."
-            ));
-            steps.push(format!(
-                "Update each linked policy so it links back to `{id}`."
-            ));
-        }
-        LookupKind::Policy => {
-            steps.push(format!(
-                "Add at least one `linked_philosophies:` entry and one `linked_requirements:` entry in `{id}`."
-            ));
-            steps.push(format!(
-                "Update each linked philosophy and requirement so they link back to `{id}`."
-            ));
-        }
-        LookupKind::Requirement => {
-            steps.push(format!(
-                "Add at least one `linked_policies:` entry and one `linked_features:` entry in `{id}`."
-            ));
-            steps.push(format!(
-                "Update each linked policy and feature so they link back to `{id}`."
-            ));
-        }
-        LookupKind::Feature => {
-            steps.push(format!(
-                "Add at least one `linked_requirements:` entry in `{id}`."
-            ));
-            steps.push(format!(
-                "Update each linked requirement so it links back to `{id}`."
-            ));
-        }
-    }
+    steps.push(reciprocal_link_entry_instruction(layer, id));
+    steps.push(reciprocal_link_back_instruction(layer, id));
 
     steps.push(format!(
         "Run `syu validate {}` once the reciprocal links are in place.",
