@@ -7,9 +7,11 @@ releaseable at all times.
 
 ## Start with the model
 
-Before you change code, docs, or release workflow, read
-[`docs/guide/concepts.md`](docs/guide/concepts.md). `syu` is built around the
-four-layer model: philosophy -> policy -> requirement -> feature.
+Before you change behavior, specs, contributor guidance, or release workflow,
+read [`docs/guide/concepts.md`](docs/guide/concepts.md). For small typo-only or
+mechanical CI fixes, you can start with the workflow below and come back to the
+guide when you need the fuller model. `syu` is built around the four-layer
+model: philosophy -> policies -> requirements -> features.
 
 The contribution workflow exists to keep those layers connected to real code,
 tests, docs, and maintenance work. In practice that means spec edits under
