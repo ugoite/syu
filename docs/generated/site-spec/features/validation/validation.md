@@ -374,12 +374,14 @@ description: "Generated reference for docs/syu/features/validation/validation.ya
   - **genre**: coverage
   - **severity**: error
   - **title**: Coverage inventory paths must be walkable
-  - **summary**: Strict trace coverage starts by discovering supported Rust, Python, and TypeScript/JavaScript source and test files under `src/` and `tests/`.
+  - **summary**: Strict trace coverage starts by discovering supported Rust, Python, and TypeScript/JavaScript source and test files under `src/` and `tests/`, while skipping common generated directories by default.
   - **description**:
     - |
       The strict trace coverage rule only means something when `syu` can walk the
       repository paths that are supposed to contain owned Rust, Python, and
-      TypeScript/JavaScript source and test files. If directory discovery fails,
+      TypeScript/JavaScript source and test files. `syu` skips common generated
+      directories such as `dist/`, `build/`, `coverage/`, and `target/` so the
+      inventory stays focused on authored evidence. If directory discovery fails,
       the inventory itself is incomplete and any 100-percent coverage conclusion
       would be misleading. This rule surfaces repository layout problems before
       coverage claims become untrustworthy.
@@ -799,11 +801,13 @@ rules:
     genre: coverage
     severity: error
     title: Coverage inventory paths must be walkable
-    summary: Strict trace coverage starts by discovering supported Rust, Python, and TypeScript/JavaScript source and test files under `src/` and `tests/`.
+    summary: Strict trace coverage starts by discovering supported Rust, Python, and TypeScript/JavaScript source and test files under `src/` and `tests/`, while skipping common generated directories by default.
     description: |
       The strict trace coverage rule only means something when `syu` can walk the
       repository paths that are supposed to contain owned Rust, Python, and
-      TypeScript/JavaScript source and test files. If directory discovery fails,
+      TypeScript/JavaScript source and test files. `syu` skips common generated
+      directories such as `dist/`, `build/`, `coverage/`, and `target/` so the
+      inventory stays focused on authored evidence. If directory discovery fails,
       the inventory itself is incomplete and any 100-percent coverage conclusion
       would be misleading. This rule surfaces repository layout problems before
       coverage claims become untrustworthy.

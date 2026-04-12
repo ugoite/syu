@@ -100,7 +100,9 @@ description: "Generated reference for docs/syu/requirements/core/validation.yaml
       `pub` for Rust, exported for TypeScript/JavaScript) and every test symbol
       (`test_*` functions for Python, `#[test]` for Rust, `test*`-prefixed
       functions for TypeScript/JavaScript) in repository source and test roots
-      to belong to some feature or requirement respectively.
+      to belong to some feature or requirement respectively. That inventory MUST
+      skip common generated directories such as `dist/`, `build/`, `coverage/`,
+      and `target/` by default so strict ownership focuses on authored evidence.
   - **priority**: high
   - **status**: implemented
   - **linked_policies**:
@@ -288,7 +290,9 @@ requirements:
       `pub` for Rust, exported for TypeScript/JavaScript) and every test symbol
       (`test_*` functions for Python, `#[test]` for Rust, `test*`-prefixed
       functions for TypeScript/JavaScript) in repository source and test roots
-      to belong to some feature or requirement respectively.
+      to belong to some feature or requirement respectively. That inventory MUST
+      skip common generated directories such as `dist/`, `build/`, `coverage/`,
+      and `target/` by default so strict ownership focuses on authored evidence.
     priority: high
     status: implemented
     linked_policies:

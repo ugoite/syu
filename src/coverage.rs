@@ -35,6 +35,8 @@ struct CoverageMap {
     wildcard_files: BTreeSet<PathBuf>,
 }
 
+const IGNORED_GENERATED_DIR_NAMES: &[&str] = &["dist", "build", "coverage", "target"];
+
 pub fn validate_symbol_trace_coverage(workspace: &Workspace, issues: &mut Vec<Issue>) {
     validate_symbol_trace_coverage_with(
         workspace,
@@ -576,6 +578,9 @@ fn collect_files_recursive_by_extension(
     for entry in fs::read_dir(directory)? {
         let path = entry?.path();
         if path.is_dir() {
+            if should_skip_generated_directory(&path) {
+                continue;
+            }
             collect_files_recursive_by_extension(&path, extension, files)?;
             continue;
         }
@@ -586,6 +591,16 @@ fn collect_files_recursive_by_extension(
     }
 
     Ok(())
+}
+
+fn should_skip_generated_directory(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| {
+            IGNORED_GENERATED_DIR_NAMES
+                .iter()
+                .any(|candidate| candidate.eq_ignore_ascii_case(name))
+        })
 }
 
 pub(crate) fn normalize_relative_path(path: &Path) -> PathBuf {
@@ -655,10 +670,11 @@ mod tests {
     use tempfile::tempdir;
 
     use super::{
-        CoverageTargetKind, collect_feature_coverage, collect_requirement_coverage,
-        discover_python_targets, discover_rust_targets, discover_typescript_targets,
-        normalize_relative_path, python_files_under, rust_files_under, typescript_files_under,
-        validate_symbol_trace_coverage, validate_symbol_trace_coverage_with,
+        CoverageTargetKind, collect_feature_coverage, collect_files_recursive_by_extension,
+        collect_requirement_coverage, discover_python_targets, discover_rust_targets,
+        discover_typescript_targets, normalize_relative_path, python_files_under, rust_files_under,
+        typescript_files_under, validate_symbol_trace_coverage,
+        validate_symbol_trace_coverage_with,
     };
     use crate::{
         config::SyuConfig,
@@ -845,6 +861,55 @@ mod tests {
         fs::write(&file_root, "pub fn nope() {}\n").expect("file");
         let issue = rust_files_under(&file_root).expect_err("file roots should fail");
         assert_eq!(issue.code, "SYU-coverage-walk-001");
+    }
+
+    #[test]
+    fn file_discovery_skips_common_generated_directories() {
+        let tempdir = tempdir().expect("tempdir");
+        let src_root = tempdir.path().join("src");
+        fs::create_dir_all(src_root.join("nested")).expect("nested");
+        fs::create_dir_all(src_root.join("dist")).expect("dist");
+        fs::create_dir_all(src_root.join("build")).expect("build");
+        fs::create_dir_all(src_root.join("coverage")).expect("coverage");
+        fs::create_dir_all(src_root.join("target")).expect("target");
+        fs::create_dir_all(src_root.join("DIST")).expect("upper dist");
+
+        let keep_root = src_root.join("lib.rs");
+        let keep_nested = src_root.join("nested/mod.rs");
+        fs::write(&keep_root, "pub fn keep_root() {}\n").expect("keep root");
+        fs::write(&keep_nested, "pub fn keep_nested() {}\n").expect("keep nested");
+        fs::write(
+            src_root.join("dist/generated.rs"),
+            "pub fn ignored_dist() {}\n",
+        )
+        .expect("dist file");
+        fs::write(
+            src_root.join("build/generated.rs"),
+            "pub fn ignored_build() {}\n",
+        )
+        .expect("build file");
+        fs::write(
+            src_root.join("coverage/generated.rs"),
+            "pub fn ignored_coverage() {}\n",
+        )
+        .expect("coverage file");
+        fs::write(
+            src_root.join("target/generated.rs"),
+            "pub fn ignored_target() {}\n",
+        )
+        .expect("target file");
+        fs::write(
+            src_root.join("DIST/generated.rs"),
+            "pub fn ignored_upper() {}\n",
+        )
+        .expect("upper dist file");
+
+        let mut files = Vec::new();
+        collect_files_recursive_by_extension(&src_root, "rs", &mut files)
+            .expect("discovery should succeed");
+        files.sort();
+
+        assert_eq!(files, vec![keep_root, keep_nested]);
     }
 
     #[test]
