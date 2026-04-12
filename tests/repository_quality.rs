@@ -512,7 +512,8 @@ fn repository_declares_contribution_workflow_assets() {
     assert!(contributing.contains("scripts/ci/quality-gates.sh"));
     assert!(contributing.contains("scripts/ci/check-generated-docs-freshness.sh"));
     assert!(contributing.contains("docs/generated/"));
-    assert!(contributing.contains("scripts/ci/check-app-dist-freshness.sh"));
+    assert!(contributing.contains("scripts/ci/check-browser-app-freshness.sh"));
+    assert!(contributing.contains("app/src/wasm"));
     assert!(contributing.contains("app/dist"));
     assert!(contributing.contains("npm run build:wasm"));
     assert!(contributing.contains("npm run check"));
@@ -566,12 +567,15 @@ fn repository_declares_dependency_hygiene_and_ci_caching() {
     let docs_build_action = read_file(".github/actions/build-docs-site/action.yml");
     let docs_lock = read_file("website/package-lock.json");
     let release_artifacts = read_file(".github/workflows/release-artifacts.yml");
+    let browser_app_freshness = read_file("scripts/ci/check-browser-app-freshness.sh");
     let dependabot = read_file(".github/dependabot.yml");
 
     assert!(ci_workflow.contains("concurrency:"));
     assert!(ci_workflow.contains("cancel-in-progress: true"));
     assert!(ci_workflow.contains("permissions:"));
     assert!(ci_workflow.contains("./.github/actions/setup-rust"));
+    assert!(setup_rust_action.contains("actions/setup-node@v6"));
+    assert!(setup_rust_action.contains("cache-dependency-path: app/package-lock.json"));
     assert!(setup_rust_action.contains("Restore Rust cache"));
     assert!(setup_rust_action.contains("Swatinem/rust-cache@v2"));
     assert!(ci_workflow.contains("taiki-e/cache-cargo-install-action@v3"));
@@ -582,7 +586,7 @@ fn repository_declares_dependency_hygiene_and_ci_caching() {
     assert!(ci_workflow.contains("cache: pip"));
     assert!(ci_workflow.contains("cache-dependency-path: .pre-commit-config.yaml"));
     assert!(ci_workflow.contains("cache-dependency-path: app/package-lock.json"));
-    assert!(ci_workflow.contains("npm ci"));
+    assert!(browser_app_freshness.contains("npm ci"));
     assert!(ci_workflow.contains("docs-site:"));
     assert!(ci_workflow.contains("./.github/actions/build-docs-site"));
     assert!(docs_build_action.contains("actions/setup-node@v6"));
@@ -594,6 +598,7 @@ fn repository_declares_dependency_hygiene_and_ci_caching() {
     assert!(codeql_workflow.contains("merge_group:"));
     assert!(codeql_workflow.contains("security-events: write"));
     assert!(codeql_workflow.contains("Analyze (rust)"));
+    assert!(codeql_workflow.contains("actions/setup-node@v6"));
     assert!(codeql_workflow.contains("dtolnay/rust-toolchain@stable"));
     assert!(codeql_workflow.contains("Swatinem/rust-cache@v2"));
     assert!(codeql_workflow.contains("github/codeql-action/init@v4"));
@@ -602,6 +607,7 @@ fn repository_declares_dependency_hygiene_and_ci_caching() {
 
     assert!(release_artifacts.contains("Restore Rust cache"));
     assert!(release_artifacts.contains("Swatinem/rust-cache@v2"));
+    assert!(release_artifacts.contains("actions/setup-node@v6"));
 
     assert!(dependabot.contains("FEAT-QUALITY-001"));
     assert!(dependabot.contains("package-ecosystem: cargo"));
@@ -620,20 +626,27 @@ fn repository_declares_dependency_hygiene_and_ci_caching() {
 // REQ-CORE-017
 fn repository_ships_browser_app() {
     let ci_workflow = read_file(".github/workflows/ci.yml");
+    let build_script = read_file("build.rs");
+    let app_gitignore = read_file("app/.gitignore");
     let app_package = read_file("app/package.json");
     let app_source = read_file("app/src/App.tsx");
     let app_vite = read_file("app/vite.config.ts");
     let app_playwright = read_file("app/tests/browser-app.spec.ts");
     let app_wasm = read_file("app/wasm/src/lib.rs");
-    let bundle_freshness = read_file("scripts/ci/check-app-dist-freshness.sh");
+    let bundle_freshness = read_file("scripts/ci/check-browser-app-freshness.sh");
     let readme = read_file("README.md");
     let shared_core = read_file("crates/syu-core/src/lib.rs");
 
     assert!(ci_workflow.contains("browser-app:"));
-    assert!(ci_workflow.contains("Verify checked-in browser bundle"));
-    assert!(ci_workflow.contains("scripts/ci/check-app-dist-freshness.sh"));
+    assert!(ci_workflow.contains("Build browser app bundle"));
+    assert!(ci_workflow.contains("scripts/ci/check-browser-app-freshness.sh"));
+    assert!(ci_workflow.contains("name: browser-app-dist"));
+    assert!(build_script.contains("syu-app-dist"));
+    assert!(build_script.contains("npm ci"));
+    assert!(build_script.contains("--outDir"));
     assert!(app_package.contains("\"vite-plus\""));
     assert!(app_package.contains("\"@playwright/test\""));
+    assert!(app_gitignore.contains("dist"));
     assert!(app_source.contains("FEAT-APP-001"));
     assert!(app_source.contains("philosophy"));
     assert!(app_source.contains("requirements"));
@@ -643,15 +656,16 @@ fn repository_ships_browser_app() {
     assert!(app_wasm.contains("FEAT-APP-001"));
     assert!(bundle_freshness.contains("FEAT-QUALITY-001"));
     assert!(bundle_freshness.contains("ensure_app_dependencies"));
+    assert!(bundle_freshness.contains("snapshot_wasm_bindings"));
     assert!(bundle_freshness.contains("npm ci"));
-    assert!(bundle_freshness.contains("snapshot_dist"));
-    assert!(bundle_freshness.contains("check_app_dist_freshness"));
+    assert!(bundle_freshness.contains("check_browser_app_freshness"));
     assert!(bundle_freshness.contains("npm run build:wasm"));
     assert!(bundle_freshness.contains("npm run build"));
     assert!(bundle_freshness.contains("cmp -s"));
-    assert!(bundle_freshness.contains("git --no-pager diff --stat -- app/dist"));
+    assert!(bundle_freshness.contains("git --no-pager diff --stat -- app/src/wasm"));
     assert!(!bundle_freshness.contains("[[ -d node_modules ]]"));
-    assert!(readme.contains("check-app-dist-freshness.sh"));
+    assert!(readme.contains("generates the embedded"));
+    assert!(readme.contains("check-browser-app-freshness.sh"));
     assert!(readme.contains("app/dist"));
     assert!(shared_core.contains("FEAT-APP-001"));
 }
