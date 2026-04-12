@@ -505,18 +505,7 @@ fn collect_snapshot_files_with_extensions(
         }
     };
 
-    for entry in entries {
-        let entry = match entry {
-            Ok(entry) => entry,
-            Err(error) => {
-                dependencies.insert(SnapshotDependency::ReadDirError(
-                    relative_workspace_path(workspace_root, directory),
-                    format!("{:?}", error.kind()),
-                ));
-                continue;
-            }
-        };
-
+    for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
             collect_snapshot_files_with_extensions(workspace_root, &path, extensions, dependencies);
@@ -526,7 +515,7 @@ fn collect_snapshot_files_with_extensions(
         let Some(extension) = path.extension().and_then(|value| value.to_str()) else {
             continue;
         };
-        if extensions.iter().any(|candidate| *candidate == extension) {
+        if extensions.contains(&extension) {
             dependencies.insert(SnapshotDependency::File(relative_workspace_path(
                 workspace_root,
                 &path,
@@ -951,7 +940,9 @@ impl IntoResponse for AppError {
 #[cfg(test)]
 mod tests {
     use std::{
+        collections::{BTreeSet, hash_map::DefaultHasher},
         fs,
+        hash::Hasher,
         io::{Error, ErrorKind, Read, Write as _},
         net::TcpListener,
         path::{Path, PathBuf},
@@ -976,14 +967,15 @@ mod tests {
     };
 
     use super::{
-        AppPayload, AppServerSettings, AppState, AppVersion, SectionKind, Severity, StartupLine,
-        app_router, browser_root_labels, build_app_payload, collect_feature_sources,
+        AppPayload, AppServerSettings, AppState, AppVersion, SectionKind, Severity,
+        SnapshotDependency, StartupLine, app_router, browser_root_labels, build_app_payload,
+        collect_feature_sources, collect_snapshot_files_with_extensions,
         collect_yaml_sources_recursive, content_type_for_path, is_asset_like,
         load_current_snapshot, non_loopback_warning_lines, normalized_asset_path,
-        readiness_probe_request_sent, readiness_probe_succeeds, redacted_relative_label,
-        redacted_root_label, refresh_current_once, relative_display, resolve_app_server_settings,
-        spec_snapshot, startup_lines, trailing_path_components_label, validation_snapshot,
-        wait_for_ready_with_retry,
+        normalized_trace_snapshot_path, readiness_probe_request_sent, readiness_probe_succeeds,
+        redacted_relative_label, redacted_root_label, refresh_current_once, relative_display,
+        resolve_app_server_settings, spec_snapshot, startup_lines, trailing_path_components_label,
+        validation_snapshot, wait_for_ready_with_retry,
     };
 
     fn fixture_root(name: &str) -> PathBuf {
@@ -1822,6 +1814,102 @@ mod tests {
 
         let second = load_current_snapshot(tempdir.path(), &config).expect("snapshot");
         assert_ne!(first, second);
+    }
+
+    #[test]
+    fn normalized_trace_snapshot_path_rejects_non_relative_inputs() {
+        assert_eq!(normalized_trace_snapshot_path(Path::new("")), None);
+        assert_eq!(
+            normalized_trace_snapshot_path(Path::new("../src/lib.rs")),
+            None
+        );
+        assert_eq!(
+            normalized_trace_snapshot_path(Path::new("/tmp/src/lib.rs")),
+            None
+        );
+        assert_eq!(
+            normalized_trace_snapshot_path(Path::new("src\\lib.rs")),
+            Some(PathBuf::from("src/lib.rs"))
+        );
+    }
+
+    #[test]
+    fn collect_snapshot_files_with_extensions_skips_missing_dirs_and_unsupported_files() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        let src_dir = tempdir.path().join("src/nested");
+        fs::create_dir_all(&src_dir).expect("src dir");
+        fs::write(src_dir.join("feature.rs"), "pub fn feature() {}\n").expect("rust source");
+        fs::write(tempdir.path().join("src/README"), "not a tracked source").expect("readme");
+
+        let mut dependencies = BTreeSet::new();
+        collect_snapshot_files_with_extensions(
+            tempdir.path(),
+            &tempdir.path().join("missing"),
+            &["rs"],
+            &mut dependencies,
+        );
+        collect_snapshot_files_with_extensions(
+            tempdir.path(),
+            &tempdir.path().join("src"),
+            &["rs"],
+            &mut dependencies,
+        );
+
+        assert!(
+            dependencies.contains(&SnapshotDependency::File(PathBuf::from(
+                "src/nested/feature.rs",
+            )))
+        );
+        assert!(!dependencies.contains(&SnapshotDependency::File(PathBuf::from("src/README",))));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn collect_snapshot_files_with_extensions_records_unreadable_directories() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        let locked_dir = tempdir.path().join("src/locked");
+        fs::create_dir_all(&locked_dir).expect("locked dir");
+        set_mode(&locked_dir, 0o000);
+
+        let mut dependencies = BTreeSet::new();
+        collect_snapshot_files_with_extensions(
+            tempdir.path(),
+            &locked_dir,
+            &["rs"],
+            &mut dependencies,
+        );
+
+        assert!(dependencies.contains(&SnapshotDependency::ReadDirError(
+            PathBuf::from("src/locked"),
+            "PermissionDenied".to_string(),
+        )));
+
+        set_mode(&locked_dir, 0o755);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn snapshot_dependency_hash_state_distinguishes_unreadable_inputs() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        let file = tempdir.path().join("locked.rs");
+        fs::write(&file, "pub fn locked() {}\n").expect("locked file");
+        set_mode(&file, 0o000);
+
+        let mut file_hash = DefaultHasher::new();
+        SnapshotDependency::File(PathBuf::from("locked.rs"))
+            .hash_state(tempdir.path(), &mut file_hash);
+
+        let mut dir_error_hash = DefaultHasher::new();
+        SnapshotDependency::ReadDirError(PathBuf::from("src"), "PermissionDenied".to_string())
+            .hash_state(tempdir.path(), &mut dir_error_hash);
+
+        assert_ne!(
+            file_hash.finish(),
+            dir_error_hash.finish(),
+            "different dependency kinds should contribute different snapshot hashes"
+        );
+
+        set_mode(&file, 0o644);
     }
 
     #[test]
