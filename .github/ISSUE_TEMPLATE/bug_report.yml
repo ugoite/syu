@@ -9,7 +9,9 @@ body:
     attributes:
       value: |
         Thanks for taking the time to improve `syu`.
-        Please include a minimal reproduction and the exact `syu` version when possible.
+        Please include a minimal reproduction.
+        If the report involves CLI behavior, include the exact `syu` version.
+        If the report is documentation-only or about repository automation, enter `not applicable` in the version field.
 
   - type: textarea
     id: summary
@@ -29,9 +31,9 @@ body:
   - type: input
     id: version
     attributes:
-      label: syu version
-      description: "Example: `0.0.1-alpha.7` or `v0.0.1-alpha.4`"
-      placeholder: 0.0.1-alpha.7
+      label: syu version (or `not applicable`)
+      description: "Example: `0.0.1-alpha.7`, `v0.0.1-alpha.4`, `main`, or `not applicable`"
+      placeholder: 0.0.1-alpha.7 or not applicable
     validations:
       required: true
 
