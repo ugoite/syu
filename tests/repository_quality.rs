@@ -484,6 +484,14 @@ fn repository_declares_contribution_workflow_assets() {
     assert!(contributing.contains("docs/generated/"));
     assert!(contributing.contains("scripts/ci/check-app-dist-freshness.sh"));
     assert!(contributing.contains("app/dist"));
+    assert!(contributing.contains("npm run build:wasm"));
+    assert!(contributing.contains("npm run check"));
+    assert!(contributing.contains("npx playwright install --with-deps chromium"));
+    assert!(contributing.contains("npm run test:e2e"));
+    assert!(contributing.contains("app/playwright.config.ts"));
+    assert!(contributing.contains("cd website"));
+    assert!(contributing.contains("npm run start"));
+    assert!(contributing.contains(".github/actions/build-docs-site"));
     assert!(contributing.contains("scripts/install-precommit.sh"));
     assert!(contributing.contains("devcontainer/Codespaces post-create step"));
     assert!(contributing.contains("GitHub Pages"));
