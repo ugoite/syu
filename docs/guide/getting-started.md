@@ -41,14 +41,15 @@ sha256sum --ignore-missing -c checksums.sha256
 bash install-syu.sh
 ```
 
-On macOS, replace `sha256sum` with `shasum -a 256`.
-
-If you also want to verify the downloaded archive after the installer resolves
-your platform, use:
+On macOS, run the checksum check with the matching command instead:
 
 ```bash
-gh attestation verify syu-x86_64-unknown-linux-gnu.tar.gz --repo ugoite/syu
+shasum -a 256 --ignore-missing -c checksums.sha256
 ```
+
+The getting-started path above verifies the installer script itself. If you need
+additional archive-level provenance checks, download the platform archive
+separately and verify it before installation.
 
 **Option B — Run the installer directly**
 
