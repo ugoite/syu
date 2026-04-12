@@ -9,9 +9,10 @@ layers before you start editing YAML.
 
 Need a different level of guidance?
 
-- Jump back to the [README quick start](../../README.md#quick-start) when you
-  want the shortest install-to-validate path and are happy with a compact
-  command card.
+- Jump back to the
+  [README quick start on GitHub](https://github.com/ugoite/syu/blob/main/README.md#quick-start)
+  when you want the shortest install-to-validate path and are happy with a
+  compact command card.
 - Stay on this page when you want the first workspace setup explained step by
   step, including why the manual YAML edits matter before validation.
 - Follow the [end-to-end tutorial](./tutorial.md) when you want a realistic,

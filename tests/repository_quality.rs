@@ -313,6 +313,7 @@ fn repository_declares_documentation_guides() {
     assert!(getting_started.contains("New to `syu`?"));
     assert!(getting_started.contains("Need a different level of guidance?"));
     assert!(getting_started.contains("README quick start"));
+    assert!(getting_started.contains("https://github.com/ugoite/syu/blob/main/README.md#quick-start"));
     assert!(getting_started.contains("first workspace setup explained step by"));
     assert!(getting_started.contains("slows down at the first manual editing step"));
     assert!(getting_started.contains("install-syu.sh"));
