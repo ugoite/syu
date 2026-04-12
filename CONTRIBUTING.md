@@ -51,8 +51,7 @@ commit them.
 For changes under `app/`, install the browser app dependencies first:
 
 ```bash
-cd app
-npm ci
+npm --prefix app ci
 ```
 
 When the change affects the built bundle, run the same freshness flow CI uses:
@@ -68,9 +67,8 @@ When the change affects browser behavior, routing, or Playwright coverage, also
 install the local browser once and run the end-to-end suite:
 
 ```bash
-cd app
-npx playwright install --with-deps chromium
-npm run test:e2e
+npx --prefix app playwright install --with-deps chromium
+npm --prefix app run test:e2e
 ```
 
 `npm run test:e2e` uses `app/playwright.config.ts` to launch
@@ -82,16 +80,14 @@ For `website/` changes, install the docs-site dependencies and use the local dev
 server while iterating:
 
 ```bash
-cd website
-npm ci
-npm run start
+npm --prefix website ci
+npm --prefix website run start
 ```
 
 Before opening a pull request, run the same docs-site build CI uses:
 
 ```bash
-cd website
-npm run build
+npm --prefix website run build
 ```
 
 `npm run build` regenerates the checked-in site docs first, matching
