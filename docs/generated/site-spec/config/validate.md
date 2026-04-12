@@ -93,7 +93,7 @@ description: "Generated reference for docs/syu/config/validate.yaml"
       for one run with `--require-symbol-trace-coverage` or
       `--require-symbol-trace-coverage=false`.
 - **key**: validate.symbol_trace_coverage_ignored_paths
-  - **type**: array<path>
+  - **type**: array&lt;path&gt;
   - **default**:
     - build
     - coverage
