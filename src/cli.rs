@@ -403,7 +403,9 @@ pub struct InitArgs {
     #[arg(long)]
     pub force: bool,
 
-    #[arg(help = "Output format (text shows next-step guidance; json returns created file paths)")]
+    #[arg(
+        help = "Output format (text shows next-step guidance; json returns created file paths; --interactive supports text only)"
+    )]
     #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
     pub format: OutputFormat,
 }

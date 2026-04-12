@@ -27,11 +27,19 @@ impl PromptIo for StdioPromptIo {
             .context("failed to flush interactive prompt")?;
 
         let mut input = String::new();
-        io::stdin()
+        let bytes_read = io::stdin()
             .read_line(&mut input)
             .context("failed to read interactive input")?;
-        Ok(input.trim().to_string())
+        normalize_prompt_response(input, bytes_read)
     }
+}
+
+fn normalize_prompt_response(input: String, bytes_read: usize) -> Result<String> {
+    if bytes_read == 0 {
+        bail!("interactive input closed before a response was entered");
+    }
+
+    Ok(input.trim().to_string())
 }
 
 pub(crate) fn ensure_prompt_terminal(prompt_io: &impl PromptIo, message: &str) -> Result<()> {
@@ -111,7 +119,7 @@ pub(crate) fn prompt_bool(
 
 #[cfg(test)]
 mod tests {
-    use super::{PromptIo, prompt_bool, prompt_optional_with_default};
+    use super::{PromptIo, normalize_prompt_response, prompt_bool, prompt_optional_with_default};
     use anyhow::Result;
     use std::collections::VecDeque;
 
@@ -158,5 +166,21 @@ mod tests {
         .expect("boolean prompts should retry");
 
         assert!(!value);
+    }
+
+    #[test]
+    fn normalize_prompt_response_rejects_eof() {
+        let error = normalize_prompt_response(String::new(), 0)
+            .expect_err("EOF should abort interactive prompting");
+
+        assert!(error.to_string().contains("interactive input closed"));
+    }
+
+    #[test]
+    fn normalize_prompt_response_preserves_blank_lines_when_input_was_read() {
+        let value = normalize_prompt_response("\n".to_string(), 1)
+            .expect("blank responses should remain valid prompt answers");
+
+        assert!(value.is_empty());
     }
 }

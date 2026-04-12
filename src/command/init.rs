@@ -26,6 +26,8 @@ use super::prompt::{
 const DEFAULT_SPEC_ROOT: &str = "docs/syu";
 const INIT_INTERACTIVE_NON_TTY_MESSAGE: &str =
     "`syu init --interactive` requires a terminal to prompt for starter settings";
+const INIT_INTERACTIVE_JSON_MESSAGE: &str =
+    "`syu init --interactive` does not support `--format json`; use text output instead";
 
 #[cfg(test)]
 const GENERATED_PATHS: &[&str] = &[
@@ -79,8 +81,10 @@ pub fn run_init_command(args: &InitArgs) -> Result<i32> {
 }
 
 fn run_init_command_with_prompt_io(args: &InitArgs, prompt_io: &mut impl PromptIo) -> Result<i32> {
+    ensure_workspace_path_can_be_created(&args.workspace)?;
+    validate_interactive_init_mode(args, prompt_io)?;
+    let resolved = resolve_init_options_with_prompt_io(args, &args.workspace, prompt_io)?;
     let workspace = prepare_workspace_root(&args.workspace)?;
-    let resolved = resolve_init_options_with_prompt_io(args, &workspace, prompt_io)?;
 
     let files = scaffold_files(
         &resolved.project_name,
@@ -189,7 +193,7 @@ fn resolve_init_options_with_prompt_io(
         });
     }
 
-    ensure_prompt_terminal(prompt_io, INIT_INTERACTIVE_NON_TTY_MESSAGE)?;
+    validate_interactive_init_mode(args, prompt_io)?;
     let default_project_name = args
         .name
         .clone()
@@ -208,6 +212,19 @@ fn resolve_init_options_with_prompt_io(
         id_prefixes,
         strict_validate_defaults,
     })
+}
+
+fn validate_interactive_init_mode(args: &InitArgs, prompt_io: &impl PromptIo) -> Result<()> {
+    if !args.interactive {
+        return Ok(());
+    }
+
+    ensure_prompt_terminal(prompt_io, INIT_INTERACTIVE_NON_TTY_MESSAGE)?;
+    if args.format == OutputFormat::Json {
+        bail!(INIT_INTERACTIVE_JSON_MESSAGE);
+    }
+
+    Ok(())
 }
 
 fn prompt_for_starter_template(
@@ -251,11 +268,16 @@ fn prompt_for_spec_root(prompt_io: &mut impl PromptIo, current: Option<&Path>) -
     }
 }
 
-fn prepare_workspace_root(path: &Path) -> Result<PathBuf> {
+fn ensure_workspace_path_can_be_created(path: &Path) -> Result<()> {
     if path.exists() && !path.is_dir() {
         bail!("workspace path `{}` is not a directory", path.display());
     }
 
+    Ok(())
+}
+
+fn prepare_workspace_root(path: &Path) -> Result<PathBuf> {
+    ensure_workspace_path_can_be_created(path)?;
     fs::create_dir_all(path)?;
     path.canonicalize().map_err(Into::into)
 }
@@ -648,10 +670,11 @@ mod tests {
     use crate::command::prompt::PromptIo;
 
     use super::{
-        DEFAULT_SPEC_ROOT, GENERATED_PATHS, default_id_prefixes, ensure_writable_targets,
-        feature_document_path, feature_kind, infer_project_name, parse_starter_template_prompt,
-        path_label, prompt_for_spec_root, prompt_for_starter_template, requirement_document_path,
-        resolve_init_id_prefixes, resolve_init_options_with_prompt_io, resolve_init_spec_root,
+        DEFAULT_SPEC_ROOT, GENERATED_PATHS, INIT_INTERACTIVE_JSON_MESSAGE, default_id_prefixes,
+        ensure_writable_targets, feature_document_path, feature_kind, infer_project_name,
+        parse_starter_template_prompt, path_label, prompt_for_spec_root,
+        prompt_for_starter_template, requirement_document_path, resolve_init_id_prefixes,
+        resolve_init_options_with_prompt_io, resolve_init_spec_root,
         resolve_interactive_id_prefixes, run_init_command, run_init_command_with_prompt_io,
         scaffold_files,
     };
@@ -927,6 +950,41 @@ mod tests {
             error
                 .to_string()
                 .contains("`syu init --interactive` requires a terminal")
+        );
+    }
+
+    #[test]
+    fn interactive_init_rejects_json_output_before_creating_workspace() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        let workspace = tempdir.path().join("demo");
+        let mut prompt_io = FakePromptIo {
+            terminal: true,
+            ..Default::default()
+        };
+
+        let error = run_init_command_with_prompt_io(
+            &InitArgs {
+                workspace: workspace.clone(),
+                interactive: true,
+                name: None,
+                spec_root: None,
+                template: StarterTemplate::Generic,
+                id_prefix: None,
+                philosophy_prefix: None,
+                policy_prefix: None,
+                requirement_prefix: None,
+                feature_prefix: None,
+                force: false,
+                format: crate::cli::OutputFormat::Json,
+            },
+            &mut prompt_io,
+        )
+        .expect_err("interactive json output should be rejected");
+
+        assert_eq!(error.to_string(), INIT_INTERACTIVE_JSON_MESSAGE);
+        assert!(
+            !workspace.exists(),
+            "interactive validation should fail before creating the workspace"
         );
     }
 

@@ -84,6 +84,10 @@ fn init_command_interactive_requires_a_terminal() {
         String::from_utf8_lossy(&init.stderr)
             .contains("`syu init --interactive` requires a terminal")
     );
+    assert!(
+        !workspace.exists(),
+        "non-terminal interactive init should fail before creating the workspace"
+    );
 }
 
 #[test]
