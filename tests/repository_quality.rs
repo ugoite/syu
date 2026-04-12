@@ -263,13 +263,14 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("## Choose your path"));
     assert!(readme.contains("docs/guide/tutorial.md"));
     assert!(readme.contains("docs/guide/troubleshooting.md"));
-    assert!(readme.contains("Before you start: required"));
+    assert!(readme.contains("shortest install-to-validate path"));
+    assert!(readme.contains("[Why four layers?](#why-four-layers)"));
     assert!(readme.contains("Step 0: required"));
     assert!(readme.contains("Generate a requirement stub"));
     assert!(readme.contains("add at least one `linked_policies:` entry"));
+    assert!(readme.contains("`linked_requirements:` entry back to the new requirement"));
     assert!(readme.contains("scaffold any still-missing adjacent policy or"));
     assert!(readme.contains("feature documents so they link back to the new requirement."));
-    assert!(readme.contains("reciprocal links between policies, requirements, and features"));
     assert!(readme.contains("syu init"));
     assert!(readme.contains("syu init ."));
     assert!(readme.contains("syu add"));
@@ -312,13 +313,12 @@ fn repository_declares_documentation_guides() {
     assert!(!app_guide.contains("`planned`, `implemented`, or `deprecated`"));
     assert!(getting_started.contains("New to `syu`?"));
     assert!(getting_started.contains("Need a different level of guidance?"));
-    assert!(getting_started.contains("Start here once `syu` is installed:"));
-    assert!(getting_started.contains("Generate a requirement stub"));
-    assert!(getting_started.contains("add at least one `linked_policies:` entry"));
-    assert!(getting_started.contains("scaffold any still-missing adjacent policy or"));
+    assert!(getting_started.contains("README quick start"));
     assert!(
-        getting_started.contains("feature documents so they link back to the new requirement.")
+        getting_started.contains("https://github.com/ugoite/syu/blob/main/README.md#quick-start")
     );
+    assert!(getting_started.contains("first workspace setup explained step by"));
+    assert!(getting_started.contains("slows down at the first manual editing step"));
     assert!(getting_started.contains("install-syu.sh"));
     assert!(getting_started.contains("checksums.sha256"));
     assert!(getting_started.contains("security-sensitive environments"));
@@ -377,6 +377,8 @@ fn repository_declares_documentation_guides() {
     assert!(tutorial.contains("Want a different entry point?"));
     assert!(tutorial.contains("[getting started](./getting-started.md)"));
     assert!(tutorial.contains("[troubleshooting](./troubleshooting.md)"));
+    assert!(tutorial.contains("starter registry entry"));
+    assert!(tutorial.contains("Only add another `files` entry"));
     assert!(configuration.contains("validate.default_fix"));
     assert!(configuration.contains("validate.allow_planned"));
     assert!(configuration.contains("Rust, Python, and TypeScript/JavaScript"));
@@ -492,6 +494,9 @@ fn repository_declares_contribution_workflow_assets() {
     assert!(contributing.contains("FEAT-CONTRIB-002"));
     assert!(contributing.contains("GitHub Flow"));
     assert!(contributing.contains("main"));
+    assert!(contributing.contains("docs/guide/concepts.md"));
+    assert!(contributing.contains("philosophy -> policies -> requirements -> features"));
+    assert!(contributing.contains("spec edits under"));
     assert!(contributing.contains("Run branch 1 for every change"));
     assert!(contributing.contains("Docs-only edits outside"));
     assert!(contributing.contains("README.md"));
