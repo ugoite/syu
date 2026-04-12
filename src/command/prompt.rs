@@ -1,3 +1,4 @@
+// REQ-CORE-009
 // FEAT-INIT-006
 
 use std::io::{self, IsTerminal, Write};
@@ -105,5 +106,57 @@ pub(crate) fn prompt_bool(
             "n" | "no" | "false" => return Ok(false),
             _ => eprintln!("Please enter yes or no."),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{PromptIo, prompt_bool, prompt_optional_with_default};
+    use anyhow::Result;
+    use std::collections::VecDeque;
+
+    #[derive(Default)]
+    struct FakePromptIo {
+        lines: VecDeque<String>,
+    }
+
+    impl PromptIo for FakePromptIo {
+        fn is_terminal(&self) -> bool {
+            true
+        }
+
+        fn prompt_line(&mut self, _label: &str, _default: Option<&str>) -> Result<String> {
+            Ok(self.lines.pop_front().unwrap_or_default())
+        }
+    }
+
+    #[test]
+    fn prompt_optional_with_default_uses_default_for_blank_lines() {
+        let mut prompt_io = FakePromptIo {
+            lines: VecDeque::from([String::new()]),
+        };
+        assert!(prompt_io.is_terminal());
+
+        let value = prompt_optional_with_default(&mut prompt_io, "Shared ID stem", Some("store"))
+            .expect("blank responses should keep the default");
+
+        assert_eq!(value.as_deref(), Some("store"));
+    }
+
+    #[test]
+    fn prompt_bool_retries_invalid_values_and_accepts_false_aliases() {
+        let mut prompt_io = FakePromptIo {
+            lines: VecDeque::from(["maybe".to_string(), "no".to_string()]),
+        };
+        assert!(prompt_io.is_terminal());
+
+        let value = prompt_bool(
+            &mut prompt_io,
+            "Enable stricter validation defaults now?",
+            true,
+        )
+        .expect("boolean prompts should retry");
+
+        assert!(!value);
     }
 }

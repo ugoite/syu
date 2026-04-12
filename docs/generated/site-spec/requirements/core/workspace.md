@@ -59,6 +59,9 @@ description: "Generated reference for docs/syu/requirements/core/workspace.yaml"
       - **file**: src/command/init.rs
         - **symbols**:
           - *
+      - **file**: src/command/prompt.rs
+        - **symbols**:
+          - *
       - **file**: src/command/mod.rs
         - **symbols**:
           - *
@@ -294,6 +297,9 @@ requirements:
           symbols:
             - '*'
         - file: src/command/init.rs
+          symbols:
+            - '*'
+        - file: src/command/prompt.rs
           symbols:
             - '*'
         - file: src/command/mod.rs

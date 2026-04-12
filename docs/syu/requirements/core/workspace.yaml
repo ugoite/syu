@@ -42,6 +42,9 @@ requirements:
         - file: src/command/init.rs
           symbols:
             - '*'
+        - file: src/command/prompt.rs
+          symbols:
+            - '*'
         - file: src/command/mod.rs
           symbols:
             - '*'

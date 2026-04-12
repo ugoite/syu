@@ -507,7 +507,9 @@ impl ValidationGenreFilter {
 
 #[cfg(test)]
 mod tests {
-    use super::{Cli, LookupKind, ValidationGenreFilter, ValidationSeverityFilter};
+    use super::{
+        Cli, LookupKind, StarterTemplate, ValidationGenreFilter, ValidationSeverityFilter,
+    };
     use clap::Parser;
 
     #[test]
@@ -516,6 +518,10 @@ mod tests {
         assert_eq!(LookupKind::Policy.label(), "policy");
         assert_eq!(LookupKind::Requirement.label(), "requirement");
         assert_eq!(LookupKind::Feature.label(), "feature");
+        assert_eq!(StarterTemplate::Generic.label(), "generic");
+        assert_eq!(StarterTemplate::RustOnly.label(), "rust-only");
+        assert_eq!(StarterTemplate::PythonOnly.label(), "python-only");
+        assert_eq!(StarterTemplate::Polyglot.label(), "polyglot");
         assert_eq!(ValidationSeverityFilter::Error.as_str(), "error");
         assert_eq!(ValidationSeverityFilter::Warning.as_str(), "warning");
         assert_eq!(ValidationGenreFilter::Workspace.as_str(), "workspace");

@@ -215,12 +215,9 @@ fn prompt_for_starter_template(
     default: StarterTemplate,
 ) -> Result<StarterTemplate> {
     let template_choices = "generic|rust-only|python-only|polyglot";
+    let label = format!("Starter template ({template_choices})");
     loop {
-        let raw = prompt_with_default(
-            prompt_io,
-            &format!("Starter template ({template_choices})"),
-            default.label(),
-        )?;
+        let raw = prompt_with_default(prompt_io, &label, default.label())?;
         match parse_starter_template_prompt(&raw) {
             Some(template) => return Ok(template),
             None => eprintln!(
@@ -374,11 +371,9 @@ fn resolve_interactive_id_prefixes(
     }
 
     loop {
-        let shared_stem = prompt_optional_with_default(
-            prompt_io,
-            "Shared ID stem (optional)",
-            args.id_prefix.as_deref(),
-        )?;
+        let shared_default = args.id_prefix.as_deref();
+        let shared_stem =
+            prompt_optional_with_default(prompt_io, "Shared ID stem (optional)", shared_default)?;
         match resolve_init_id_prefixes(template, shared_stem.as_deref(), None, None, None, None) {
             Ok(prefixes) => return Ok(prefixes),
             Err(error) => eprintln!("{error:#}"),
@@ -654,10 +649,11 @@ mod tests {
 
     use super::{
         DEFAULT_SPEC_ROOT, GENERATED_PATHS, default_id_prefixes, ensure_writable_targets,
-        feature_document_path, feature_kind, infer_project_name, path_label, prompt_for_spec_root,
-        prompt_for_starter_template, requirement_document_path, resolve_init_id_prefixes,
-        resolve_init_options_with_prompt_io, resolve_init_spec_root, run_init_command,
-        run_init_command_with_prompt_io, scaffold_files,
+        feature_document_path, feature_kind, infer_project_name, parse_starter_template_prompt,
+        path_label, prompt_for_spec_root, prompt_for_starter_template, requirement_document_path,
+        resolve_init_id_prefixes, resolve_init_options_with_prompt_io, resolve_init_spec_root,
+        resolve_interactive_id_prefixes, run_init_command, run_init_command_with_prompt_io,
+        scaffold_files,
     };
 
     #[derive(Default)]
@@ -953,6 +949,114 @@ mod tests {
         assert_eq!(template, StarterTemplate::RustOnly);
         assert_eq!(spec_root, std::path::PathBuf::from("spec/contracts"));
         assert_eq!(prompt_io.prompts.len(), 3);
+    }
+
+    #[test]
+    fn prompt_for_starter_template_retries_invalid_values() {
+        let mut prompt_io = FakePromptIo {
+            terminal: true,
+            lines: VecDeque::from(["unknown".to_string(), "4".to_string()]),
+            ..Default::default()
+        };
+
+        let template = prompt_for_starter_template(&mut prompt_io, StarterTemplate::Generic)
+            .expect("template prompt should retry");
+
+        assert_eq!(template, StarterTemplate::Polyglot);
+        assert_eq!(prompt_io.prompts.len(), 2);
+    }
+
+    #[test]
+    fn parse_starter_template_prompt_accepts_remaining_aliases() {
+        assert_eq!(
+            parse_starter_template_prompt("python"),
+            Some(StarterTemplate::PythonOnly)
+        );
+        assert_eq!(
+            parse_starter_template_prompt("mixed"),
+            Some(StarterTemplate::Polyglot)
+        );
+        assert_eq!(parse_starter_template_prompt("unknown"), None);
+    }
+
+    #[test]
+    fn resolve_interactive_id_prefixes_uses_explicit_overrides_without_prompting() {
+        let args = InitArgs {
+            workspace: std::path::PathBuf::from("."),
+            interactive: true,
+            name: None,
+            spec_root: None,
+            template: StarterTemplate::Generic,
+            id_prefix: Some("store".to_string()),
+            philosophy_prefix: Some("PHIL-guiding".to_string()),
+            policy_prefix: None,
+            requirement_prefix: None,
+            feature_prefix: None,
+            force: false,
+            format: crate::cli::OutputFormat::Text,
+        };
+        let mut prompt_io = FakePromptIo {
+            terminal: true,
+            ..Default::default()
+        };
+
+        let prefixes =
+            resolve_interactive_id_prefixes(&args, StarterTemplate::Generic, &mut prompt_io)
+                .expect("explicit overrides should bypass prompting");
+
+        assert_eq!(prefixes.philosophy, "PHIL-GUIDING");
+        assert_eq!(prefixes.policy, "POL-STORE");
+        assert!(prompt_io.prompts.is_empty());
+    }
+
+    #[test]
+    fn resolve_interactive_id_prefixes_accepts_blank_defaults_and_retries_invalid_values() {
+        let default_args = InitArgs {
+            workspace: std::path::PathBuf::from("."),
+            interactive: true,
+            name: None,
+            spec_root: None,
+            template: StarterTemplate::Generic,
+            id_prefix: Some("store".to_string()),
+            philosophy_prefix: None,
+            policy_prefix: None,
+            requirement_prefix: None,
+            feature_prefix: None,
+            force: false,
+            format: crate::cli::OutputFormat::Text,
+        };
+        let mut blank_prompt_io = FakePromptIo {
+            terminal: true,
+            lines: VecDeque::from([String::new()]),
+            ..Default::default()
+        };
+
+        let blank_prefixes = resolve_interactive_id_prefixes(
+            &default_args,
+            StarterTemplate::Generic,
+            &mut blank_prompt_io,
+        )
+        .expect("blank prompt should keep the default shared stem");
+        assert_eq!(blank_prefixes.requirement, "REQ-STORE");
+
+        let retry_args = InitArgs {
+            id_prefix: None,
+            ..default_args
+        };
+        let mut retry_prompt_io = FakePromptIo {
+            terminal: true,
+            lines: VecDeque::from(["REQ-STORE".to_string(), "store".to_string()]),
+            ..Default::default()
+        };
+
+        let retry_prefixes = resolve_interactive_id_prefixes(
+            &retry_args,
+            StarterTemplate::Generic,
+            &mut retry_prompt_io,
+        )
+        .expect("interactive prompt should retry invalid shared stems");
+        assert_eq!(retry_prefixes.feature, "FEAT-STORE");
+        assert_eq!(retry_prompt_io.prompts.len(), 2);
     }
 
     #[test]
