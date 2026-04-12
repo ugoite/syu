@@ -61,11 +61,12 @@ Examples:
   syu list path/to/workspace
   syu list requirement path/to/workspace
   syu list path/to/workspace requirement
+  syu list requirement docs/syu
+  syu list requirement docs/syu/features
 
 Note:
-  Pass the workspace root or any child directory inside it.
-  syu walks upward until it finds syu.yaml, then resolves the configured spec.root from that workspace.
-  Do not pass the spec.root directory itself.";
+  Pass the workspace root, the configured spec.root directory, or any child directory.
+  syu walks upward until it finds syu.yaml, then resolves the configured spec.root from that workspace.";
 const BROWSE_AFTER_HELP: &str = "\
 Choose `syu browse --non-interactive` when you want the browse snapshot in plain text: workspace metadata, per-layer counts, grouped items, and the current validation errors.
 Choose `syu list` when you want list-shaped output that can be narrowed to one layer or emitted as JSON for automation.

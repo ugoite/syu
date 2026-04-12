@@ -1,3 +1,4 @@
+// REQ-CORE-018
 // REQ-CORE-019
 // REQ-CORE-020
 
@@ -72,6 +73,27 @@ fn search_help_mentions_kind_scoping_and_json_output() {
     assert!(stdout.contains("--kind"));
     assert!(stdout.contains("--format"));
     assert!(stdout.contains("syu search traceability --kind requirement"));
+}
+
+#[test]
+fn list_help_mentions_spec_root_and_child_directory_examples() {
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .args(["list", "--help"])
+        .output()
+        .expect("help should render");
+
+    assert!(output.status.success(), "list help should succeed");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("syu list requirement docs/syu"));
+    assert!(stdout.contains("syu list requirement docs/syu/features"));
+    assert!(stdout.contains(
+        "Pass the workspace root, the configured spec.root directory, or any child directory."
+    ));
+    assert!(stdout.contains(
+        "syu walks upward until it finds syu.yaml, then resolves the configured spec.root from that workspace."
+    ));
 }
 
 #[test]

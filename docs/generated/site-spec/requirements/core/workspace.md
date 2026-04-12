@@ -170,6 +170,9 @@ description: "Generated reference for docs/syu/requirements/core/workspace.yaml"
         - **symbols**:
           - list_command_discovers_workspace_from_child_directory
           - show_command_discovers_workspace_from_child_directory
+      - **file**: tests/help_command.rs
+        - **symbols**:
+          - list_help_mentions_spec_root_and_child_directory_examples
       - **file**: tests/show_command.rs
         - **symbols**:
           - *
@@ -420,6 +423,9 @@ requirements:
           symbols:
             - list_command_discovers_workspace_from_child_directory
             - show_command_discovers_workspace_from_child_directory
+        - file: tests/help_command.rs
+          symbols:
+            - list_help_mentions_spec_root_and_child_directory_examples
         - file: tests/show_command.rs
           symbols:
             - '*'
