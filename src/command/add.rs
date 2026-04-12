@@ -669,6 +669,59 @@ fn format_instruction_list(items: &[String]) -> String {
     }
 }
 
+fn suggested_linked_kinds(layer: LookupKind) -> &'static [LookupKind] {
+    match layer {
+        LookupKind::Philosophy => &[LookupKind::Policy],
+        LookupKind::Policy => &[LookupKind::Philosophy, LookupKind::Requirement],
+        LookupKind::Requirement => &[LookupKind::Policy, LookupKind::Feature],
+        LookupKind::Feature => &[LookupKind::Requirement],
+    }
+}
+
+fn suggested_linked_id(id: &str, kind: LookupKind) -> String {
+    let mut segments = id.split('-').collect::<Vec<_>>();
+    segments[0] = match kind {
+        LookupKind::Philosophy => "PHIL",
+        LookupKind::Policy => "POL",
+        LookupKind::Requirement => "REQ",
+        LookupKind::Feature => "FEAT",
+    };
+    segments.join("-")
+}
+
+fn scaffold_missing_link_instruction(workspace: &Workspace, layer: LookupKind, id: &str) -> String {
+    let linked_kinds = suggested_linked_kinds(layer);
+    let linked_labels = linked_kinds
+        .iter()
+        .map(|kind| kind.label().to_string())
+        .collect::<Vec<_>>();
+    let workspace_arg = shell_quote_path(&workspace.root);
+    let commands = linked_kinds
+        .iter()
+        .map(|kind| {
+            format!(
+                "`syu add {} {} {workspace_arg}`",
+                kind.label(),
+                suggested_linked_id(id, *kind)
+            )
+        })
+        .collect::<Vec<_>>();
+
+    if linked_kinds.len() == 1 {
+        format!(
+            "If the linked {} stub does not exist yet, scaffold it with {}.",
+            linked_kinds[0].label(),
+            commands[0]
+        )
+    } else {
+        format!(
+            "If linked {} stubs are still missing, scaffold them with {}.",
+            format_instruction_list(&linked_labels),
+            format_instruction_list(&commands)
+        )
+    }
+}
+
 fn reciprocal_link_entry_instruction(layer: LookupKind, id: &str) -> String {
     let fields = reciprocal_link_fields(layer)
         .iter()
@@ -853,6 +906,7 @@ fn add_follow_up_steps(
         "Edit {target_label} and fill the stub fields for `{id}`."
     )];
     steps.push(reciprocal_link_entry_instruction(layer, id));
+    steps.push(scaffold_missing_link_instruction(workspace, layer, id));
     steps.push(reciprocal_link_back_instruction(layer, id));
 
     steps.push(format!(
@@ -1068,13 +1122,19 @@ mod tests {
         );
 
         assert!(philosophy_steps[1].contains("linked_policies"));
-        assert!(philosophy_steps[2].contains("linked policy"));
+        assert!(philosophy_steps[2].contains("syu add policy POL-001"));
+        assert!(philosophy_steps[3].contains("linked policy"));
         assert!(policy_steps[1].contains("linked_philosophies"));
         assert!(policy_steps[1].contains("linked_requirements"));
+        assert!(policy_steps[2].contains("syu add philosophy PHIL-001"));
+        assert!(policy_steps[2].contains("syu add requirement REQ-001"));
         assert!(requirement_steps[1].contains("linked_policies"));
         assert!(requirement_steps[1].contains("linked_features"));
+        assert!(requirement_steps[2].contains("syu add policy POL-AUTH-001"));
+        assert!(requirement_steps[2].contains("syu add feature FEAT-AUTH-001"));
         assert!(feature_steps[1].contains("linked_requirements"));
-        assert!(feature_steps[2].contains("linked requirement"));
+        assert!(feature_steps[2].contains("syu add requirement REQ-AUTH-LOGIN-001"));
+        assert!(feature_steps[3].contains("linked requirement"));
         assert!(
             feature_steps
                 .last()

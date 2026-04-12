@@ -103,6 +103,8 @@ fn add_command_creates_requirement_files_from_the_id_prefix() {
     assert!(stdout.contains("Next steps:"));
     assert!(stdout.contains("Edit docs/syu/requirements/auth/auth.yaml"));
     assert!(stdout.contains("linked_policies:` entry and one `linked_features:` entry"));
+    assert!(stdout.contains("syu add policy POL-AUTH-001"));
+    assert!(stdout.contains("syu add feature FEAT-AUTH-001"));
     assert!(
         stdout
             .contains("Update each linked policy and feature so they link back to `REQ-AUTH-001`.")
@@ -135,6 +137,7 @@ fn add_command_updates_the_feature_registry_for_new_feature_files() {
     assert!(
         stdout.contains("Add at least one `linked_requirements:` entry in `FEAT-AUTH-LOGIN-001`.")
     );
+    assert!(stdout.contains("syu add requirement REQ-AUTH-LOGIN-001"));
     assert!(
         stdout
             .contains("Update each linked requirement so it links back to `FEAT-AUTH-LOGIN-001`.")
