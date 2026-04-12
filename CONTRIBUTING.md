@@ -20,7 +20,8 @@ checkout.
 
 ## Local checks
 
-Choose the smallest branch below that matches your change:
+Run branch 1 for every change. Then add any later branches below that also
+match your change:
 
 1. **Every change**
 
@@ -99,8 +100,11 @@ Choose the smallest branch below that matches your change:
 
 5. **Docs-only edits outside `website/`, `app/`, or Rust logic**
 
-   Stop after the shared gates unless you also changed generated docs, browser
-   assets, or docs-site build inputs.
+   Stop after the shared gates only when your change does not feed the docs
+   site. If you touched `README.md`, files under `docs/guide/` or
+   `docs/generated/site-spec/`, or docs-site build inputs such as
+   `scripts/generate-site-docs.py` or `.github/actions/build-docs-site`, also
+   run branch 4's docs-site build.
 
 ### Rust version
 
