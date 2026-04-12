@@ -27,7 +27,7 @@ type SectionSummary = {
   itemCount: number;
 };
 
-const SECTION_ORDER: SectionKind[] = ["philosophy", "policies", "features", "requirements"];
+const SECTION_ORDER: SectionKind[] = ["philosophy", "policies", "requirements", "features"];
 
 const SECTION_COPY: Record<SectionKind, string> = {
   philosophy: "Project intent and enduring values.",
