@@ -332,6 +332,27 @@ fn add_command_rejects_feature_kind_for_non_feature_layers() {
     );
 }
 
+#[test]
+// REQ-CORE-020
+fn add_command_requires_an_explicit_id_when_not_attached_to_a_terminal() {
+    let tempdir = tempdir().expect("tempdir should exist");
+    let workspace = tempdir.path().join("workspace");
+    init_workspace(&workspace, &[]);
+
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .current_dir(&workspace)
+        .args(["add", "requirement"])
+        .output()
+        .expect("command should run");
+
+    assert_eq!(output.status.code(), Some(2));
+    assert!(
+        String::from_utf8_lossy(&output.stderr)
+            .contains("needs a definition ID when stdin/stdout are not terminals")
+    );
+}
+
 #[cfg(unix)]
 #[test]
 // REQ-CORE-020
@@ -352,6 +373,48 @@ fn add_command_prompts_for_a_missing_id_in_the_current_workspace() {
     let file = workspace.join("docs/syu/requirements/auth/login.yaml");
     let contents = fs::read_to_string(&file).expect("interactive requirement file should exist");
     assert!(contents.contains("id: REQ-AUTH-LOGIN-001"));
+}
+
+#[cfg(unix)]
+#[test]
+// REQ-CORE-020
+fn add_command_interactive_mode_retries_invalid_prompts_and_accepts_defaults() {
+    let tempdir = tempdir().expect("tempdir should exist");
+    let workspace = tempdir.path().join("workspace");
+    init_workspace(&workspace, &[]);
+
+    let output = run_interactive_add(
+        &workspace,
+        &["add", "feature", "--interactive"],
+        "\nnot-an-id\nFEAT-AUTH-LOGIN-001\nAuth\n\n\n",
+    );
+
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let transcript = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(stdout.contains("Definition ID:"));
+    assert!(stdout.contains("Feature kind [auth]:"));
+    assert!(stdout.contains("YAML file [features/auth/login.yaml]:"));
+    assert!(transcript.contains("Definition ID is required."));
+    assert!(transcript.contains("feature IDs must start with `FEAT-`"));
+    assert!(transcript.contains("feature `--kind` must contain only lowercase ASCII letters"));
+
+    let feature_file = workspace.join("docs/syu/features/auth/login.yaml");
+    let registry = fs::read_to_string(workspace.join("docs/syu/features/features.yaml"))
+        .expect("feature registry should exist");
+    assert!(
+        feature_file.exists(),
+        "interactive feature file should use the default path"
+    );
+    assert!(registry.contains("file: auth/login.yaml"));
 }
 
 #[cfg(unix)]
