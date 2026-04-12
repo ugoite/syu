@@ -1010,7 +1010,7 @@ mod tests {
         normalize_definition_id, normalize_feature_kind, prepare_feature_registry_update,
         prompt_for_parsed_id, render_item_block, render_new_document,
         resolve_add_invocation_with_prompt_io, resolve_explicit_file, resolve_feature_kind,
-        resolve_interactive_file_prompt, run_add_command, title_case_slug,
+        resolve_interactive_file_prompt, run_add_command, suggested_linked_id, title_case_slug,
         validate_existing_document, write_feature_registry_update, write_stub_document,
     };
 
@@ -1163,6 +1163,26 @@ mod tests {
                 .last()
                 .expect("feature guidance should include validation")
                 .contains("syu validate")
+        );
+    }
+
+    #[test]
+    fn suggested_linked_id_rewrites_prefixes_for_each_layer() {
+        assert_eq!(
+            suggested_linked_id("POL-AUTH-001", LookupKind::Philosophy),
+            "PHIL-AUTH-001"
+        );
+        assert_eq!(
+            suggested_linked_id("REQ-AUTH-001", LookupKind::Policy),
+            "POL-AUTH-001"
+        );
+        assert_eq!(
+            suggested_linked_id("FEAT-AUTH-001", LookupKind::Requirement),
+            "REQ-AUTH-001"
+        );
+        assert_eq!(
+            suggested_linked_id("REQ-AUTH-001", LookupKind::Feature),
+            "FEAT-AUTH-001"
         );
     }
 
