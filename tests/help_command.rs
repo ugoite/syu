@@ -1,4 +1,5 @@
 // REQ-CORE-019
+// REQ-CORE-020
 
 use assert_cmd::cargo::CommandCargoExt;
 use std::process::Command;
@@ -29,7 +30,7 @@ fn root_help_includes_start_here_guidance() {
 #[test]
 fn workspace_help_uses_current_directory_default_consistently() {
     for command in [
-        "browse", "show", "search", "app", "validate", "check", "report",
+        "browse", "show", "search", "app", "validate", "check", "report", "add",
     ] {
         let output = Command::cargo_bin("syu")
             .expect("binary should build")
@@ -69,6 +70,22 @@ fn search_help_mentions_kind_scoping_and_json_output() {
     assert!(stdout.contains("--kind"));
     assert!(stdout.contains("--format"));
     assert!(stdout.contains("syu search traceability --kind requirement"));
+}
+
+#[test]
+fn add_help_mentions_explicit_file_and_feature_kind() {
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .args(["add", "--help"])
+        .output()
+        .expect("help should render");
+
+    assert!(output.status.success(), "add help should succeed");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("--file"));
+    assert!(stdout.contains("--kind"));
+    assert!(stdout.contains("FEAT-AUTH-LOGIN-001 --kind auth"));
 }
 
 #[test]

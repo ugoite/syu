@@ -29,6 +29,8 @@ description: "Generated reference for docs/syu/features/features.yaml"
   - **file**: cli/check.yaml
 - **kind**: init
   - **file**: cli/init.yaml
+- **kind**: add
+  - **file**: cli/add.yaml
 - **kind**: report
   - **file**: cli/report.yaml
 - **kind**: docs
@@ -63,6 +65,8 @@ files:
     file: cli/check.yaml
   - kind: init
     file: cli/init.yaml
+  - kind: add
+    file: cli/add.yaml
   - kind: report
     file: cli/report.yaml
   - kind: docs
