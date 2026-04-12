@@ -39,10 +39,7 @@ pub fn resolve_workspace_root(root: &Path) -> Result<PathBuf> {
     let search_root = if resolved.is_dir() {
         resolved.clone()
     } else {
-        resolved
-            .parent()
-            .map(Path::to_path_buf)
-            .unwrap_or_else(|| resolved.clone())
+        resolved.parent().unwrap_or(&resolved).to_path_buf()
     };
 
     for candidate in search_root.ancestors() {
@@ -374,6 +371,25 @@ mod tests {
 
         let resolved =
             resolve_workspace_root(&nested).expect("parent workspace root should resolve");
+        assert_eq!(
+            resolved,
+            workspace_root
+                .canonicalize()
+                .expect("workspace root should canonicalize")
+        );
+    }
+
+    #[test]
+    fn resolve_workspace_root_discovers_parent_config_from_workspace_file_path() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        let workspace_root = tempdir.path().join("workspace");
+        let source_file = workspace_root.join("src/lib.rs");
+        fs::create_dir_all(source_file.parent().expect("parent dir")).expect("source dir");
+        fs::write(workspace_root.join("syu.yaml"), "version: 1\n").expect("config");
+        fs::write(&source_file, "pub fn demo() {}\n").expect("source file");
+
+        let resolved =
+            resolve_workspace_root(&source_file).expect("parent workspace root should resolve");
         assert_eq!(
             resolved,
             workspace_root
