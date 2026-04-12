@@ -192,9 +192,8 @@ features:
 
 Because this walkthrough keeps using the generated
 `docs/syu/features/core/core.yaml`, the starter registry entry in
-`docs/syu/features/features.yaml` already points at the right file. Keep the
-generated metadata header from `syu init`, and make sure the `files` section
-still looks like this:
+`docs/syu/features/features.yaml` already points at the right file. For this
+tutorial step, just make sure the `files` section still looks like this:
 
 ```yaml
 files:
