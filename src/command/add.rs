@@ -659,16 +659,13 @@ fn render_reciprocal_link_stub(layer: LookupKind) -> String {
 }
 
 fn format_instruction_list(items: &[String]) -> String {
-    match items {
-        [] => String::new(),
-        [item] => item.clone(),
-        [first, second] => format!("{first} and {second}"),
-        _ => {
-            let mut joined = items[..items.len() - 1].join(", ");
-            joined.push_str(", and ");
-            joined.push_str(&items[items.len() - 1]);
-            joined
-        }
+    let (last, head) = items
+        .split_last()
+        .expect("instruction lists should contain at least one item");
+    if head.is_empty() {
+        last.clone()
+    } else {
+        format!("{} and {last}", head.join(", "))
     }
 }
 
@@ -677,19 +674,21 @@ fn reciprocal_link_entry_instruction(layer: LookupKind, id: &str) -> String {
         .iter()
         .map(|field| format!("`{}:`", field.yaml_key))
         .collect::<Vec<_>>();
+    let (first, rest) = fields
+        .split_first()
+        .expect("each layer should define at least one reciprocal link field");
 
-    match fields.as_slice() {
-        [field] => format!("Add at least one {field} entry in `{id}`."),
-        [first, second] => {
-            format!("Add at least one {first} entry and one {second} entry in `{id}`.")
-        }
-        _ => {
-            let clauses = fields
-                .iter()
-                .map(|field| format!("at least one {field} entry"))
-                .collect::<Vec<_>>();
-            format!("Add {} in `{id}`.", format_instruction_list(&clauses))
-        }
+    if rest.is_empty() {
+        format!("Add at least one {first} entry in `{id}`.")
+    } else {
+        let remaining = rest
+            .iter()
+            .map(|field| format!("one {field} entry"))
+            .collect::<Vec<_>>();
+        format!(
+            "Add at least one {first} entry and {} in `{id}`.",
+            format_instruction_list(&remaining)
+        )
     }
 }
 
