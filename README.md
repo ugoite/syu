@@ -99,10 +99,11 @@ Understand the model first? Start with [`docs/guide/concepts.md`](docs/guide/con
 before you begin editing YAML.
 
 ```bash
-syu init .          # 1. Create spec scaffold
-syu add requirement REQ-AUTH-001  # 2. Add spec items with generated YAML stubs
-syu validate .      # 3. Check everything is linked
-syu app .           # 4. Browse in the browser
+syu init .                           # 1. Create spec scaffold
+syu add requirement REQ-AUTH-001     # 2. Generate a requirement stub
+# 3. Edit the new requirement and reciprocal links before validating
+syu validate .                       # 4. Check everything is linked
+syu app .                            # 5. Browse in the browser
 ```
 
 Use `syu browse .` when you want terminal-first exploration, or `syu app .`

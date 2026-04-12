@@ -10,10 +10,11 @@ layers before you start editing YAML.
 Start here once `syu` is installed:
 
 ```bash
-syu init .          # 1. Create spec scaffold
-syu add requirement REQ-AUTH-001  # 2. Add your next spec item
-syu validate .      # 3. Check everything is linked
-syu app .           # 4. Browse in the browser
+syu init .                           # 1. Create spec scaffold
+syu add requirement REQ-AUTH-001     # 2. Generate a requirement stub
+# 3. Edit the new requirement and reciprocal links before validating
+syu validate .                       # 4. Check everything is linked
+syu app .                            # 5. Browse in the browser
 ```
 
 ## Before you begin
