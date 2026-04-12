@@ -12,9 +12,16 @@ Start here once `syu` is installed:
 ```bash
 syu init .                           # 1. Create spec scaffold
 syu add requirement REQ-AUTH-001     # 2. Generate a requirement stub
-# 3. Edit the new requirement and reciprocal links before validating
-syu validate .                       # 4. Check everything is linked
-syu app .                            # 5. Browse in the browser
+```
+
+Before step 3, open the generated requirement YAML under `docs/syu/requirements/`
+(or your configured `spec.root`), add at least one `linked_policies:` entry and
+one `linked_features:` entry, then update those policy and feature documents so
+they link back to the new requirement.
+
+```bash
+syu validate .                       # 3. Check everything is linked
+syu app .                            # 4. Browse in the browser
 ```
 
 ## Before you begin
