@@ -14,7 +14,10 @@ use crate::{
     workspace::{Workspace, load_workspace},
 };
 
-use super::lookup::WorkspaceLookup;
+use super::{
+    issue_text::{TextIssueFormat, format_text_issue},
+    lookup::WorkspaceLookup,
+};
 
 #[derive(Debug, Clone, Copy)]
 enum TopLevelSection {
@@ -497,29 +500,7 @@ fn collapse_whitespace(value: &str) -> String {
 }
 
 fn format_non_interactive_issue(issue: &Issue) -> Vec<String> {
-    let mut header = format!("  [{}] {}", issue.code, issue.subject);
-    if let Some(location) = issue.location.as_deref() {
-        header.push_str(&format!(" ({location})"));
-    }
-
-    if let Some(rule) = rule_by_code(&issue.code) {
-        header.push_str(&format!(
-            " — {}: {}",
-            rule.title,
-            collapse_whitespace(&issue.message)
-        ));
-    } else {
-        header.push_str(&format!(": {}", collapse_whitespace(&issue.message)));
-    }
-
-    let mut lines = vec![header];
-    if let Some(suggestion) = &issue.suggestion {
-        lines.push(format!(
-            "    suggestion: {}",
-            collapse_whitespace(suggestion)
-        ));
-    }
-    lines
+    format_text_issue(issue, TextIssueFormat::BrowseNonInteractive)
 }
 
 #[cfg(test)]
