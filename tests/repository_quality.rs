@@ -264,12 +264,13 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("docs/guide/tutorial.md"));
     assert!(readme.contains("docs/guide/troubleshooting.md"));
     assert!(readme.contains("shortest install-to-validate path"));
+    assert!(readme.contains("[Why four layers?](#why-four-layers)"));
     assert!(readme.contains("Step 0: required"));
     assert!(readme.contains("Generate a requirement stub"));
     assert!(readme.contains("add at least one `linked_policies:` entry"));
+    assert!(readme.contains("`linked_requirements:` entry back to the new requirement"));
     assert!(readme.contains("scaffold any still-missing adjacent policy or"));
     assert!(readme.contains("feature documents so they link back to the new requirement."));
-    assert!(readme.contains("missing reciprocal links and specification drift"));
     assert!(readme.contains("syu init"));
     assert!(readme.contains("syu init ."));
     assert!(readme.contains("syu add"));

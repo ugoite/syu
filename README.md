@@ -163,18 +163,18 @@ below. The rest of this section assumes you installed the published CLI.
 
 ## Quick start
 
-Stay in this README for the shortest install-to-validate path. The four layers
-are:
+Stay in this README for the shortest install-to-validate path. If you skipped
+[`docs/guide/concepts.md`](docs/guide/concepts.md), use the
+[Why four layers?](#why-four-layers) section above as the refresher on
+`philosophy`, `policy`, `requirements`, and `features`.
 
-- `philosophy`: the ideal state and values the project protects
-- `policy`: the repository-wide rules that make philosophy operational
-- `requirement`: a specific obligation that satisfies policy
-- `feature`: the implemented capability that satisfies a requirement
+The first manual edit in this quick start happens in the generated requirement
+YAML: add `linked_policies:` and `linked_features:` there, then update the
+adjacent policy and feature YAML so they add the reciprocal
+`linked_requirements:` entry back to the new requirement.
 
-Policies, requirements, and features should link to each other so
-`syu validate .` can catch missing reciprocal links and specification drift. If
-you want the fuller rationale and authoring guidance first, read
-[`docs/guide/concepts.md`](docs/guide/concepts.md) before continuing.
+Read [`docs/guide/concepts.md`](docs/guide/concepts.md) first if you want the
+fuller rationale and authoring guidance before continuing.
 
 Step 0: required — run `syu init .` before any of the other commands in a new repository.
 
