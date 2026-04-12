@@ -168,6 +168,10 @@ Stay in this README for the shortest install-to-validate path. If you skipped
 [Why four layers?](#why-four-layers) section above as the refresher on
 `philosophy`, `policy`, `requirements`, and `features`.
 
+Treat the rest of this section as a compact first-run command card. If you want
+the same first workspace setup explained step by step, switch to
+[`docs/guide/getting-started.md`](docs/guide/getting-started.md).
+
 The first manual edit in this quick start happens in the generated requirement
 YAML: add `linked_policies:` and `linked_features:` there, then update the
 adjacent policy and feature YAML so they add the reciprocal
@@ -200,6 +204,9 @@ syu app .                            # 4. Browse in the browser
 
 Use `syu browse .` when you want terminal-first exploration, or `syu app .`
 when you want the local browser UI.
+
+Need the slower narrated version of the same first-run flow? Follow
+[`docs/guide/getting-started.md`](docs/guide/getting-started.md).
 
 ```bash
 syu init .
