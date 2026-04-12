@@ -263,13 +263,13 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("## Choose your path"));
     assert!(readme.contains("docs/guide/tutorial.md"));
     assert!(readme.contains("docs/guide/troubleshooting.md"));
-    assert!(readme.contains("Before you start: required"));
+    assert!(readme.contains("shortest install-to-validate path"));
     assert!(readme.contains("Step 0: required"));
     assert!(readme.contains("Generate a requirement stub"));
     assert!(readme.contains("add at least one `linked_policies:` entry"));
     assert!(readme.contains("scaffold any still-missing adjacent policy or"));
     assert!(readme.contains("feature documents so they link back to the new requirement."));
-    assert!(readme.contains("reciprocal links between policies, requirements, and features"));
+    assert!(readme.contains("missing reciprocal links and specification drift"));
     assert!(readme.contains("syu init"));
     assert!(readme.contains("syu init ."));
     assert!(readme.contains("syu add"));

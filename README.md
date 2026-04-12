@@ -32,7 +32,8 @@ verified.
 Pick the newcomer path that matches what you need next:
 
 - **Quick start**: stay in this README when you want the shortest path from install
-  to `syu validate .`.
+  to `syu validate .` and only need a short layer refresher before the first
+  commands.
 - **Tutorial**: follow [`docs/guide/tutorial.md`](docs/guide/tutorial.md) when you
   want a realistic end-to-end repository story instead of a short scaffold flow.
 - **Troubleshooting**: jump to
@@ -162,9 +163,18 @@ below. The rest of this section assumes you installed the published CLI.
 
 ## Quick start
 
-Before you start: required — read [`docs/guide/concepts.md`](docs/guide/concepts.md)
-first. The next steps assume you already understand the four layers and the
-reciprocal links between policies, requirements, and features.
+Stay in this README for the shortest install-to-validate path. The four layers
+are:
+
+- `philosophy`: the ideal state and values the project protects
+- `policy`: the repository-wide rules that make philosophy operational
+- `requirement`: a specific obligation that satisfies policy
+- `feature`: the implemented capability that satisfies a requirement
+
+Policies, requirements, and features should link to each other so
+`syu validate .` can catch missing reciprocal links and specification drift. If
+you want the fuller rationale and authoring guidance first, read
+[`docs/guide/concepts.md`](docs/guide/concepts.md) before continuing.
 
 Step 0: required — run `syu init .` before any of the other commands in a new repository.
 
