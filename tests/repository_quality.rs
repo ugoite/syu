@@ -492,6 +492,9 @@ fn repository_declares_contribution_workflow_assets() {
     assert!(contributing.contains("FEAT-CONTRIB-002"));
     assert!(contributing.contains("GitHub Flow"));
     assert!(contributing.contains("main"));
+    assert!(contributing.contains("docs/guide/concepts.md"));
+    assert!(contributing.contains("philosophy -> policy -> requirement -> feature"));
+    assert!(contributing.contains("spec edits under"));
     assert!(contributing.contains(".worktrees/"));
     assert!(contributing.contains("scripts/ci/quality-gates.sh"));
     assert!(contributing.contains("scripts/ci/check-generated-docs-freshness.sh"));
