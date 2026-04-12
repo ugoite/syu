@@ -718,4 +718,22 @@ mod tests {
             "    suggestion: Add symbol `missingTsSymbol` to `frontend/broken-feature.ts` or update the YAML mapping for `FEAT-FAIL-001`."
         );
     }
+
+    #[test]
+    fn non_interactive_issue_format_falls_back_when_rule_metadata_is_missing() {
+        let lines = format_non_interactive_issue(&Issue::warning(
+            "SYU-custom-unknown-001",
+            "workspace .",
+            None,
+            "Custom validation output should still stay readable.",
+            None,
+        ));
+
+        assert_eq!(
+            lines,
+            vec![
+                "  [SYU-custom-unknown-001] workspace .: Custom validation output should still stay readable."
+            ]
+        );
+    }
 }
