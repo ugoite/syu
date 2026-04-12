@@ -265,7 +265,7 @@ fn repository_declares_documentation_guides() {
     assert!(concepts.contains("Continue with these pages"));
     assert!(concepts.contains("Specification Reference"));
     assert!(app_guide.contains("Status badge"));
-    assert!(app_guide.contains("the lifecycle state from YAML"));
+    assert!(app_guide.contains("the item's YAML `status:` field"));
     assert!(!app_guide.contains("`planned`, `implemented`, or `deprecated`"));
     assert!(getting_started.contains("New to `syu`?"));
     assert!(getting_started.contains("Start here once `syu` is installed:"));
