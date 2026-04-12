@@ -58,7 +58,7 @@ Examples:
 
 Note:
   Pass the workspace root that contains syu.yaml.
-  docs/syu is the default spec.root inside that workspace.";
+  The configured spec.root lives inside that workspace; do not pass it directly.";
 
 const SEARCH_AFTER_HELP: &str = "\
 Examples:
