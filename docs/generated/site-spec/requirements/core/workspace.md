@@ -69,7 +69,10 @@ description: "Generated reference for docs/syu/requirements/core/workspace.yaml"
       browser that shows philosophy, policy, feature, requirement, and error
       counts; allows drilling into linked definitions; and still explains the
       workspace when validation issues exist. When standard input/output are not
-      terminals, `syu` SHOULD fall back to help text instead of crashing.
+      terminals, `syu` SHOULD fall back to help text instead of crashing. When
+      the workspace argument (or default current directory) points inside a
+      workspace, `browse` MUST walk parent directories until it finds
+      `syu.yaml`, then show the resolved workspace root in its summary output.
   - **priority**: medium
   - **status**: implemented
   - **linked_policies**:
@@ -84,6 +87,9 @@ description: "Generated reference for docs/syu/requirements/core/workspace.yaml"
       - **file**: tests/browse_command.rs
         - **symbols**:
           - *
+      - **file**: tests/workspace_discovery_command.rs
+        - **symbols**:
+          - browse_command_discovers_workspace_from_child_directory
       - **file**: src/lib.rs
         - **symbols**:
           - dispatches_interactive_bare_invocations_to_browse_defaults
@@ -102,8 +108,11 @@ description: "Generated reference for docs/syu/requirements/core/workspace.yaml"
       browser-safe Rust logic through WebAssembly instead of reimplementing the
       layered model only in JavaScript. When `syu.yaml` defines app defaults,
       `syu app` MUST use `app.bind` and `app.port` unless CLI flags override
-      them. The startup output MUST also tell users which local URL to open in a
-      browser and how to stop the server cleanly.
+      them. When the workspace argument (or default current directory) points
+      inside a workspace, `syu app` MUST walk parent directories until it finds
+      `syu.yaml`. The startup output MUST also tell users which workspace root
+      was selected, which local URL to open in a browser, and how to stop the
+      server cleanly.
   - **priority**: medium
   - **status**: implemented
   - **linked_policies**:
@@ -139,7 +148,9 @@ description: "Generated reference for docs/syu/requirements/core/workspace.yaml"
       for a known item by ID without entering interactive browse mode. These
       commands SHOULD keep working when validation issues exist so long as the
       workspace itself can still load, and SHOULD offer JSON output for
-      automation.
+      automation. When the workspace argument points at a child directory,
+      `list` and `show` MUST walk parent directories until they find
+      `syu.yaml`.
   - **priority**: medium
   - **status**: implemented
   - **linked_policies**:
@@ -155,6 +166,10 @@ description: "Generated reference for docs/syu/requirements/core/workspace.yaml"
       - **file**: tests/list_command.rs
         - **symbols**:
           - *
+      - **file**: tests/workspace_discovery_command.rs
+        - **symbols**:
+          - list_command_discovers_workspace_from_child_directory
+          - show_command_discovers_workspace_from_child_directory
       - **file**: tests/show_command.rs
         - **symbols**:
           - *
@@ -179,7 +194,9 @@ description: "Generated reference for docs/syu/requirements/core/workspace.yaml"
       or description without requiring the browser app. The command SHOULD
       support optional kind scoping, SHOULD offer JSON output for automation,
       and SHOULD continue working when validation issues exist so long as the
-      workspace itself still loads.
+      workspace itself still loads. When the workspace argument points at a
+      child directory, `search` MUST walk parent directories until it finds
+      `syu.yaml`.
   - **priority**: medium
   - **status**: implemented
   - **linked_policies**:
@@ -193,6 +210,9 @@ description: "Generated reference for docs/syu/requirements/core/workspace.yaml"
       - **file**: tests/search_command.rs
         - **symbols**:
           - *
+      - **file**: tests/workspace_discovery_command.rs
+        - **symbols**:
+          - search_command_discovers_workspace_from_child_directory
       - **file**: tests/help_command.rs
         - **symbols**:
           - search_help_mentions_kind_scoping_and_json_output
@@ -301,7 +321,10 @@ requirements:
       browser that shows philosophy, policy, feature, requirement, and error
       counts; allows drilling into linked definitions; and still explains the
       workspace when validation issues exist. When standard input/output are not
-      terminals, `syu` SHOULD fall back to help text instead of crashing.
+      terminals, `syu` SHOULD fall back to help text instead of crashing. When
+      the workspace argument (or default current directory) points inside a
+      workspace, `browse` MUST walk parent directories until it finds
+      `syu.yaml`, then show the resolved workspace root in its summary output.
     priority: medium
     status: implemented
     linked_policies:
@@ -316,6 +339,9 @@ requirements:
         - file: tests/browse_command.rs
           symbols:
             - '*'
+        - file: tests/workspace_discovery_command.rs
+          symbols:
+            - browse_command_discovers_workspace_from_child_directory
         - file: src/lib.rs
           symbols:
             - dispatches_interactive_bare_invocations_to_browse_defaults
@@ -333,8 +359,11 @@ requirements:
       browser-safe Rust logic through WebAssembly instead of reimplementing the
       layered model only in JavaScript. When `syu.yaml` defines app defaults,
       `syu app` MUST use `app.bind` and `app.port` unless CLI flags override
-      them. The startup output MUST also tell users which local URL to open in a
-      browser and how to stop the server cleanly.
+      them. When the workspace argument (or default current directory) points
+      inside a workspace, `syu app` MUST walk parent directories until it finds
+      `syu.yaml`. The startup output MUST also tell users which workspace root
+      was selected, which local URL to open in a browser, and how to stop the
+      server cleanly.
     priority: medium
     status: implemented
     linked_policies:
@@ -369,7 +398,9 @@ requirements:
       for a known item by ID without entering interactive browse mode. These
       commands SHOULD keep working when validation issues exist so long as the
       workspace itself can still load, and SHOULD offer JSON output for
-      automation.
+      automation. When the workspace argument points at a child directory,
+      `list` and `show` MUST walk parent directories until they find
+      `syu.yaml`.
     priority: medium
     status: implemented
     linked_policies:
@@ -385,6 +416,10 @@ requirements:
         - file: tests/list_command.rs
           symbols:
             - '*'
+        - file: tests/workspace_discovery_command.rs
+          symbols:
+            - list_command_discovers_workspace_from_child_directory
+            - show_command_discovers_workspace_from_child_directory
         - file: tests/show_command.rs
           symbols:
             - '*'
@@ -408,7 +443,9 @@ requirements:
       or description without requiring the browser app. The command SHOULD
       support optional kind scoping, SHOULD offer JSON output for automation,
       and SHOULD continue working when validation issues exist so long as the
-      workspace itself still loads.
+      workspace itself still loads. When the workspace argument points at a
+      child directory, `search` MUST walk parent directories until it finds
+      `syu.yaml`.
     priority: medium
     status: implemented
     linked_policies:
@@ -422,6 +459,9 @@ requirements:
         - file: tests/search_command.rs
           symbols:
             - '*'
+        - file: tests/workspace_discovery_command.rs
+          symbols:
+            - search_command_discovers_workspace_from_child_directory
         - file: tests/help_command.rs
           symbols:
             - search_help_mentions_kind_scoping_and_json_output

@@ -42,7 +42,9 @@ fn workspace_help_uses_current_directory_default_consistently() {
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert!(
-            stdout.contains("Workspace root containing syu.yaml and the configured spec tree"),
+            stdout.contains(
+                "Workspace root or any child directory; syu walks upward to find syu.yaml and the configured spec tree"
+            ),
             "{command} help should describe the workspace root consistently",
         );
         assert!(
