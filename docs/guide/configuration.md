@@ -148,6 +148,31 @@ This is useful once the repository wants maintenance work to stay fully owned by
 the specification across the supported implementation languages.
 For an experimental strict run, use `syu validate . --require-symbol-trace-coverage`.
 
+### `validate.symbol_trace_coverage_ignored_paths`
+
+Controls which repository-relative directories strict symbol coverage skips.
+
+The defaults are exact paths, not basename wildcards:
+
+```yaml
+validate:
+  symbol_trace_coverage_ignored_paths:
+    - build
+    - coverage
+    - dist
+    - target
+    - app/build
+    - app/coverage
+    - app/dist
+    - app/target
+```
+
+That keeps common generated build output out of strict ownership checks without
+hiding authored nested directories such as `src/build/` or `tests/coverage/`.
+Set the list to `[]` if you intentionally want generated artifacts to count
+toward symbol-trace coverage, or replace it with your own exact paths when your
+repository uses a different layout.
+
 ### `app.bind`
 
 Controls the default address that `syu app` binds to.
