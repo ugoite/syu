@@ -78,12 +78,18 @@ impl AppState {
         }
     }
 
-    fn refresh_current(&self) -> Result<()> {
-        let next = match load_snapshot_payload(&self.workspace_root, &self.config) {
-            Ok((snapshot, payload)) => CurrentAppState::Ready(CurrentAppData { snapshot, payload }),
-            Err(error) => CurrentAppState::Error(format!("{error:#}")),
-        };
+    fn current_snapshot(&self) -> Result<Option<String>> {
+        match &*self
+            .current
+            .read()
+            .map_err(|_| anyhow!("app refresh state lock poisoned"))?
+        {
+            CurrentAppState::Ready(data) => Ok(Some(data.snapshot.clone())),
+            CurrentAppState::Error(_) => Ok(None),
+        }
+    }
 
+    fn replace_current(&self, next: CurrentAppState) -> Result<()> {
         let result = match &next {
             CurrentAppState::Ready(_) => Ok(()),
             CurrentAppState::Error(message) => Err(anyhow!(message.clone())),
@@ -95,6 +101,40 @@ impl AppState {
             .map_err(|_| anyhow!("app refresh state lock poisoned"))? = next;
 
         result
+    }
+
+    fn refresh_current(&self) -> Result<()> {
+        self.refresh_current_with(
+            || load_current_snapshot(&self.workspace_root, &self.config),
+            || load_current_payload(&self.workspace_root, &self.config),
+        )
+    }
+
+    fn refresh_current_with<LoadSnapshot, LoadPayload>(
+        &self,
+        load_snapshot: LoadSnapshot,
+        load_payload: LoadPayload,
+    ) -> Result<()>
+    where
+        LoadSnapshot: FnOnce() -> Result<String>,
+        LoadPayload: FnOnce() -> Result<AppPayload>,
+    {
+        let current_snapshot = self.current_snapshot()?;
+        let next = match load_snapshot() {
+            Ok(snapshot) => {
+                if current_snapshot.as_deref() == Some(snapshot.as_str()) {
+                    return Ok(());
+                }
+
+                match load_payload() {
+                    Ok(payload) => CurrentAppState::Ready(CurrentAppData { snapshot, payload }),
+                    Err(error) => CurrentAppState::Error(format!("{error:#}")),
+                }
+            }
+            Err(error) => CurrentAppState::Error(format!("{error:#}")),
+        };
+
+        self.replace_current(next)
     }
 }
 
@@ -280,15 +320,6 @@ fn refresh_current_once(state: &AppState) {
 
 fn load_current_payload(workspace_root: &Path, config: &SyuConfig) -> Result<AppPayload> {
     build_app_payload_from_config(workspace_root, config)
-}
-
-fn load_snapshot_payload(
-    workspace_root: &Path,
-    config: &SyuConfig,
-) -> Result<(String, AppPayload)> {
-    let snapshot = load_current_snapshot(workspace_root, config)?;
-    let payload = load_current_payload(workspace_root, config)?;
-    Ok((snapshot, payload))
 }
 
 fn load_current_snapshot(workspace_root: &Path, config: &SyuConfig) -> Result<String> {
@@ -740,6 +771,7 @@ mod tests {
         io::{Error, ErrorKind, Read, Write as _},
         net::TcpListener,
         path::{Path, PathBuf},
+        sync::atomic::{AtomicUsize, Ordering},
         thread,
         time::Duration,
     };
@@ -760,8 +792,8 @@ mod tests {
     };
 
     use super::{
-        AppServerSettings, AppState, AppVersion, SectionKind, Severity, StartupLine, app_router,
-        browser_root_labels, build_app_payload, collect_feature_sources,
+        AppPayload, AppServerSettings, AppState, AppVersion, SectionKind, Severity, StartupLine,
+        app_router, browser_root_labels, build_app_payload, collect_feature_sources,
         collect_yaml_sources_recursive, content_type_for_path, is_asset_like,
         non_loopback_warning_lines, normalized_asset_path, readiness_probe_request_sent,
         readiness_probe_succeeds, redacted_relative_label, redacted_root_label,
@@ -1519,6 +1551,49 @@ mod tests {
         let state = app_state(tempdir.path());
 
         refresh_current_once(&state);
+    }
+
+    #[test]
+    fn refresh_current_skips_payload_reload_when_snapshot_is_unchanged() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        write_config(tempdir.path(), "127.0.0.1", 3000);
+        let state = AppState::new(
+            tempdir.path().to_path_buf(),
+            load_config(tempdir.path())
+                .expect("config should load")
+                .config,
+        );
+        let payload_loads = AtomicUsize::new(0);
+
+        state
+            .refresh_current_with(
+                || Ok("same-snapshot".to_string()),
+                || {
+                    payload_loads.fetch_add(1, Ordering::SeqCst);
+                    Ok(AppPayload::default())
+                },
+            )
+            .expect("initial refresh should succeed");
+        state
+            .refresh_current_with(
+                || Ok("same-snapshot".to_string()),
+                || {
+                    payload_loads.fetch_add(1, Ordering::SeqCst);
+                    Err(anyhow::anyhow!("payload load should be skipped"))
+                },
+            )
+            .expect("unchanged snapshots should not rebuild the payload");
+
+        assert_eq!(
+            payload_loads.load(Ordering::SeqCst),
+            1,
+            "payloads should only load once when the snapshot does not change"
+        );
+        assert_eq!(
+            state.current_data().expect("ready state").snapshot,
+            "same-snapshot",
+            "unchanged refreshes should preserve the last ready snapshot"
+        );
     }
 
     #[tokio::test]
