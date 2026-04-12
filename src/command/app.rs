@@ -835,6 +835,10 @@ mod tests {
         state
     }
 
+    fn failing_payload() -> anyhow::Result<AppPayload> {
+        Err(anyhow::anyhow!("payload load failed"))
+    }
+
     #[cfg(unix)]
     fn set_mode(path: &Path, mode: u32) {
         fs::set_permissions(path, fs::Permissions::from_mode(mode)).expect("permissions");
@@ -1575,13 +1579,7 @@ mod tests {
             )
             .expect("initial refresh should succeed");
         state
-            .refresh_current_with(
-                || Ok("same-snapshot".to_string()),
-                || {
-                    payload_loads.fetch_add(1, Ordering::SeqCst);
-                    Err(anyhow::anyhow!("payload load should be skipped"))
-                },
-            )
+            .refresh_current_with(|| Ok("same-snapshot".to_string()), failing_payload)
             .expect("unchanged snapshots should not rebuild the payload");
 
         assert_eq!(
@@ -1593,6 +1591,34 @@ mod tests {
             state.current_data().expect("ready state").snapshot,
             "same-snapshot",
             "unchanged refreshes should preserve the last ready snapshot"
+        );
+    }
+
+    #[test]
+    fn refresh_current_enters_error_state_when_payload_reload_fails() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        write_config(tempdir.path(), "127.0.0.1", 3000);
+        let state = AppState::new(
+            tempdir.path().to_path_buf(),
+            load_config(tempdir.path())
+                .expect("config should load")
+                .config,
+        );
+
+        let error = state
+            .refresh_current_with(|| Ok("updated-snapshot".to_string()), failing_payload)
+            .expect_err("payload failures should propagate");
+
+        assert!(
+            error.to_string().contains("payload load failed"),
+            "error should preserve the payload loader failure: {error:#}"
+        );
+        assert!(
+            state
+                .current_data()
+                .expect_err("failed payload reloads should leave the app in an error state")
+                .to_string()
+                .contains("payload load failed")
         );
     }
 
