@@ -31,9 +31,8 @@ verified.
 
 Pick the newcomer path that matches what you need next:
 
-- **Quick start**: stay in this README when you want the shortest path from install
-  to `syu validate .` and only need a short layer refresher before the first
-  commands.
+- **Quick start**: stay in this README when the in-page four-layer refresher is
+  enough and you want the shortest path from install to `syu validate .`.
 - **Tutorial**: follow [`docs/guide/tutorial.md`](docs/guide/tutorial.md) when you
   want a realistic end-to-end repository story instead of a short scaffold flow.
 - **Troubleshooting**: jump to
@@ -163,18 +162,20 @@ below. The rest of this section assumes you installed the published CLI.
 
 ## Quick start
 
-Stay in this README for the shortest install-to-validate path. If you skipped
-[`docs/guide/concepts.md`](docs/guide/concepts.md), use the
-[Why four layers?](#why-four-layers) section above as the refresher on
-`philosophy`, `policy`, `requirements`, and `features`.
+Stay in this README for the shortest install-to-validate path. The only layer
+refresher you need before the commands is [Why four layers?](#why-four-layers):
+`philosophy` explains the intent, `policy` turns that intent into rules,
+`requirements` capture the obligations, and `features` record the delivered
+capabilities that satisfy those requirements.
 
 The first manual edit in this quick start happens in the generated requirement
 YAML: add `linked_policies:` and `linked_features:` there, then update the
 adjacent policy and feature YAML so they add the reciprocal
 `linked_requirements:` entry back to the new requirement.
 
-Read [`docs/guide/concepts.md`](docs/guide/concepts.md) first if you want the
-fuller rationale and authoring guidance before continuing.
+Want the fuller rationale and authoring guidance before you edit YAML? Detour to
+[`docs/guide/concepts.md`](docs/guide/concepts.md), then come back here for the
+short command path.
 
 Step 0: required — run `syu init .` before any of the other commands in a new repository.
 
