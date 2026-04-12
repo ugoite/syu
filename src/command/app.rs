@@ -2,7 +2,7 @@
 // REQ-CORE-017
 
 use std::{
-    collections::hash_map::DefaultHasher,
+    collections::{BTreeSet, hash_map::DefaultHasher},
     env, fs,
     hash::{Hash, Hasher},
     io::{Read, Write},
@@ -31,7 +31,9 @@ use crate::{
     cli::AppArgs,
     command::check::collect_check_result,
     config::{SyuConfig, load_config, resolve_spec_root},
-    model::{CheckResult, FeatureRegistryDocument},
+    coverage::normalize_relative_path,
+    model::{CheckResult, FeatureRegistryDocument, TraceReference},
+    workspace::{load_feature_documents_with_paths, load_requirement_documents_with_paths},
 };
 
 static APP_DIST: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/app/dist");
@@ -323,8 +325,19 @@ fn load_current_payload(workspace_root: &Path, config: &SyuConfig) -> Result<App
 }
 
 fn load_current_snapshot(workspace_root: &Path, config: &SyuConfig) -> Result<String> {
+    app_payload_snapshot(workspace_root, config)
+}
+
+fn app_payload_snapshot(workspace_root: &Path, config: &SyuConfig) -> Result<String> {
     let spec_root = resolve_spec_root(workspace_root, config);
-    spec_snapshot(&spec_root)
+    let mut hasher = DefaultHasher::new();
+    spec_snapshot(&spec_root)?.hash(&mut hasher);
+
+    for dependency in app_snapshot_dependencies(workspace_root, &spec_root, config) {
+        dependency.hash_state(workspace_root, &mut hasher);
+    }
+
+    Ok(format!("{:016x}", hasher.finish()))
 }
 
 fn spec_snapshot(spec_root: &Path) -> Result<String> {
@@ -355,6 +368,177 @@ fn spec_snapshot(spec_root: &Path) -> Result<String> {
         source.content.hash(&mut hasher);
     }
     Ok(format!("{:016x}", hasher.finish()))
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+enum SnapshotDependency {
+    File(PathBuf),
+    ReadDirError(PathBuf, String),
+}
+
+impl SnapshotDependency {
+    fn hash_state(&self, workspace_root: &Path, hasher: &mut DefaultHasher) {
+        match self {
+            Self::File(path) => {
+                "file".hash(hasher);
+                path.hash(hasher);
+                match fs::read(workspace_root.join(path)) {
+                    Ok(bytes) => {
+                        "readable".hash(hasher);
+                        bytes.hash(hasher);
+                    }
+                    Err(error) => {
+                        "unreadable".hash(hasher);
+                        format!("{:?}", error.kind()).hash(hasher);
+                    }
+                }
+            }
+            Self::ReadDirError(path, kind) => {
+                "read_dir_error".hash(hasher);
+                path.hash(hasher);
+                kind.hash(hasher);
+            }
+        }
+    }
+}
+
+fn app_snapshot_dependencies(
+    workspace_root: &Path,
+    spec_root: &Path,
+    config: &SyuConfig,
+) -> BTreeSet<SnapshotDependency> {
+    let mut dependencies = BTreeSet::new();
+
+    if let Ok(documents) = load_requirement_documents_with_paths(&spec_root.join("requirements")) {
+        for document in documents {
+            for requirement in document.document.requirements {
+                collect_trace_map_snapshot_dependencies(&requirement.tests, &mut dependencies);
+            }
+        }
+    }
+
+    if let Ok(documents) = load_feature_documents_with_paths(&spec_root.join("features")) {
+        for document in documents {
+            for feature in document.document.features {
+                collect_trace_map_snapshot_dependencies(
+                    &feature.implementations,
+                    &mut dependencies,
+                );
+            }
+        }
+    }
+
+    if config.validate.require_symbol_trace_coverage {
+        collect_coverage_snapshot_dependencies(workspace_root, &mut dependencies);
+    }
+
+    dependencies
+}
+
+fn collect_trace_map_snapshot_dependencies(
+    references_by_language: &std::collections::BTreeMap<String, Vec<TraceReference>>,
+    dependencies: &mut BTreeSet<SnapshotDependency>,
+) {
+    for references in references_by_language.values() {
+        for reference in references {
+            if let Some(path) = normalized_trace_snapshot_path(&reference.file) {
+                dependencies.insert(SnapshotDependency::File(path));
+            }
+        }
+    }
+}
+
+fn normalized_trace_snapshot_path(file: &Path) -> Option<PathBuf> {
+    let portable = file.to_string_lossy().replace('\\', "/");
+    let normalized = normalize_relative_path(Path::new(&portable));
+
+    if normalized.as_os_str().is_empty()
+        || normalized.is_absolute()
+        || normalized
+            .components()
+            .any(|component| !matches!(component, Component::Normal(_)))
+    {
+        return None;
+    }
+
+    Some(normalized)
+}
+
+fn collect_coverage_snapshot_dependencies(
+    workspace_root: &Path,
+    dependencies: &mut BTreeSet<SnapshotDependency>,
+) {
+    const COVERAGE_EXTENSIONS: &[&str] = &["rs", "py", "ts", "tsx", "js", "jsx"];
+
+    collect_snapshot_files_with_extensions(
+        workspace_root,
+        &workspace_root.join("src"),
+        COVERAGE_EXTENSIONS,
+        dependencies,
+    );
+    collect_snapshot_files_with_extensions(
+        workspace_root,
+        &workspace_root.join("tests"),
+        COVERAGE_EXTENSIONS,
+        dependencies,
+    );
+}
+
+fn collect_snapshot_files_with_extensions(
+    workspace_root: &Path,
+    directory: &Path,
+    extensions: &[&str],
+    dependencies: &mut BTreeSet<SnapshotDependency>,
+) {
+    if !directory.exists() {
+        return;
+    }
+
+    let entries = match fs::read_dir(directory) {
+        Ok(entries) => entries,
+        Err(error) => {
+            dependencies.insert(SnapshotDependency::ReadDirError(
+                relative_workspace_path(workspace_root, directory),
+                format!("{:?}", error.kind()),
+            ));
+            return;
+        }
+    };
+
+    for entry in entries {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(error) => {
+                dependencies.insert(SnapshotDependency::ReadDirError(
+                    relative_workspace_path(workspace_root, directory),
+                    format!("{:?}", error.kind()),
+                ));
+                continue;
+            }
+        };
+
+        let path = entry.path();
+        if path.is_dir() {
+            collect_snapshot_files_with_extensions(workspace_root, &path, extensions, dependencies);
+            continue;
+        }
+
+        let Some(extension) = path.extension().and_then(|value| value.to_str()) else {
+            continue;
+        };
+        if extensions.iter().any(|candidate| *candidate == extension) {
+            dependencies.insert(SnapshotDependency::File(relative_workspace_path(
+                workspace_root,
+                &path,
+            )));
+        }
+    }
+}
+
+fn relative_workspace_path(workspace_root: &Path, path: &Path) -> PathBuf {
+    path.strip_prefix(workspace_root)
+        .unwrap_or(path)
+        .to_path_buf()
 }
 
 fn section_sources(
@@ -795,10 +979,10 @@ mod tests {
         AppPayload, AppServerSettings, AppState, AppVersion, SectionKind, Severity, StartupLine,
         app_router, browser_root_labels, build_app_payload, collect_feature_sources,
         collect_yaml_sources_recursive, content_type_for_path, is_asset_like,
-        non_loopback_warning_lines, normalized_asset_path, readiness_probe_request_sent,
-        readiness_probe_succeeds, redacted_relative_label, redacted_root_label,
-        refresh_current_once, relative_display, resolve_app_server_settings, spec_snapshot,
-        startup_lines, trailing_path_components_label, validation_snapshot,
+        load_current_snapshot, non_loopback_warning_lines, normalized_asset_path,
+        readiness_probe_request_sent, readiness_probe_succeeds, redacted_relative_label,
+        redacted_root_label, refresh_current_once, relative_display, resolve_app_server_settings,
+        spec_snapshot, startup_lines, trailing_path_components_label, validation_snapshot,
         wait_for_ready_with_retry,
     };
 
@@ -818,10 +1002,14 @@ mod tests {
     }
 
     fn write_config(root: &Path, bind: &str, port: u16) {
+        write_config_with(root, bind, port, false);
+    }
+
+    fn write_config_with(root: &Path, bind: &str, port: u16, require_symbol_trace_coverage: bool) {
         fs::write(
             root.join("syu.yaml"),
             format!(
-                "version: {}\nspec:\n  root: docs/syu\nvalidate:\n  default_fix: false\n  allow_planned: true\n  require_non_orphaned_items: true\n  require_symbol_trace_coverage: false\napp:\n  bind: {bind}\n  port: {port}\nruntimes:\n  python:\n    command: auto\n  node:\n    command: auto\n",
+                "version: {}\nspec:\n  root: docs/syu\nvalidate:\n  default_fix: false\n  allow_planned: true\n  require_non_orphaned_items: true\n  require_symbol_trace_coverage: {require_symbol_trace_coverage}\napp:\n  bind: {bind}\n  port: {port}\nruntimes:\n  python:\n    command: auto\n  node:\n    command: auto\n",
                 env!("CARGO_PKG_VERSION"),
             ),
         )
@@ -837,6 +1025,54 @@ mod tests {
 
     fn failing_payload() -> anyhow::Result<AppPayload> {
         Err(anyhow::anyhow!("payload load failed"))
+    }
+
+    fn write_snapshot_workspace(root: &Path, require_symbol_trace_coverage: bool) {
+        let spec_root = create_workspace_skeleton(root);
+        write_config_with(root, "127.0.0.1", 3000, require_symbol_trace_coverage);
+        fs::create_dir_all(root.join("src")).expect("src dir");
+        fs::create_dir_all(root.join("tests")).expect("tests dir");
+
+        fs::write(
+            spec_root.join("philosophy/foundation.yaml"),
+            "category: Philosophy\nversion: 1\nlanguage: en\n\nphilosophies:\n  - id: PHIL-001\n    title: Keep traces explicit\n    product_design_principle: Keep source, tests, and specs connected.\n    coding_guideline: Prefer explicit file links.\n    linked_policies:\n      - POL-001\n",
+        )
+        .expect("philosophy");
+        fs::write(
+            spec_root.join("policies/policies.yaml"),
+            "category: Policies\nversion: 1\nlanguage: en\n\npolicies:\n  - id: POL-001\n    title: Requirements need evidence\n    summary: Keep links reciprocal.\n    description: Requirement and feature records should point to code and tests.\n    linked_philosophies:\n      - PHIL-001\n    linked_requirements:\n      - REQ-001\n",
+        )
+        .expect("policy");
+        fs::write(
+            spec_root.join("requirements/core.yaml"),
+            "category: Core Requirements\nprefix: REQ\n\nrequirements:\n  - id: REQ-001\n    title: Requirement title\n    description: Requirement description.\n    priority: high\n    status: implemented\n    linked_policies:\n      - POL-001\n    linked_features:\n      - FEAT-001\n    tests:\n      rust:\n        - file: tests/requirement_trace.rs\n          symbols:\n            - requirement_trace\n",
+        )
+        .expect("requirement");
+        fs::write(
+            spec_root.join("features/features.yaml"),
+            "version: \"0.0.1-alpha.7\"\nupdated: \"2026-04\"\n\nfiles:\n  - kind: core\n    file: core.yaml\n",
+        )
+        .expect("feature registry");
+        fs::write(
+            spec_root.join("features/core.yaml"),
+            "category: Core Features\nversion: 1\n\nfeatures:\n  - id: FEAT-001\n    title: Feature title\n    summary: Feature summary.\n    status: implemented\n    linked_requirements:\n      - REQ-001\n    implementations:\n      rust:\n        - file: src/feature_impl.rs\n          symbols:\n            - feature_impl\n",
+        )
+        .expect("feature");
+        fs::write(
+            root.join("src/feature_impl.rs"),
+            "pub fn feature_impl() {}\n",
+        )
+        .expect("feature source");
+        fs::write(
+            root.join("src/untracked.rs"),
+            "pub fn coverage_target() {}\n",
+        )
+        .expect("coverage source");
+        fs::write(
+            root.join("tests/requirement_trace.rs"),
+            "#[test]\nfn requirement_trace() {}\n",
+        )
+        .expect("requirement source");
     }
 
     #[cfg(unix)]
@@ -1545,6 +1781,46 @@ mod tests {
         .expect("updated requirement");
 
         let second = spec_snapshot(&spec_root).expect("snapshot");
+        assert_ne!(first, second);
+    }
+
+    #[test]
+    fn load_current_snapshot_changes_when_traced_file_content_changes() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        write_snapshot_workspace(tempdir.path(), false);
+        let config = load_config(tempdir.path())
+            .expect("config should load")
+            .config;
+
+        let first = load_current_snapshot(tempdir.path(), &config).expect("snapshot");
+
+        fs::write(
+            tempdir.path().join("tests/requirement_trace.rs"),
+            "#[test]\nfn requirement_trace() { assert!(true); }\n",
+        )
+        .expect("updated trace");
+
+        let second = load_current_snapshot(tempdir.path(), &config).expect("snapshot");
+        assert_ne!(first, second);
+    }
+
+    #[test]
+    fn load_current_snapshot_changes_when_symbol_coverage_inputs_change() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        write_snapshot_workspace(tempdir.path(), true);
+        let config = load_config(tempdir.path())
+            .expect("config should load")
+            .config;
+
+        let first = load_current_snapshot(tempdir.path(), &config).expect("snapshot");
+
+        fs::write(
+            tempdir.path().join("src/untracked.rs"),
+            "pub fn coverage_target() { println!(\"changed\"); }\n",
+        )
+        .expect("updated source");
+
+        let second = load_current_snapshot(tempdir.path(), &config).expect("snapshot");
         assert_ne!(first, second);
     }
 
