@@ -41,7 +41,7 @@ pub(super) fn format_text_issue(issue: &Issue, format: TextIssueFormat) -> Vec<S
                 issue.code,
                 issue_subject_with_location(issue),
                 separator,
-                issue_message_with_rule_title(issue, true)
+                issue_message_with_rule_title(issue)
             )];
 
             if let Some(suggestion) = issue_suggestion(issue, true) {
@@ -61,13 +61,8 @@ fn issue_subject_with_location(issue: &Issue) -> String {
     subject
 }
 
-fn issue_message_with_rule_title(issue: &Issue, collapse: bool) -> String {
-    let message = if collapse {
-        collapse_whitespace(&issue.message)
-    } else {
-        issue.message.clone()
-    };
-
+fn issue_message_with_rule_title(issue: &Issue) -> String {
+    let message = collapse_whitespace(&issue.message);
     crate::rules::rule_by_code(&issue.code)
         .map(|rule| format!("{}: {message}", rule.title))
         .unwrap_or(message)
