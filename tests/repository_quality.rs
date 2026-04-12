@@ -267,9 +267,9 @@ fn repository_declares_documentation_guides() {
     assert!(getting_started.contains("New to `syu`?"));
     assert!(getting_started.contains("Start here once `syu` is installed:"));
     assert!(getting_started.contains("Generate a requirement stub"));
-    assert!(getting_started.contains(
-        "Edit the new requirement and reciprocal links before validating"
-    ));
+    assert!(
+        getting_started.contains("Edit the new requirement and reciprocal links before validating")
+    );
     assert!(getting_started.contains("install-syu.sh"));
     assert!(getting_started.contains("SYU_VERSION=alpha"));
     assert!(getting_started.contains(&format!(
