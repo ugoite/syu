@@ -439,6 +439,9 @@ fn repository_declares_devcontainer_configuration() {
     let devcontainer = read_file(".devcontainer/devcontainer.json");
     assert!(devcontainer.contains("FEAT-CONTRIB-001"));
     assert!(devcontainer.contains("cargo install cargo-llvm-cov --locked"));
+    assert!(devcontainer.contains("cargo install wasm-pack --locked"));
+    assert!(devcontainer.contains("cd app && npm ci"));
+    assert!(devcontainer.contains("playwright install --with-deps chromium"));
     assert!(devcontainer.contains("scripts/install-precommit.sh"));
     assert!(devcontainer.contains("ghcr.io/devcontainers/features/python:1"));
 }
@@ -486,6 +489,8 @@ fn repository_declares_contribution_workflow_assets() {
     assert!(contributing.contains("app/dist"));
     assert!(contributing.contains("scripts/install-precommit.sh"));
     assert!(contributing.contains("devcontainer/Codespaces post-create step"));
+    assert!(contributing.contains("wasm-pack"));
+    assert!(contributing.contains("Playwright Chromium"));
     assert!(contributing.contains("GitHub Pages"));
     assert!(contributing.contains("release track"));
 
