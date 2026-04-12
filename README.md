@@ -59,7 +59,9 @@ bash install-syu.sh
 
 On macOS, replace `sha256sum` with `shasum -a 256`.
 
-Published release archives also carry GitHub artifact attestations. Verify one with:
+The checksum step above verifies the installer script itself. Published release
+archives also carry GitHub artifact attestations, so you can separately verify
+the platform archive that the installer downloads before it unpacks the binary:
 
 ```bash
 gh attestation verify syu-x86_64-unknown-linux-gnu.tar.gz --repo ugoite/syu

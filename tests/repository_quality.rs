@@ -205,6 +205,8 @@ fn repository_declares_installer_contract() {
     assert!(readme.contains("security-sensitive environments"));
     assert!(readme.contains("checksums.sha256"));
     assert!(readme.contains("gh attestation verify"));
+    assert!(readme.contains("verifies the installer script itself"));
+    assert!(readme.contains("the platform archive that the installer downloads"));
     assert!(
         verify_idx < shortcut_idx,
         "README should present the verify-first flow before the one-line shortcut"
