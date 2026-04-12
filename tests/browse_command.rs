@@ -106,6 +106,40 @@ fn browse_command_walks_all_sections_in_a_passing_workspace() {
 }
 
 #[test]
+fn browse_command_menu_uses_documented_layer_order() {
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .arg("browse")
+        .arg(fixture_path("passing"))
+        .write_stdin("0\n")
+        .output()
+        .expect("browse command should run");
+
+    assert!(output.status.success(), "browse UI should not fail");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let philosophy_index = stdout.find("1. philosophy").expect("philosophy item");
+    let policy_index = stdout.find("2. policy").expect("policy item");
+    let requirement_index = stdout.find("3. requirement").expect("requirement item");
+    let feature_index = stdout.find("4. feature").expect("feature item");
+    let summary = stdout
+        .lines()
+        .find(|line| line.starts_with("philosophy="))
+        .expect("summary line");
+
+    assert!(
+        philosophy_index < policy_index
+            && policy_index < requirement_index
+            && requirement_index < feature_index,
+        "interactive menu should follow the documented layer order:\n{stdout}",
+    );
+    assert!(
+        summary.find("requirement=").expect("requirement count")
+            < summary.find("feature=").expect("feature count"),
+        "summary counts should list requirement before feature:\n{summary}",
+    );
+}
+
+#[test]
 fn browse_command_handles_detail_views_without_links() {
     let tempdir = tempdir().expect("tempdir should exist");
     let docs_root = tempdir.path().join("docs/syu");

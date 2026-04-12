@@ -105,8 +105,8 @@ impl BrowseState {
         const SECTIONS: [TopLevelSection; 5] = [
             TopLevelSection::Philosophy,
             TopLevelSection::Policy,
-            TopLevelSection::Feature,
             TopLevelSection::Requirement,
+            TopLevelSection::Feature,
             TopLevelSection::Errors,
         ];
 
@@ -116,11 +116,11 @@ impl BrowseState {
             self.result.definition_counts.philosophies
         );
         println!("2. policy ({})", self.result.definition_counts.policies);
-        println!("3. feature ({})", self.result.definition_counts.features);
         println!(
-            "4. requirement ({})",
+            "3. requirement ({})",
             self.result.definition_counts.requirements
         );
+        println!("4. feature ({})", self.result.definition_counts.features);
         println!("5. errors ({})", self.result.issues.len());
         println!("0. exit");
 
@@ -343,11 +343,11 @@ impl BrowseState {
         println!("=== {heading} ===");
         println!("workspace: {}", self.result.workspace_root.display());
         println!(
-            "philosophy={} policy={} feature={} requirement={} errors={}",
+            "philosophy={} policy={} requirement={} feature={} errors={}",
             self.result.definition_counts.philosophies,
             self.result.definition_counts.policies,
-            self.result.definition_counts.features,
             self.result.definition_counts.requirements,
+            self.result.definition_counts.features,
             self.result.issues.len()
         );
         println!();
