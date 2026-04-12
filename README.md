@@ -162,11 +162,9 @@ below. The rest of this section assumes you installed the published CLI.
 
 ## Quick start
 
-Stay in this README for the shortest install-to-validate path. The only layer
-refresher you need before the commands is [Why four layers?](#why-four-layers):
-`philosophy` explains the intent, `policy` turns that intent into rules,
-`requirements` capture the obligations, and `features` record the delivered
-capabilities that satisfy those requirements.
+Stay in this README for the shortest install-to-validate path. If you want a
+quick refresher on the four-layer model before the commands, use
+[Why four layers?](#why-four-layers) above.
 
 The first manual edit in this quick start happens in the generated requirement
 YAML: add `linked_policies:` and `linked_features:` there, then update the
