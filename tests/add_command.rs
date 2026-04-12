@@ -146,6 +146,35 @@ fn add_command_updates_the_feature_registry_for_new_feature_files() {
 
 #[test]
 // REQ-CORE-020
+fn add_command_skips_existing_or_unreliable_scaffold_suggestions() {
+    let tempdir = tempdir().expect("tempdir should exist");
+    let workspace = tempdir.path().join("workspace");
+    init_workspace(&workspace, &[]);
+
+    let requirement = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .args(["add", "requirement", "REQ-AUTH-001"])
+        .arg(&workspace)
+        .output()
+        .expect("requirement command should run");
+    assert!(requirement.status.success());
+
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .args(["add", "policy", "POL-AUTH-001"])
+        .arg(&workspace)
+        .output()
+        .expect("policy command should run");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(!stdout.contains("syu add requirement REQ-AUTH-001"));
+    assert!(!stdout.contains("syu add philosophy"));
+    assert!(stdout.contains("Update each linked philosophy and requirement"));
+}
+
+#[test]
+// REQ-CORE-020
 fn add_command_defaults_feature_kind_from_the_feature_id_prefix() {
     let tempdir = tempdir().expect("tempdir should exist");
     let workspace = tempdir.path().join("workspace");

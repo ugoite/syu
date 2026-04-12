@@ -672,7 +672,9 @@ fn format_instruction_list(items: &[String]) -> String {
 fn suggested_linked_kinds(layer: LookupKind) -> &'static [LookupKind] {
     match layer {
         LookupKind::Philosophy => &[LookupKind::Policy],
-        LookupKind::Policy => &[LookupKind::Philosophy, LookupKind::Requirement],
+        // Policies usually attach to an existing project philosophy; synthesizing a
+        // "matching" philosophy ID from a policy ID is too misleading to suggest.
+        LookupKind::Policy => &[LookupKind::Requirement],
         LookupKind::Requirement => &[LookupKind::Policy, LookupKind::Feature],
         LookupKind::Feature => &[LookupKind::Requirement],
     }
@@ -689,36 +691,53 @@ fn suggested_linked_id(id: &str, kind: LookupKind) -> String {
     segments.join("-")
 }
 
-fn scaffold_missing_link_instruction(workspace: &Workspace, layer: LookupKind, id: &str) -> String {
-    let linked_kinds = suggested_linked_kinds(layer);
-    let linked_labels = linked_kinds
-        .iter()
-        .map(|kind| kind.label().to_string())
-        .collect::<Vec<_>>();
+fn scaffold_missing_link_instruction(
+    workspace: &Workspace,
+    layer: LookupKind,
+    id: &str,
+) -> Option<String> {
+    let lookup = WorkspaceLookup::new(workspace);
     let workspace_arg = shell_quote_path(&workspace.root);
+    let linked_kinds = suggested_linked_kinds(layer)
+        .iter()
+        .filter_map(|kind| {
+            let suggested_id = suggested_linked_id(id, *kind);
+            (lookup.find(&suggested_id).is_none()).then_some((*kind, suggested_id))
+        })
+        .collect::<Vec<_>>();
+
+    if linked_kinds.is_empty() {
+        return None;
+    }
+
     let commands = linked_kinds
         .iter()
-        .map(|kind| {
+        .map(|(kind, suggested_id)| {
             format!(
                 "`syu add {} {} {workspace_arg}`",
                 kind.label(),
-                suggested_linked_id(id, *kind)
+                suggested_id
             )
         })
         .collect::<Vec<_>>();
 
     if linked_kinds.len() == 1 {
-        format!(
+        let (kind, _) = linked_kinds[0];
+        Some(format!(
             "If the linked {} stub does not exist yet, scaffold it with {}.",
-            linked_kinds[0].label(),
+            kind.label(),
             commands[0]
-        )
+        ))
     } else {
-        format!(
+        let linked_labels = linked_kinds
+            .iter()
+            .map(|(kind, _)| kind.label().to_string())
+            .collect::<Vec<_>>();
+        Some(format!(
             "If linked {} stubs are still missing, scaffold them with {}.",
             format_instruction_list(&linked_labels),
             format_instruction_list(&commands)
-        )
+        ))
     }
 }
 
@@ -906,7 +925,9 @@ fn add_follow_up_steps(
         "Edit {target_label} and fill the stub fields for `{id}`."
     )];
     steps.push(reciprocal_link_entry_instruction(layer, id));
-    steps.push(scaffold_missing_link_instruction(workspace, layer, id));
+    if let Some(scaffold_instruction) = scaffold_missing_link_instruction(workspace, layer, id) {
+        steps.push(scaffold_instruction);
+    }
     steps.push(reciprocal_link_back_instruction(layer, id));
 
     steps.push(format!(
@@ -968,6 +989,7 @@ fn title_case_slug(slug: &str) -> String {
 mod tests {
     use anyhow::Result;
     use std::{
+        collections::BTreeMap,
         collections::VecDeque,
         fs,
         path::{Path, PathBuf},
@@ -978,6 +1000,7 @@ mod tests {
     use crate::{
         cli::{AddArgs, InitArgs, LookupKind, OutputFormat, StarterTemplate},
         config::SyuConfig,
+        model::Requirement,
         workspace::Workspace,
     };
 
@@ -1126,8 +1149,8 @@ mod tests {
         assert!(philosophy_steps[3].contains("linked policy"));
         assert!(policy_steps[1].contains("linked_philosophies"));
         assert!(policy_steps[1].contains("linked_requirements"));
-        assert!(policy_steps[2].contains("syu add philosophy PHIL-001"));
         assert!(policy_steps[2].contains("syu add requirement REQ-001"));
+        assert!(!policy_steps[2].contains("syu add philosophy"));
         assert!(requirement_steps[1].contains("linked_policies"));
         assert!(requirement_steps[1].contains("linked_features"));
         assert!(requirement_steps[2].contains("syu add policy POL-AUTH-001"));
@@ -1140,6 +1163,41 @@ mod tests {
                 .last()
                 .expect("feature guidance should include validation")
                 .contains("syu validate")
+        );
+    }
+
+    #[test]
+    fn add_follow_up_steps_skip_existing_scaffold_commands() {
+        let (_tempdir, mut workspace) = test_workspace();
+        workspace.requirements.push(Requirement {
+            id: "REQ-AUTH-001".to_string(),
+            title: "Existing requirement".to_string(),
+            description: "Already scaffolded".to_string(),
+            priority: "high".to_string(),
+            status: "planned".to_string(),
+            linked_policies: Vec::new(),
+            linked_features: Vec::new(),
+            tests: BTreeMap::new(),
+        });
+        let policy_target = workspace.spec_root.join("policies/policies.yaml");
+
+        let policy_steps = add_follow_up_steps(
+            &workspace,
+            LookupKind::Policy,
+            "POL-AUTH-001",
+            &policy_target,
+        );
+
+        assert_eq!(policy_steps.len(), 4);
+        assert!(
+            !policy_steps
+                .iter()
+                .any(|step| step.contains("syu add requirement REQ-AUTH-001"))
+        );
+        assert!(
+            !policy_steps
+                .iter()
+                .any(|step| step.contains("syu add philosophy"))
         );
     }
 
