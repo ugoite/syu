@@ -31,12 +31,14 @@ verified.
 
 Pick the newcomer path that matches your familiarity and what you need next:
 
-- **Quick start**: stay in this README when you already know the four layers (or
-  the refresher below is enough) and you want the shortest install-to-validate
-  path.
+- **Quick start**: stay in this README when the in-page four-layer refresher is
+  enough and you want the shortest install-to-validate path.
+- **Getting started**: follow
+  [`docs/guide/getting-started.md`](docs/guide/getting-started.md) when you are
+  using `syu` for the first time and want the first workspace setup explained
+  step by step before the first validation run.
 - **Tutorial**: follow [`docs/guide/tutorial.md`](docs/guide/tutorial.md) when you
-  are using `syu` for the first time or want a realistic end-to-end repository
-  story instead of a short scaffold flow.
+  want a realistic end-to-end repository story instead of a short scaffold flow.
 - **Troubleshooting**: jump to
   [`docs/guide/troubleshooting.md`](docs/guide/troubleshooting.md) when you
   already have a workspace and validation or traceability errors are blocking

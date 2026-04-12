@@ -264,7 +264,8 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("docs/guide/tutorial.md"));
     assert!(readme.contains("docs/guide/troubleshooting.md"));
     assert!(readme.contains("shortest install-to-validate path"));
-    assert!(readme.contains("already know the four layers"));
+    assert!(readme.contains("the in-page four-layer refresher is"));
+    assert!(readme.contains("**Getting started**"));
     assert!(readme.contains("using `syu` for the first time"));
     assert!(readme.contains("already have a workspace"));
     assert!(readme.contains("[Why four layers?](#why-four-layers)"));
