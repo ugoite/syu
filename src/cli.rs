@@ -4,6 +4,7 @@
 // FEAT-SEARCH-001
 // FEAT-BROWSE-001
 // FEAT-BROWSE-002
+// FEAT-INIT-006
 // FEAT-INIT-005
 // FEAT-INIT-004
 // FEAT-INIT-003
@@ -31,6 +32,7 @@ const APP_AFTER_HELP: &str = concat!(
 const INIT_AFTER_HELP: &str = "\
 Examples:
   syu init .
+  syu init . --interactive
   syu init . --id-prefix store
   syu init . --template rust-only
   syu init . --spec-root docs/spec
@@ -357,6 +359,10 @@ pub struct InitArgs {
     #[arg(default_value = ".")]
     pub workspace: PathBuf,
 
+    #[arg(help = "Prompt for starter settings in a terminal before scaffolding files")]
+    #[arg(long, action = ArgAction::SetTrue)]
+    pub interactive: bool,
+
     #[arg(help = "Override the inferred project name")]
     #[arg(long)]
     pub name: Option<String>,
@@ -444,6 +450,17 @@ pub enum StarterTemplate {
     RustOnly,
     PythonOnly,
     Polyglot,
+}
+
+impl StarterTemplate {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Generic => "generic",
+            Self::RustOnly => "rust-only",
+            Self::PythonOnly => "python-only",
+            Self::Polyglot => "polyglot",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -588,6 +605,17 @@ mod tests {
         let rendered = format!("{cli:?}");
         assert!(rendered.contains("command: Some(Init("));
         assert!(rendered.contains("id_prefix: Some(\"store\")"));
+    }
+
+    #[test]
+    fn init_args_support_interactive_mode() {
+        let cli = Cli::try_parse_from(["syu", "init", ".", "--interactive"])
+            .expect("interactive init args should parse");
+
+        let rendered = format!("{cli:?}");
+        assert!(rendered.contains("command: Some(Init("));
+        assert!(rendered.contains("workspace: \".\""));
+        assert!(rendered.contains("interactive: true"));
     }
 
     #[test]

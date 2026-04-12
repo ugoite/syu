@@ -1,4 +1,5 @@
 // REQ-CORE-009
+// FEAT-INIT-006
 // FEAT-INIT-005
 // FEAT-INIT-004
 // FEAT-INIT-003
@@ -17,7 +18,14 @@ use crate::{
     coverage::normalize_relative_path,
 };
 
+use super::prompt::{
+    PromptIo, StdioPromptIo, ensure_prompt_terminal, prompt_bool, prompt_optional_with_default,
+    prompt_with_default,
+};
+
 const DEFAULT_SPEC_ROOT: &str = "docs/syu";
+const INIT_INTERACTIVE_NON_TTY_MESSAGE: &str =
+    "`syu init --interactive` requires a terminal to prompt for starter settings";
 
 #[cfg(test)]
 const GENERATED_PATHS: &[&str] = &[
@@ -35,6 +43,15 @@ struct StarterIdPrefixes {
     policy: String,
     requirement: String,
     feature: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ResolvedInitOptions {
+    project_name: String,
+    spec_root: PathBuf,
+    template: StarterTemplate,
+    id_prefixes: StarterIdPrefixes,
+    strict_validate_defaults: bool,
 }
 
 impl StarterIdPrefixes {
@@ -57,15 +74,21 @@ impl StarterIdPrefixes {
 
 // FEAT-INIT-001
 pub fn run_init_command(args: &InitArgs) -> Result<i32> {
-    let workspace = prepare_workspace_root(&args.workspace)?;
-    let project_name = args
-        .name
-        .clone()
-        .unwrap_or_else(|| infer_project_name(&workspace));
-    let spec_root = resolve_init_spec_root(args.spec_root.as_deref())?;
-    let id_prefixes = resolve_init_id_prefixes(args)?;
+    let mut prompt_io = StdioPromptIo;
+    run_init_command_with_prompt_io(args, &mut prompt_io)
+}
 
-    let files = scaffold_files(&project_name, &spec_root, args.template, &id_prefixes);
+fn run_init_command_with_prompt_io(args: &InitArgs, prompt_io: &mut impl PromptIo) -> Result<i32> {
+    let workspace = prepare_workspace_root(&args.workspace)?;
+    let resolved = resolve_init_options_with_prompt_io(args, &workspace, prompt_io)?;
+
+    let files = scaffold_files(
+        &resolved.project_name,
+        &resolved.spec_root,
+        resolved.template,
+        &resolved.id_prefixes,
+        resolved.strict_validate_defaults,
+    );
     ensure_writable_targets(
         &workspace,
         files.iter().map(|(path, _)| PathBuf::from(path)),
@@ -95,11 +118,15 @@ pub fn run_init_command(args: &InitArgs) -> Result<i32> {
         }
         OutputFormat::Text => {
             let workspace_arg = shell_quote_path(&workspace);
-            let absolute_spec_root = workspace.join(&spec_root);
-            let philosophy_path = spec_root.join("philosophy/foundation.yaml");
-            let policy_path = spec_root.join("policies/policies.yaml");
-            let requirement_path = spec_root.join(requirement_document_path(args.template));
-            let feature_path = spec_root.join(feature_document_path(args.template));
+            let absolute_spec_root = workspace.join(&resolved.spec_root);
+            let philosophy_path = resolved.spec_root.join("philosophy/foundation.yaml");
+            let policy_path = resolved.spec_root.join("policies/policies.yaml");
+            let requirement_path = resolved
+                .spec_root
+                .join(requirement_document_path(resolved.template));
+            let feature_path = resolved
+                .spec_root
+                .join(feature_document_path(resolved.template));
             println!("initialized syu workspace at {}", workspace.display());
             println!();
             println!("Created files:");
@@ -131,6 +158,100 @@ pub fn run_init_command(args: &InitArgs) -> Result<i32> {
     }
 
     Ok(0)
+}
+
+fn resolve_init_options_with_prompt_io(
+    args: &InitArgs,
+    workspace: &Path,
+    prompt_io: &mut impl PromptIo,
+) -> Result<ResolvedInitOptions> {
+    if !args.interactive {
+        let project_name = args
+            .name
+            .clone()
+            .unwrap_or_else(|| infer_project_name(workspace));
+        let spec_root = resolve_init_spec_root(args.spec_root.as_deref())?;
+        let template = args.template;
+        let id_prefixes = resolve_init_id_prefixes(
+            template,
+            args.id_prefix.as_deref(),
+            args.philosophy_prefix.as_deref(),
+            args.policy_prefix.as_deref(),
+            args.requirement_prefix.as_deref(),
+            args.feature_prefix.as_deref(),
+        )?;
+        return Ok(ResolvedInitOptions {
+            project_name,
+            spec_root,
+            template,
+            id_prefixes,
+            strict_validate_defaults: false,
+        });
+    }
+
+    ensure_prompt_terminal(prompt_io, INIT_INTERACTIVE_NON_TTY_MESSAGE)?;
+    let default_project_name = args
+        .name
+        .clone()
+        .unwrap_or_else(|| infer_project_name(workspace));
+    let project_name = prompt_with_default(prompt_io, "Project name", &default_project_name)?;
+    let template = prompt_for_starter_template(prompt_io, args.template)?;
+    let spec_root = prompt_for_spec_root(prompt_io, args.spec_root.as_deref())?;
+    let id_prefixes = resolve_interactive_id_prefixes(args, template, prompt_io)?;
+    let strict_validate_defaults =
+        prompt_bool(prompt_io, "Enable stricter validation defaults now?", false)?;
+
+    Ok(ResolvedInitOptions {
+        project_name,
+        spec_root,
+        template,
+        id_prefixes,
+        strict_validate_defaults,
+    })
+}
+
+fn prompt_for_starter_template(
+    prompt_io: &mut impl PromptIo,
+    default: StarterTemplate,
+) -> Result<StarterTemplate> {
+    let template_choices = "generic|rust-only|python-only|polyglot";
+    loop {
+        let raw = prompt_with_default(
+            prompt_io,
+            &format!("Starter template ({template_choices})"),
+            default.label(),
+        )?;
+        match parse_starter_template_prompt(&raw) {
+            Some(template) => return Ok(template),
+            None => eprintln!(
+                "Starter template must be one of: generic, rust-only, python-only, polyglot."
+            ),
+        }
+    }
+}
+
+fn parse_starter_template_prompt(raw: &str) -> Option<StarterTemplate> {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "generic" | "1" => Some(StarterTemplate::Generic),
+        "rust" | "rust-only" | "2" => Some(StarterTemplate::RustOnly),
+        "python" | "python-only" | "3" => Some(StarterTemplate::PythonOnly),
+        "polyglot" | "mixed" | "4" => Some(StarterTemplate::Polyglot),
+        _ => None,
+    }
+}
+
+fn prompt_for_spec_root(prompt_io: &mut impl PromptIo, current: Option<&Path>) -> Result<PathBuf> {
+    let default_spec_root = current
+        .unwrap_or_else(|| Path::new(DEFAULT_SPEC_ROOT))
+        .display()
+        .to_string();
+    loop {
+        let raw = prompt_with_default(prompt_io, "Spec root", &default_spec_root)?;
+        match resolve_init_spec_root(Some(Path::new(raw.as_str()))) {
+            Ok(spec_root) => return Ok(spec_root),
+            Err(error) => eprintln!("{error:#}"),
+        }
+    }
 }
 
 fn prepare_workspace_root(path: &Path) -> Result<PathBuf> {
@@ -196,8 +317,15 @@ fn ensure_writable_targets(
     bail!("refusing to overwrite existing files without --force: {paths}");
 }
 
-fn resolve_init_id_prefixes(args: &InitArgs) -> Result<StarterIdPrefixes> {
-    let mut prefixes = if let Some(stem) = args.id_prefix.as_deref() {
+fn resolve_init_id_prefixes(
+    template: StarterTemplate,
+    id_prefix: Option<&str>,
+    philosophy_prefix: Option<&str>,
+    policy_prefix: Option<&str>,
+    requirement_prefix: Option<&str>,
+    feature_prefix: Option<&str>,
+) -> Result<StarterIdPrefixes> {
+    let mut prefixes = if let Some(stem) = id_prefix {
         let stem = normalize_shared_id_stem(stem)?;
         StarterIdPrefixes {
             philosophy: format!("PHIL-{stem}"),
@@ -206,23 +334,56 @@ fn resolve_init_id_prefixes(args: &InitArgs) -> Result<StarterIdPrefixes> {
             feature: format!("FEAT-{stem}"),
         }
     } else {
-        default_id_prefixes(args.template)
+        default_id_prefixes(template)
     };
 
-    if let Some(prefix) = args.philosophy_prefix.as_deref() {
+    if let Some(prefix) = philosophy_prefix {
         prefixes.philosophy = normalize_typed_prefix(prefix, "PHIL", "--philosophy-prefix")?;
     }
-    if let Some(prefix) = args.policy_prefix.as_deref() {
+    if let Some(prefix) = policy_prefix {
         prefixes.policy = normalize_typed_prefix(prefix, "POL", "--policy-prefix")?;
     }
-    if let Some(prefix) = args.requirement_prefix.as_deref() {
+    if let Some(prefix) = requirement_prefix {
         prefixes.requirement = normalize_typed_prefix(prefix, "REQ", "--requirement-prefix")?;
     }
-    if let Some(prefix) = args.feature_prefix.as_deref() {
+    if let Some(prefix) = feature_prefix {
         prefixes.feature = normalize_typed_prefix(prefix, "FEAT", "--feature-prefix")?;
     }
 
     Ok(prefixes)
+}
+
+fn resolve_interactive_id_prefixes(
+    args: &InitArgs,
+    template: StarterTemplate,
+    prompt_io: &mut impl PromptIo,
+) -> Result<StarterIdPrefixes> {
+    if args.philosophy_prefix.is_some()
+        || args.policy_prefix.is_some()
+        || args.requirement_prefix.is_some()
+        || args.feature_prefix.is_some()
+    {
+        return resolve_init_id_prefixes(
+            template,
+            args.id_prefix.as_deref(),
+            args.philosophy_prefix.as_deref(),
+            args.policy_prefix.as_deref(),
+            args.requirement_prefix.as_deref(),
+            args.feature_prefix.as_deref(),
+        );
+    }
+
+    loop {
+        let shared_stem = prompt_optional_with_default(
+            prompt_io,
+            "Shared ID stem (optional)",
+            args.id_prefix.as_deref(),
+        )?;
+        match resolve_init_id_prefixes(template, shared_stem.as_deref(), None, None, None, None) {
+            Ok(prefixes) => return Ok(prefixes),
+            Err(error) => eprintln!("{error:#}"),
+        }
+    }
 }
 
 fn default_id_prefixes(template: StarterTemplate) -> StarterIdPrefixes {
@@ -301,11 +462,13 @@ fn scaffold_files(
     spec_root: &Path,
     template: StarterTemplate,
     id_prefixes: &StarterIdPrefixes,
+    strict_validate_defaults: bool,
 ) -> Vec<(String, String)> {
     vec![
         (
             "syu.yaml".to_string(),
-            render_default_config(spec_root).expect("config template should render"),
+            render_default_config(spec_root, strict_validate_defaults)
+                .expect("config template should render"),
         ),
         (
             path_label(&spec_root.join("philosophy/foundation.yaml")),
@@ -330,9 +493,12 @@ fn scaffold_files(
     ]
 }
 
-fn render_default_config(spec_root: &Path) -> Result<String> {
+fn render_default_config(spec_root: &Path, strict_validate_defaults: bool) -> Result<String> {
     let mut config = SyuConfig::default();
     config.spec.root = spec_root.to_path_buf();
+    if strict_validate_defaults {
+        config.validate.require_symbol_trace_coverage = true;
+    }
     render_config(&config)
 }
 
@@ -479,18 +645,41 @@ fn path_label(path: &Path) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
+    use std::{collections::VecDeque, fs};
 
     use tempfile::tempdir;
 
     use crate::cli::{InitArgs, StarterTemplate};
+    use crate::command::prompt::PromptIo;
 
     use super::{
         DEFAULT_SPEC_ROOT, GENERATED_PATHS, default_id_prefixes, ensure_writable_targets,
-        feature_document_path, feature_kind, infer_project_name, path_label,
-        requirement_document_path, resolve_init_id_prefixes, resolve_init_spec_root,
-        run_init_command, scaffold_files,
+        feature_document_path, feature_kind, infer_project_name, path_label, prompt_for_spec_root,
+        prompt_for_starter_template, requirement_document_path, resolve_init_id_prefixes,
+        resolve_init_options_with_prompt_io, resolve_init_spec_root, run_init_command,
+        run_init_command_with_prompt_io, scaffold_files,
     };
+
+    #[derive(Default)]
+    struct FakePromptIo {
+        terminal: bool,
+        lines: VecDeque<String>,
+        prompts: Vec<(String, Option<String>)>,
+    }
+
+    impl PromptIo for FakePromptIo {
+        fn is_terminal(&self) -> bool {
+            self.terminal
+        }
+
+        fn prompt_line(&mut self, label: &str, default: Option<&str>) -> anyhow::Result<String> {
+            self.prompts.push((
+                label.to_string(),
+                default.map(std::string::ToString::to_string),
+            ));
+            Ok(self.lines.pop_front().unwrap_or_default())
+        }
+    }
 
     #[test]
     fn infer_project_name_uses_workspace_directory() {
@@ -507,6 +696,7 @@ mod tests {
             std::path::Path::new(DEFAULT_SPEC_ROOT),
             StarterTemplate::Generic,
             &default_id_prefixes(StarterTemplate::Generic),
+            false,
         );
         let paths: Vec<_> = files.into_iter().map(|(path, _)| path).collect();
         assert_eq!(paths.len(), GENERATED_PATHS.len());
@@ -519,6 +709,7 @@ mod tests {
     fn resolve_init_id_prefixes_accepts_shared_stems_and_overrides() {
         let args = InitArgs {
             workspace: std::path::PathBuf::from("."),
+            interactive: false,
             name: None,
             spec_root: None,
             template: StarterTemplate::RustOnly,
@@ -531,7 +722,15 @@ mod tests {
             format: crate::cli::OutputFormat::Text,
         };
 
-        let prefixes = resolve_init_id_prefixes(&args).expect("prefixes should resolve");
+        let prefixes = resolve_init_id_prefixes(
+            args.template,
+            args.id_prefix.as_deref(),
+            args.philosophy_prefix.as_deref(),
+            args.policy_prefix.as_deref(),
+            args.requirement_prefix.as_deref(),
+            args.feature_prefix.as_deref(),
+        )
+        .expect("prefixes should resolve");
         assert_eq!(prefixes.philosophy, "PHIL-GUIDING");
         assert_eq!(prefixes.policy, "POL-GOVERNANCE");
         assert_eq!(prefixes.requirement, "REQ-AUTH");
@@ -542,6 +741,7 @@ mod tests {
     fn resolve_init_id_prefixes_rejects_full_prefixes_as_shared_stems() {
         let args = InitArgs {
             workspace: std::path::PathBuf::from("."),
+            interactive: false,
             name: None,
             spec_root: None,
             template: StarterTemplate::Generic,
@@ -554,7 +754,15 @@ mod tests {
             format: crate::cli::OutputFormat::Text,
         };
 
-        let error = resolve_init_id_prefixes(&args).expect_err("typed stems should be rejected");
+        let error = resolve_init_id_prefixes(
+            args.template,
+            args.id_prefix.as_deref(),
+            args.philosophy_prefix.as_deref(),
+            args.policy_prefix.as_deref(),
+            args.requirement_prefix.as_deref(),
+            args.feature_prefix.as_deref(),
+        )
+        .expect_err("typed stems should be rejected");
         assert!(error.to_string().contains("--id-prefix"));
     }
 
@@ -562,6 +770,7 @@ mod tests {
     fn resolve_init_id_prefixes_rejects_typed_overrides_without_expected_prefix() {
         let args = InitArgs {
             workspace: std::path::PathBuf::from("."),
+            interactive: false,
             name: None,
             spec_root: None,
             template: StarterTemplate::Generic,
@@ -574,8 +783,15 @@ mod tests {
             format: crate::cli::OutputFormat::Text,
         };
 
-        let error =
-            resolve_init_id_prefixes(&args).expect_err("typed overrides should require a prefix");
+        let error = resolve_init_id_prefixes(
+            args.template,
+            args.id_prefix.as_deref(),
+            args.philosophy_prefix.as_deref(),
+            args.policy_prefix.as_deref(),
+            args.requirement_prefix.as_deref(),
+            args.feature_prefix.as_deref(),
+        )
+        .expect_err("typed overrides should require a prefix");
         let message = error.to_string();
         assert!(message.contains("--philosophy-prefix"));
         assert!(message.contains("PHIL"));
@@ -585,6 +801,7 @@ mod tests {
     fn resolve_init_id_prefixes_rejects_invalid_override_tokens() {
         let args = InitArgs {
             workspace: std::path::PathBuf::from("."),
+            interactive: false,
             name: None,
             spec_root: None,
             template: StarterTemplate::Generic,
@@ -597,8 +814,15 @@ mod tests {
             format: crate::cli::OutputFormat::Text,
         };
 
-        let error = resolve_init_id_prefixes(&args)
-            .expect_err("invalid override tokens should be rejected");
+        let error = resolve_init_id_prefixes(
+            args.template,
+            args.id_prefix.as_deref(),
+            args.philosophy_prefix.as_deref(),
+            args.policy_prefix.as_deref(),
+            args.requirement_prefix.as_deref(),
+            args.feature_prefix.as_deref(),
+        )
+        .expect_err("invalid override tokens should be rejected");
         let message = error.to_string();
         assert!(message.contains("--feature-prefix"));
         assert!(message.contains("single hyphens"));
@@ -625,6 +849,7 @@ mod tests {
         let workspace = tempdir.path().join("demo");
         let args = InitArgs {
             workspace: workspace.clone(),
+            interactive: false,
             name: Some("demo".to_string()),
             spec_root: None,
             template: StarterTemplate::Generic,
@@ -656,6 +881,7 @@ mod tests {
 
         let args = InitArgs {
             workspace: tempdir.path().to_path_buf(),
+            interactive: false,
             name: Some("forced".to_string()),
             spec_root: None,
             template: StarterTemplate::Generic,
@@ -677,12 +903,134 @@ mod tests {
     }
 
     #[test]
+    fn interactive_init_requires_a_terminal() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        let workspace = tempdir.path().join("demo");
+        let mut prompt_io = FakePromptIo::default();
+        let error = resolve_init_options_with_prompt_io(
+            &InitArgs {
+                workspace,
+                interactive: true,
+                name: None,
+                spec_root: None,
+                template: StarterTemplate::Generic,
+                id_prefix: None,
+                philosophy_prefix: None,
+                policy_prefix: None,
+                requirement_prefix: None,
+                feature_prefix: None,
+                force: false,
+                format: crate::cli::OutputFormat::Text,
+            },
+            tempdir.path(),
+            &mut prompt_io,
+        )
+        .expect_err("interactive init should require a terminal");
+
+        assert!(
+            error
+                .to_string()
+                .contains("`syu init --interactive` requires a terminal")
+        );
+    }
+
+    #[test]
+    fn prompt_helpers_support_template_and_spec_root_guidance() {
+        let mut prompt_io = FakePromptIo {
+            terminal: true,
+            lines: VecDeque::from([
+                "rust".to_string(),
+                "../spec".to_string(),
+                "spec/contracts".to_string(),
+            ]),
+            ..Default::default()
+        };
+
+        let template = prompt_for_starter_template(&mut prompt_io, StarterTemplate::Generic)
+            .expect("template");
+        let spec_root = prompt_for_spec_root(&mut prompt_io, None).expect("spec root");
+
+        assert_eq!(template, StarterTemplate::RustOnly);
+        assert_eq!(spec_root, std::path::PathBuf::from("spec/contracts"));
+        assert_eq!(prompt_io.prompts.len(), 3);
+    }
+
+    #[test]
+    fn interactive_init_writes_strict_config_and_scaffold_choices() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        let workspace = tempdir.path().join("demo");
+        let mut prompt_io = FakePromptIo {
+            terminal: true,
+            lines: VecDeque::from([
+                String::new(),
+                "rust-only".to_string(),
+                "spec/contracts".to_string(),
+                "store".to_string(),
+                "yes".to_string(),
+            ]),
+            ..Default::default()
+        };
+
+        let code = run_init_command_with_prompt_io(
+            &InitArgs {
+                workspace: workspace.clone(),
+                interactive: true,
+                name: None,
+                spec_root: None,
+                template: StarterTemplate::Generic,
+                id_prefix: None,
+                philosophy_prefix: None,
+                policy_prefix: None,
+                requirement_prefix: None,
+                feature_prefix: None,
+                force: false,
+                format: crate::cli::OutputFormat::Text,
+            },
+            &mut prompt_io,
+        )
+        .expect("interactive init should succeed");
+
+        assert_eq!(code, 0);
+        let config = fs::read_to_string(workspace.join("syu.yaml")).expect("config should exist");
+        assert!(config.contains("root: spec/contracts"));
+        assert!(config.contains("allow_planned: true"));
+        assert!(config.contains("require_symbol_trace_coverage: true"));
+        let requirement =
+            fs::read_to_string(workspace.join("spec/contracts/requirements/core/rust.yaml"))
+                .expect("requirement should exist");
+        let feature =
+            fs::read_to_string(workspace.join("spec/contracts/features/languages/rust.yaml"))
+                .expect("feature should exist");
+        assert!(requirement.contains("REQ-STORE-001"));
+        assert!(feature.contains("FEAT-STORE-001"));
+        let validate_code = crate::command::check::run_check_command(&crate::cli::CheckArgs {
+            workspace: workspace.clone(),
+            format: crate::cli::OutputFormat::Json,
+            severity: Vec::new(),
+            genre: Vec::new(),
+            rule: Vec::new(),
+            id: Vec::new(),
+            fix: false,
+            no_fix: false,
+            allow_planned: None,
+            require_non_orphaned_items: None,
+            require_reciprocal_links: None,
+            require_symbol_trace_coverage: None,
+            quiet: false,
+        })
+        .expect("interactive init workspace should validate");
+        assert_eq!(validate_code, 0);
+        assert_eq!(prompt_io.prompts.len(), 5);
+    }
+
+    #[test]
     fn scaffold_files_default_to_planned_status() {
         let files = scaffold_files(
             "demo",
             std::path::Path::new(DEFAULT_SPEC_ROOT),
             StarterTemplate::Generic,
             &default_id_prefixes(StarterTemplate::Generic),
+            false,
         );
         let requirement = files
             .iter()
@@ -705,6 +1053,7 @@ mod tests {
 
         let error = run_init_command(&InitArgs {
             workspace: file_path.clone(),
+            interactive: false,
             name: None,
             spec_root: None,
             template: StarterTemplate::Generic,
@@ -733,6 +1082,7 @@ mod tests {
 
         let error = run_init_command(&InitArgs {
             workspace,
+            interactive: false,
             name: Some("demo".to_string()),
             spec_root: None,
             template: StarterTemplate::Generic,
@@ -758,6 +1108,7 @@ mod tests {
 
         let error = run_init_command(&InitArgs {
             workspace,
+            interactive: false,
             name: Some("demo".to_string()),
             spec_root: None,
             template: StarterTemplate::Generic,
@@ -780,6 +1131,7 @@ mod tests {
         let workspace = tempdir.path().join("demo");
         let args = InitArgs {
             workspace: workspace.clone(),
+            interactive: false,
             name: Some("demo".to_string()),
             spec_root: None,
             template: StarterTemplate::Generic,
@@ -811,7 +1163,13 @@ mod tests {
             StarterTemplate::PythonOnly,
             StarterTemplate::Polyglot,
         ] {
-            let files = scaffold_files("demo", spec_root, template, &default_id_prefixes(template));
+            let files = scaffold_files(
+                "demo",
+                spec_root,
+                template,
+                &default_id_prefixes(template),
+                false,
+            );
             let paths: Vec<_> = files.iter().map(|(path, _)| path.as_str()).collect();
             assert!(paths.contains(&"syu.yaml"));
             assert!(paths.contains(&"docs/syu/philosophy/foundation.yaml"));
@@ -837,6 +1195,7 @@ mod tests {
             spec_root,
             StarterTemplate::RustOnly,
             &default_id_prefixes(StarterTemplate::RustOnly),
+            false,
         );
         let paths: Vec<_> = files.iter().map(|(path, _)| path.as_str()).collect();
 

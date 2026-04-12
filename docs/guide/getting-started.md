@@ -124,6 +124,12 @@ Bootstrap a new project:
 syu init .
 ```
 
+Prefer a guided first run?
+
+```bash
+syu init . --interactive
+```
+
 Or scaffold another directory:
 
 ```bash
@@ -165,7 +171,9 @@ already expect. `--id-prefix` seeds a shared stem into all four starter IDs so
 the scaffold begins with `PHIL-STORE-001`, `POL-STORE-001`, `REQ-STORE-001`,
 and `FEAT-STORE-001` instead of the generic defaults. When one layer needs a
 different prefix, use `--philosophy-prefix`, `--policy-prefix`,
-`--requirement-prefix`, or `--feature-prefix`.
+`--requirement-prefix`, or `--feature-prefix`. `--interactive` asks those same
+questions in the terminal, including whether to enable stricter validation
+defaults immediately, then writes the same transparent checked-in files.
 
 Starter requirements and features begin as `status: planned`. Keep them planned
 until you are ready to declare real tests and implementation traces.
