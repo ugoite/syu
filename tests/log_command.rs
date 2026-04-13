@@ -129,6 +129,46 @@ fn write_fake_git_for_log_failure(script_dir: &Path) {
     }
 }
 
+fn write_fake_git_for_rev_list_failure(script_dir: &Path) {
+    let script_path = script_dir.join("git");
+    fs::write(
+        &script_path,
+        "#!/bin/sh\nset -eu\nworkspace=\"$2\"\ncommand_name=\"$3\"\nif [ \"$command_name\" = \"rev-parse\" ]; then\n  printf '%s\\n' \"$workspace\"\n  exit 0\nfi\nif [ \"$command_name\" = \"log\" ]; then\n  printf '\\036sha\\000short\\000author\\0002026-04-13T00:00:00+00:00\\000subject\\000src/history_tests.rs\\000'\n  exit 0\nfi\nif [ \"$command_name\" = \"rev-list\" ]; then\n  echo 'synthetic git rev-list failure' >&2\n  exit 1\nfi\necho 'unexpected git invocation' >&2\nexit 1\n",
+    )
+    .expect("fake git script");
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        let mut permissions = fs::metadata(&script_path)
+            .expect("fake git metadata")
+            .permissions();
+        permissions.set_mode(0o755);
+        fs::set_permissions(&script_path, permissions).expect("fake git permissions");
+    }
+}
+
+fn write_fake_git_for_rev_list_spawn_failure(script_dir: &Path) {
+    let script_path = script_dir.join("git");
+    fs::write(
+        &script_path,
+        "#!/bin/sh\nset -eu\nworkspace=\"$2\"\ncommand_name=\"$3\"\nif [ \"$command_name\" = \"rev-parse\" ]; then\n  printf '%s\\n' \"$workspace\"\n  exit 0\nfi\nif [ \"$command_name\" = \"log\" ]; then\n  printf '\\036sha\\000short\\000author\\0002026-04-13T00:00:00+00:00\\000subject\\000src/history_tests.rs\\000'\n  /bin/rm -- \"$0\"\n  exit 0\nfi\necho 'unexpected git invocation' >&2\nexit 1\n",
+    )
+    .expect("fake git script");
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        let mut permissions = fs::metadata(&script_path)
+            .expect("fake git metadata")
+            .permissions();
+        permissions.set_mode(0o755);
+        fs::set_permissions(&script_path, permissions).expect("fake git permissions");
+    }
+}
+
 #[test]
 fn log_command_renders_requirement_definition_and_test_history() {
     let workspace = write_history_workspace();
@@ -204,6 +244,23 @@ fn log_command_supports_json_kind_and_path_filters() {
         json["commits"][1]["summary"],
         "chore: initial history fixture"
     );
+}
+
+#[test]
+fn log_command_rejects_ids_without_supported_prefixes() {
+    let workspace = write_history_workspace();
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .args([
+            "log",
+            "NOTE-HIST-001",
+            workspace.path().to_str().expect("utf8 path"),
+        ])
+        .output()
+        .expect("command should run");
+
+    assert_eq!(output.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("was not found"));
 }
 
 #[test]
@@ -326,6 +383,38 @@ fn log_command_rejects_ambiguous_duplicate_ids() {
     assert!(stderr.contains("ambiguous because it appears in multiple documents"));
     assert!(stderr.contains("docs/syu/requirements/core.yaml"));
     assert!(stderr.contains("docs/syu/requirements/duplicate.yaml"));
+}
+
+#[test]
+fn log_command_respects_limit_after_ordering_history() {
+    let workspace = write_history_workspace();
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .args([
+            "log",
+            "FEAT-HIST-001",
+            workspace.path().to_str().expect("utf8 path"),
+            "--kind",
+            "implementation",
+            "--limit",
+            "1",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("command should run");
+
+    assert!(
+        output.status.success(),
+        "stdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let json: Value = serde_json::from_slice(&output.stdout).expect("output should be valid JSON");
+    let commits = json["commits"].as_array().expect("commit array");
+    assert_eq!(commits.len(), 1);
+    assert_eq!(commits[0]["summary"], "feat: update traced implementation");
 }
 
 #[test]
@@ -490,6 +579,8 @@ fn log_command_reports_git_log_failures() {
             "log",
             "REQ-HIST-001",
             workspace.path().to_str().expect("utf8 path"),
+            "--kind",
+            "definition",
         ])
         .output()
         .expect("command should run");
@@ -502,6 +593,60 @@ fn log_command_reports_git_log_failures() {
     assert!(
         String::from_utf8_lossy(&output.stderr).contains("synthetic git log failure"),
         "stderr should preserve git stderr"
+    );
+}
+
+#[test]
+fn log_command_reports_git_rev_list_failures() {
+    let workspace = write_history_workspace();
+    let fake_bin = tempdir().expect("tempdir should exist");
+    write_fake_git_for_rev_list_failure(fake_bin.path());
+
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .env("PATH", fake_bin.path())
+        .args([
+            "log",
+            "REQ-HIST-001",
+            workspace.path().to_str().expect("utf8 path"),
+            "--kind",
+            "definition",
+        ])
+        .output()
+        .expect("command should run");
+
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("failed to read git history order"));
+    assert!(stderr.contains("synthetic git rev-list failure"));
+}
+
+#[test]
+fn log_command_reports_git_rev_list_spawn_errors() {
+    let workspace = write_history_workspace();
+    let fake_bin = tempdir().expect("tempdir should exist");
+    write_fake_git_for_rev_list_spawn_failure(fake_bin.path());
+
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .env("PATH", fake_bin.path())
+        .args([
+            "log",
+            "REQ-HIST-001",
+            workspace.path().to_str().expect("utf8 path"),
+            "--kind",
+            "definition",
+        ])
+        .output()
+        .expect("command should run");
+
+    assert_eq!(output.status.code(), Some(2));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let combined = format!("{stdout}{stderr}");
+    assert!(
+        combined.contains("failed to run `git rev-list`"),
+        "stdout:\n{stdout}\nstderr:\n{stderr}"
     );
 }
 

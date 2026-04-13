@@ -439,11 +439,12 @@ fn order_commits_by_repository_history(
     let mut commits = Vec::new();
 
     for sha in ordered_shas {
-        if let Some(commit) = commits_by_sha.remove(&sha) {
-            commits.push(commit);
-            if commits.len() == limit {
-                return Ok(commits);
-            }
+        let commit = commits_by_sha
+            .remove(&sha)
+            .expect("rev-list order should only include known SHAs");
+        commits.push(commit);
+        if commits.len() == limit {
+            return Ok(commits);
         }
     }
 
@@ -615,13 +616,23 @@ impl TrackedPath {
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
-    use std::path::{Path, PathBuf};
+    use std::{
+        fs,
+        path::{Path, PathBuf},
+        process::Command,
+    };
 
-    use crate::model::{Feature, Requirement, TraceReference};
+    use tempfile::tempdir;
+
+    use crate::{
+        cli::LookupKind,
+        model::{Feature, Requirement, TraceReference},
+    };
 
     use super::{
         HistoryKind, MatchedCommit, TrackedPath, collect_trace_paths, load_git_history,
-        normalize_path_filter, parse_git_history, render_history_text, tracked_paths_for_feature,
+        lookup_kind_for_id, normalize_path_filter, order_commits_by_repository_history,
+        parse_git_history, render_history_text, tracked_paths_for_feature,
         tracked_paths_for_requirement,
     };
 
@@ -653,6 +664,27 @@ mod tests {
         let error = normalize_path_filter(Path::new("/repo"), Path::new("../src/log.rs"))
             .expect_err("parent paths should be rejected");
         assert!(error.to_string().contains("must stay inside workspace"));
+    }
+
+    #[test]
+    fn lookup_kind_for_id_handles_supported_prefixes_and_unknowns() {
+        assert!(matches!(
+            lookup_kind_for_id("PHIL-001"),
+            Some(LookupKind::Philosophy)
+        ));
+        assert!(matches!(
+            lookup_kind_for_id("POL-001"),
+            Some(LookupKind::Policy)
+        ));
+        assert!(matches!(
+            lookup_kind_for_id("REQ-001"),
+            Some(LookupKind::Requirement)
+        ));
+        assert!(matches!(
+            lookup_kind_for_id("FEAT-001"),
+            Some(LookupKind::Feature)
+        ));
+        assert!(lookup_kind_for_id("NOTE-001").is_none());
     }
 
     #[test]
@@ -755,6 +787,43 @@ mod tests {
     }
 
     #[test]
+    fn order_commits_by_repository_history_falls_back_when_rev_list_misses_commits() {
+        let repo = tempdir().expect("tempdir should exist");
+        init_test_git_repository(repo.path());
+
+        let commits = BTreeMap::from([
+            (
+                "missing-old".to_string(),
+                MatchedCommit {
+                    sha: "missing-old".to_string(),
+                    short_sha: "missing-old".to_string(),
+                    summary: "old".to_string(),
+                    author: "Tester".to_string(),
+                    authored_at: "2026-04-13T00:00:00+00:00".to_string(),
+                    reasons: vec![TrackedPath::definition("docs/old.yaml")],
+                },
+            ),
+            (
+                "missing-new".to_string(),
+                MatchedCommit {
+                    sha: "missing-new".to_string(),
+                    short_sha: "missing-new".to_string(),
+                    summary: "new".to_string(),
+                    author: "Tester".to_string(),
+                    authored_at: "2026-04-13T01:00:00+00:00".to_string(),
+                    reasons: vec![TrackedPath::definition("docs/new.yaml")],
+                },
+            ),
+        ]);
+
+        let ordered = order_commits_by_repository_history(repo.path(), commits, 10)
+            .expect("fallback ordering should succeed");
+        assert_eq!(ordered.len(), 2);
+        assert_eq!(ordered[0].sha, "missing-new");
+        assert_eq!(ordered[1].sha, "missing-old");
+    }
+
+    #[test]
     fn parse_git_history_rejects_malformed_records() {
         let error = parse_git_history(b"\x1ebad-record\x00")
             .expect_err("malformed git records should be rejected");
@@ -852,5 +921,24 @@ mod tests {
             }],
         );
         traces
+    }
+
+    fn init_test_git_repository(path: &Path) {
+        fs::write(path.join("README.md"), "seed\n").expect("seed file should write");
+        git(path, &["init"]);
+        git(path, &["config", "user.name", "Test User"]);
+        git(path, &["config", "user.email", "test@example.com"]);
+        git(path, &["add", "."]);
+        git(path, &["commit", "-m", "chore: seed"]);
+    }
+
+    fn git(path: &Path, args: &[&str]) {
+        let output = Command::new("git")
+            .arg("-C")
+            .arg(path)
+            .args(args)
+            .output()
+            .expect("git should run");
+        assert!(output.status.success(), "git {:?} failed", args);
     }
 }
