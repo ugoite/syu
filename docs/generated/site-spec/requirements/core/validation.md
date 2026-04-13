@@ -90,17 +90,20 @@ description: "Generated reference for docs/syu/requirements/core/validation.yaml
     - |
       The `validate` command MUST verify requirement-to-test and
       feature-to-implementation traceability in the languages used by `syu`
-      today: Rust, Python, and TypeScript/JavaScript. A declared trace is valid
-      only when the file exists, the symbol exists, the trace path uses canonical
-      repository-relative form, the file explicitly mentions the owning ID, and
-      any `doc_contains` snippets are present in the symbol documentation.
+      today: Rust, Python, Go, and TypeScript/JavaScript. A declared trace is
+      valid only when the file exists, the symbol exists, the trace path uses
+      canonical repository-relative form, the file explicitly mentions the
+      owning ID, and any `doc_contains` snippets are present in the symbol
+      documentation when the declared language supports rich inspection.
       Validation MUST also reject duplicate trace mappings inside a single
       language list, support wildcard file ownership, and provide an optional
-      mode that requires every public symbol (non-underscore-prefixed for Python,
-      `pub` for Rust, exported for TypeScript/JavaScript) and every test symbol
-      (`test_*` functions for Python, `#[test]` for Rust, `test*`-prefixed
-      functions for TypeScript/JavaScript) in repository source and test roots
-      to belong to some feature or requirement respectively.
+      mode that requires every public symbol (non-underscore-prefixed for
+      Python, exported identifiers for Go, `pub` for Rust, exported for
+      TypeScript/JavaScript) and every test symbol (`test_*` functions for
+      Python, `Test*` functions in Go `_test.go` files, `#[test]` for Rust,
+      `test*`-prefixed functions for TypeScript/JavaScript) in repository
+      source and test roots to belong to some feature or requirement
+      respectively.
   - **priority**: high
   - **status**: implemented
   - **linked_policies**:
@@ -145,6 +148,10 @@ description: "Generated reference for docs/syu/requirements/core/validation.yaml
       - **file**: tests/fixtures/workspaces/passing/python/test_traceability.py
         - **symbols**:
           - test_req_trace_py
+    - **go**:
+      - **file**: tests/fixtures/workspaces/passing/go/traceability_test.go
+        - **symbols**:
+          - TestReqTraceGo
     - **typescript**:
       - **file**: tests/fixtures/workspaces/passing/frontend/test_traceability.ts
         - **symbols**:
@@ -278,17 +285,20 @@ requirements:
     description: |
       The `validate` command MUST verify requirement-to-test and
       feature-to-implementation traceability in the languages used by `syu`
-      today: Rust, Python, and TypeScript/JavaScript. A declared trace is valid
-      only when the file exists, the symbol exists, the trace path uses canonical
-      repository-relative form, the file explicitly mentions the owning ID, and
-      any `doc_contains` snippets are present in the symbol documentation.
+      today: Rust, Python, Go, and TypeScript/JavaScript. A declared trace is
+      valid only when the file exists, the symbol exists, the trace path uses
+      canonical repository-relative form, the file explicitly mentions the
+      owning ID, and any `doc_contains` snippets are present in the symbol
+      documentation when the declared language supports rich inspection.
       Validation MUST also reject duplicate trace mappings inside a single
       language list, support wildcard file ownership, and provide an optional
-      mode that requires every public symbol (non-underscore-prefixed for Python,
-      `pub` for Rust, exported for TypeScript/JavaScript) and every test symbol
-      (`test_*` functions for Python, `#[test]` for Rust, `test*`-prefixed
-      functions for TypeScript/JavaScript) in repository source and test roots
-      to belong to some feature or requirement respectively.
+      mode that requires every public symbol (non-underscore-prefixed for
+      Python, exported identifiers for Go, `pub` for Rust, exported for
+      TypeScript/JavaScript) and every test symbol (`test_*` functions for
+      Python, `Test*` functions in Go `_test.go` files, `#[test]` for Rust,
+      `test*`-prefixed functions for TypeScript/JavaScript) in repository
+      source and test roots to belong to some feature or requirement
+      respectively.
     priority: high
     status: implemented
     linked_policies:
@@ -333,6 +343,10 @@ requirements:
         - file: tests/fixtures/workspaces/passing/python/test_traceability.py
           symbols:
             - test_req_trace_py
+      go:
+        - file: tests/fixtures/workspaces/passing/go/traceability_test.go
+          symbols:
+            - TestReqTraceGo
       typescript:
         - file: tests/fixtures/workspaces/passing/frontend/test_traceability.ts
           symbols:

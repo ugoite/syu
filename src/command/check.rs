@@ -1962,16 +1962,16 @@ fn verify_trace_reference(
     let subject = format!("{} {}", role.subject_kind(), owner_id);
     let Some(adapter) = adapter_for_language(language) else {
         issues.push(Issue::error(
-            "SYU-trace-language-001",
-            subject,
-            Some(format_reference_location(language, reference)),
-            format!(
-                "Language `{language}` is not supported. Built-in adapters currently cover Rust, Python, TypeScript, Shell, YAML, JSON, Markdown, and Gitignore."
-            ),
-            Some(format!(
-                "Use a supported language alias such as `rust`, `python`, `typescript`, `shell`, `yaml`, `json`, `markdown`, or `gitignore` for `{owner_id}`."
-            )),
-        ));
+                "SYU-trace-language-001",
+                subject,
+                Some(format_reference_location(language, reference)),
+                format!(
+                    "Language `{language}` is not supported. Built-in adapters currently cover Rust, Python, Go, TypeScript, Shell, YAML, JSON, Markdown, and Gitignore."
+                ),
+                Some(format!(
+                    "Use a supported language alias such as `rust`, `python`, `go`, `typescript`, `shell`, `yaml`, `json`, `markdown`, or `gitignore` for `{owner_id}`."
+                )),
+            ));
         return false;
     };
 
@@ -3285,9 +3285,9 @@ mod tests {
         let mut entry = requirement("REQ-1");
         entry.status = "proposed".to_string();
         entry.tests.insert(
-            "go".to_string(),
+            "ruby".to_string(),
             vec![TraceReference {
-                file: PathBuf::from("trace.go"),
+                file: PathBuf::from("trace.rb"),
                 symbols: vec!["trace".to_string()],
                 doc_contains: Vec::new(),
             }],
@@ -3475,7 +3475,7 @@ mod tests {
     #[test]
     fn verify_trace_reference_reports_unsupported_languages() {
         let reference = TraceReference {
-            file: PathBuf::from("test.go"),
+            file: PathBuf::from("test.rb"),
             symbols: vec!["main".to_string()],
             doc_contains: Vec::new(),
         };
@@ -3485,7 +3485,7 @@ mod tests {
             &SyuConfig::default(),
             "REQ-1",
             TraceRole::RequirementTest,
-            "go",
+            "ruby",
             &reference,
             &mut issues,
         ));
@@ -3720,6 +3720,34 @@ mod tests {
     }
 
     #[test]
+    fn verify_trace_reference_accepts_valid_go_files() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        let path = tempdir.path().join("feature_trace.go");
+        fs::write(
+            &path,
+            "// FEAT-TRACE-004\npackage traceability\n\nfunc FeatureTraceGo() {}\n",
+        )
+        .expect("file should exist");
+
+        let reference = TraceReference {
+            file: PathBuf::from("feature_trace.go"),
+            symbols: vec!["FeatureTraceGo".to_string()],
+            doc_contains: Vec::new(),
+        };
+        let mut issues = Vec::new();
+        assert!(verify_trace_reference(
+            tempdir.path(),
+            &SyuConfig::default(),
+            "FEAT-TRACE-004",
+            TraceRole::FeatureImplementation,
+            "go",
+            &reference,
+            &mut issues,
+        ));
+        assert!(issues.is_empty());
+    }
+
+    #[test]
     fn verify_trace_reference_accepts_valid_gitignore_files() {
         let tempdir = tempdir().expect("tempdir should exist");
         let path = tempdir.path().join(".gitignore");
@@ -3860,9 +3888,9 @@ mod tests {
             root,
             &SyuConfig::default(),
             "REQ-1",
-            "go",
+            "ruby",
             &TraceReference {
-                file: PathBuf::from("trace.go"),
+                file: PathBuf::from("trace.rb"),
                 symbols: vec!["expected".to_string()],
                 doc_contains: vec!["Explain expected".to_string()],
             },

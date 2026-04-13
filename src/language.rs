@@ -43,6 +43,9 @@ struct PythonAdapter;
 struct TypeScriptAdapter;
 
 #[derive(Debug)]
+struct GoAdapter;
+
+#[derive(Debug)]
 struct ShellAdapter;
 
 #[derive(Debug)]
@@ -60,6 +63,7 @@ struct GitignoreAdapter;
 static RUST_ADAPTER: RustAdapter = RustAdapter;
 static PYTHON_ADAPTER: PythonAdapter = PythonAdapter;
 static TYPESCRIPT_ADAPTER: TypeScriptAdapter = TypeScriptAdapter;
+static GO_ADAPTER: GoAdapter = GoAdapter;
 static SHELL_ADAPTER: ShellAdapter = ShellAdapter;
 static YAML_ADAPTER: YamlAdapter = YamlAdapter;
 static JSON_ADAPTER: JsonAdapter = JsonAdapter;
@@ -142,6 +146,30 @@ impl LanguageAdapter for TypeScriptAdapter {
         vec![
             format!(r"(?m)\b(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s+{escaped}\b"),
             format!(r"(?m)\b(?:export\s+)?(?:const|let|var|class|interface|type)\s+{escaped}\b"),
+            format!(r"(?m)\b{escaped}\b"),
+        ]
+    }
+}
+
+impl LanguageAdapter for GoAdapter {
+    fn canonical_name(&self) -> &'static str {
+        "go"
+    }
+
+    fn aliases(&self) -> &'static [&'static str] {
+        &["go", "golang"]
+    }
+
+    fn extensions(&self) -> &'static [&'static str] {
+        &["go"]
+    }
+
+    fn patterns(&self, symbol: &str) -> Vec<String> {
+        let escaped = regex::escape(symbol);
+        vec![
+            format!(r"(?m)\bfunc\s+(?:\([^)]*\)\s*)?{escaped}\b"),
+            format!(r"(?m)\btype\s+{escaped}\b"),
+            format!(r"(?m)\b(?:const|var)\s+{escaped}\b"),
             format!(r"(?m)\b{escaped}\b"),
         ]
     }
@@ -260,6 +288,7 @@ pub fn adapter_for_language(language: &str) -> Option<&'static dyn LanguageAdapt
         &RUST_ADAPTER as &dyn LanguageAdapter,
         &PYTHON_ADAPTER as &dyn LanguageAdapter,
         &TYPESCRIPT_ADAPTER as &dyn LanguageAdapter,
+        &GO_ADAPTER as &dyn LanguageAdapter,
         &SHELL_ADAPTER as &dyn LanguageAdapter,
         &YAML_ADAPTER as &dyn LanguageAdapter,
         &JSON_ADAPTER as &dyn LanguageAdapter,
@@ -298,6 +327,10 @@ mod tests {
             Some("typescript")
         );
         assert_eq!(
+            adapter_for_language("golang").map(LanguageAdapter::canonical_name),
+            Some("go")
+        );
+        assert_eq!(
             adapter_for_language("bash").map(LanguageAdapter::canonical_name),
             Some("shell")
         );
@@ -324,6 +357,7 @@ mod tests {
     fn adapters_match_supported_extensions() {
         let rust = adapter_for_language("rust").expect("rust adapter should exist");
         let shell = adapter_for_language("shell").expect("shell adapter should exist");
+        let go = adapter_for_language("go").expect("go adapter should exist");
         let yaml = adapter_for_language("yaml").expect("yaml adapter should exist");
         let json = adapter_for_language("json").expect("json adapter should exist");
         let markdown = adapter_for_language("markdown").expect("markdown adapter should exist");
@@ -332,6 +366,7 @@ mod tests {
         assert!(rust.supports_path(Path::new("src/lib.rs")));
         assert!(!rust.supports_path(Path::new("src/lib.py")));
         assert!(shell.supports_path(Path::new("scripts/install-syu.sh")));
+        assert!(go.supports_path(Path::new("cmd/syu/main.go")));
         assert!(yaml.supports_path(Path::new(".github/workflows/ci.yml")));
         assert!(json.supports_path(Path::new("release-please-config.json")));
         assert!(markdown.supports_path(Path::new("README.md")));
@@ -348,6 +383,7 @@ mod tests {
         let python = adapter_for_language("python").expect("python adapter should exist");
         let typescript =
             adapter_for_language("typescript").expect("typescript adapter should exist");
+        let go = adapter_for_language("go").expect("go adapter should exist");
         let shell = adapter_for_language("shell").expect("shell adapter should exist");
         let yaml = adapter_for_language("yaml").expect("yaml adapter should exist");
         let json = adapter_for_language("json").expect("json adapter should exist");
@@ -359,6 +395,22 @@ mod tests {
         assert!(typescript.symbol_exists(
             "export function featureTraceTs(): boolean { return true; }",
             "featureTraceTs"
+        ));
+        assert!(go.symbol_exists(
+            "package trace\n\nfunc FeatureTraceGo() {}\n",
+            "FeatureTraceGo"
+        ));
+        assert!(go.symbol_exists(
+            "package trace\n\ntype TraceService interface { Run() }\n",
+            "TraceService"
+        ));
+        assert!(go.symbol_exists(
+            "package trace\n\ntype Server struct{}\n\nfunc (s *Server) Start() {}\n",
+            "Start"
+        ));
+        assert!(go.symbol_exists(
+            "package trace\n\nimport \"testing\"\n\nfunc TestTraceCoverage(t *testing.T) {}\n",
+            "TestTraceCoverage"
         ));
         assert!(shell.symbol_exists("install_syu() {\n  echo ok\n}\n", "install_syu"));
         assert!(yaml.symbol_exists("name: CI\njobs:\n  quality:\n", "quality"));
