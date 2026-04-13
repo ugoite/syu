@@ -622,7 +622,6 @@ fn apply_autofix(workspace: &Workspace) -> Result<AutofixSummary> {
         if let Err(error) = apply_autofix_for_trace_map(
             &workspace.root,
             &workspace.config,
-            &requirement.id,
             &requirement.tests,
             &mut summary,
         ) {
@@ -637,7 +636,6 @@ fn apply_autofix(workspace: &Workspace) -> Result<AutofixSummary> {
         if let Err(error) = apply_autofix_for_trace_map(
             &workspace.root,
             &workspace.config,
-            &feature.id,
             &feature.implementations,
             &mut summary,
         ) {
@@ -652,14 +650,13 @@ fn apply_autofix(workspace: &Workspace) -> Result<AutofixSummary> {
 fn apply_autofix_for_trace_map(
     root: &Path,
     config: &SyuConfig,
-    owner_id: &str,
     references_by_language: &BTreeMap<String, Vec<TraceReference>>,
     summary: &mut AutofixSummary,
 ) -> Result<()> {
     for (language, references) in references_by_language {
         for reference in references {
             if let Err(error) =
-                apply_autofix_for_reference(root, config, owner_id, language, reference, summary)
+                apply_autofix_for_reference(root, config, language, reference, summary)
             {
                 return Err(error);
             }
@@ -672,7 +669,6 @@ fn apply_autofix_for_trace_map(
 fn apply_autofix_for_reference(
     root: &Path,
     config: &SyuConfig,
-    owner_id: &str,
     language: &str,
     reference: &TraceReference,
     summary: &mut AutofixSummary,
@@ -703,10 +699,7 @@ fn apply_autofix_for_reference(
         .map(|symbol| symbol.trim())
         .filter(|symbol| !symbol.is_empty() && *symbol != "*")
     {
-        let mut required = reference.doc_contains.clone();
-        if !contents.contains(owner_id) {
-            required.push(owner_id.to_string());
-        }
+        let required = reference.doc_contains.clone();
         if required.is_empty() {
             continue;
         }
@@ -2078,25 +2071,6 @@ fn verify_trace_reference(
             return false;
         }
     };
-
-    if !contents.contains(owner_id) {
-        issues.push(Issue::error(
-            "SYU-trace-id-001",
-            subject.clone(),
-            Some(format_reference_location(language, reference)),
-            format!(
-                "Declared {} file `{}` does not mention `{owner_id}`.",
-                role.label(),
-                display_path.display()
-            ),
-            Some(format!(
-                "Add `{owner_id}` to `{}` so the {} remains explicitly traceable.",
-                display_path.display(),
-                role.label()
-            )),
-        ));
-        success = false;
-    }
 
     if reference.symbols.is_empty() {
         issues.push(Issue::error(
@@ -3603,7 +3577,7 @@ mod tests {
     }
 
     #[test]
-    fn verify_trace_reference_reports_extension_id_and_blank_symbol_errors() {
+    fn verify_trace_reference_reports_extension_and_blank_symbol_errors() {
         let tempdir = tempdir().expect("tempdir should exist");
         let path = tempdir.path().join("trace.txt");
         fs::write(&path, "fn unrelated() {}\n").expect("file should exist");
@@ -3629,7 +3603,6 @@ mod tests {
                 .iter()
                 .any(|issue| issue.code == "SYU-trace-extension-001")
         );
-        assert!(issues.iter().any(|issue| issue.code == "SYU-trace-id-001"));
         assert!(
             issues
                 .iter()
@@ -3637,6 +3610,36 @@ mod tests {
                 .count()
                 >= 1
         );
+    }
+
+    #[test]
+    fn trace_role_labels_cover_both_variants() {
+        assert_eq!(TraceRole::RequirementTest.label(), "test");
+        assert_eq!(TraceRole::FeatureImplementation.label(), "implementation");
+    }
+
+    #[test]
+    fn verify_trace_reference_accepts_files_without_owner_id_mentions() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        let path = tempdir.path().join("trace.rs");
+        fs::write(&path, "fn expected_symbol() {}\n").expect("file should exist");
+
+        let reference = TraceReference {
+            file: PathBuf::from("trace.rs"),
+            symbols: vec!["expected_symbol".to_string()],
+            doc_contains: Vec::new(),
+        };
+        let mut issues = Vec::new();
+        assert!(verify_trace_reference(
+            tempdir.path(),
+            &SyuConfig::default(),
+            "REQ-1",
+            TraceRole::RequirementTest,
+            "rust",
+            &reference,
+            &mut issues,
+        ));
+        assert!(issues.is_empty(), "issues: {issues:#?}");
     }
 
     #[test]
@@ -3859,7 +3862,6 @@ mod tests {
         apply_autofix_for_reference(
             root,
             &SyuConfig::default(),
-            "REQ-1",
             "go",
             &TraceReference {
                 file: PathBuf::from("trace.go"),
@@ -3873,7 +3875,6 @@ mod tests {
         apply_autofix_for_reference(
             root,
             &SyuConfig::default(),
-            "REQ-1",
             "rust",
             &TraceReference {
                 file: PathBuf::from("trace.rs"),
@@ -3887,7 +3888,6 @@ mod tests {
         apply_autofix_for_reference(
             root,
             &SyuConfig::default(),
-            "REQ-1",
             "rust",
             &TraceReference {
                 file: PathBuf::from("missing.rs"),
@@ -3903,7 +3903,6 @@ mod tests {
         apply_autofix_for_reference(
             root,
             &SyuConfig::default(),
-            "REQ-1",
             "rust",
             &TraceReference {
                 file: PathBuf::from("nested"),
@@ -3915,12 +3914,10 @@ mod tests {
         .expect("directories should be ignored");
 
         let no_update_path = root.join("trace.rs");
-        fs::write(&no_update_path, "/// REQ-1\npub fn expected() {}\n")
-            .expect("trace file should exist");
+        fs::write(&no_update_path, "pub fn expected() {}\n").expect("trace file should exist");
         apply_autofix_for_reference(
             root,
             &SyuConfig::default(),
-            "REQ-1",
             "rust",
             &TraceReference {
                 file: PathBuf::from("trace.rs"),
@@ -3983,12 +3980,12 @@ mod tests {
         assert_eq!(summary.updated_files.len(), 2);
         let requirement_contents =
             fs::read_to_string(root.join("requirement.rs")).expect("requirement contents");
-        assert!(requirement_contents.contains("REQ-1"));
         assert!(requirement_contents.contains("Requirement docs"));
+        assert!(!requirement_contents.contains("REQ-1"));
         let feature_contents =
             fs::read_to_string(root.join("feature.rs")).expect("feature contents");
-        assert!(feature_contents.contains("FEAT-1"));
         assert!(feature_contents.contains("Feature docs"));
+        assert!(!feature_contents.contains("FEAT-1"));
     }
 
     #[test]
@@ -4147,7 +4144,6 @@ mod tests {
         apply_autofix_for_reference(
             tempdir.path(),
             &SyuConfig::default(),
-            "REQ-1",
             "rust",
             &TraceReference {
                 file: PathBuf::from("trace.rs"),
@@ -4177,7 +4173,6 @@ mod tests {
         let result = apply_autofix_for_reference(
             tempdir.path(),
             &SyuConfig::default(),
-            "REQ-1",
             "rust",
             &TraceReference {
                 file: PathBuf::from("trace.rs"),
