@@ -275,12 +275,12 @@ Requirements should declare tests:
 ```yaml
 status: implemented
 tests:
-      rust:
-        - file: src/trace.rs
-          symbols:
-            - requirement_test   # name of the test function
-          doc_contains:
-            - checksum mismatch is rejected
+  rust:
+    - file: src/trace.rs
+      symbols:
+        - requirement_test   # name of the test function
+      doc_contains:
+        - checksum mismatch is rejected
 ```
 
 Features should declare implementations:
