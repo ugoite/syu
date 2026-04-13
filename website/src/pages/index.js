@@ -28,6 +28,12 @@ const layers = [
 
 const journeys = [
   {
+    title: 'Avoid spec anti-patterns',
+    description:
+      'Learn the common bad-but-valid four-layer shapes before a green spec turns into a painful rewrite.',
+    to: '/docs/guide/anti-patterns'
+  },
+  {
     title: 'Start a workspace',
     description: 'Scaffold a project, fill in the layered spec, and run validate without guessing the layout.',
     to: '/docs/guide/getting-started'

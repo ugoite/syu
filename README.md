@@ -44,6 +44,7 @@ Keep the detailed guides close:
 
 - [`docs/guide/concepts.md`](docs/guide/concepts.md)
 - [`docs/guide/getting-started.md`](docs/guide/getting-started.md)
+- [`docs/guide/anti-patterns.md`](docs/guide/anti-patterns.md)
 - [`docs/guide/tutorial.md`](docs/guide/tutorial.md)
 - [`docs/guide/configuration.md`](docs/guide/configuration.md)
 - [`docs/guide/troubleshooting.md`](docs/guide/troubleshooting.md)

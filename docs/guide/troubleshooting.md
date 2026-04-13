@@ -349,6 +349,8 @@ Watch out for these false-confidence patterns:
 
 - [Getting started guide](./getting-started.md) — use the shortest newcomer path
   when you want to rebuild a clean mental model before debugging
+- [Spec anti-patterns guide](./anti-patterns.md) — use this when the spec still
+  validates but has started to feel noisy, repetitive, or too broad
 - [End-to-end tutorial](./tutorial.md) — follow a full working example when you
   want to compare your workspace against a realistic repository story
 - Full rule catalog: [`docs/syu/features/validation/validation.yaml`](../syu/features/validation/validation.yaml)
