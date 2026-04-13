@@ -980,8 +980,8 @@ mod tests {
 
     use super::{
         AppPayload, AppServerSettings, AppState, AppVersion, SectionKind, Severity,
-        SnapshotDependency, StartupLine, app_router, browser_root_labels, build_app_payload,
-        collect_feature_sources, collect_snapshot_files_with_extensions,
+        SnapshotDependency, StartupLine, app_router, bind_failure_message, browser_root_labels,
+        build_app_payload, collect_feature_sources, collect_snapshot_files_with_extensions,
         collect_yaml_sources_recursive, content_type_for_path, is_asset_like,
         load_current_snapshot, non_loopback_warning_lines, normalized_asset_path,
         normalized_trace_snapshot_path, readiness_probe_request_sent, readiness_probe_succeeds,
@@ -1230,6 +1230,31 @@ mod tests {
                 StartupLine::Stdout("Press Ctrl-C to stop.".to_string()),
             ]
         );
+    }
+
+    #[test]
+    fn bind_failure_message_mentions_port_retries_for_addr_in_use() {
+        let message = bind_failure_message(
+            "127.0.0.1".parse().expect("valid ip"),
+            3000,
+            &Error::from(ErrorKind::AddrInUse),
+        );
+
+        assert!(message.contains("failed to bind `127.0.0.1:3000`"));
+        assert!(message.contains("selected port is likely already in use"));
+        assert!(message.contains("syu app . --port <free-port>"));
+        assert!(message.contains("app.port"));
+    }
+
+    #[test]
+    fn bind_failure_message_covers_non_addr_in_use_errors() {
+        let message = bind_failure_message(
+            "127.0.0.1".parse().expect("valid ip"),
+            3000,
+            &Error::from(ErrorKind::AddrNotAvailable),
+        );
+
+        assert!(message.contains("address or port may be unavailable on this machine"));
     }
 
     #[test]
