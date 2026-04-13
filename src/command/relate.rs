@@ -4,7 +4,7 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
     fmt::Write,
-    path::{Component, Path, PathBuf},
+    path::{Component, Path},
 };
 
 use anyhow::{Context, Result, bail};
@@ -12,6 +12,7 @@ use serde::Serialize;
 
 use crate::{
     cli::{LookupKind, OutputFormat, RelateArgs},
+    coverage::normalize_relative_path,
     model::{Feature, Requirement, TraceReference},
     workspace::{Workspace, load_workspace},
 };
@@ -150,7 +151,7 @@ fn resolve_selection(
         return Ok(resolve_definition_selection(catalog, entity));
     }
 
-    if is_path_like(workspace.root.as_path(), selector) {
+    if is_path_like(selector) {
         return resolve_path_selection(workspace.root.as_path(), catalog, workspace, selector);
     }
 
@@ -273,17 +274,20 @@ fn resolve_symbol_selection(workspace: &Workspace, selector: &str) -> Result<Sel
     })
 }
 
-fn is_path_like(workspace_root: &Path, selector: &str) -> bool {
+fn is_path_like(selector: &str) -> bool {
+    let path = Path::new(selector);
     selector.contains(std::path::MAIN_SEPARATOR)
         || selector.contains('/')
         || selector.contains('\\')
-        || Path::new(selector).is_absolute()
-        || workspace_root.join(selector).exists()
+        || selector.starts_with("./")
+        || selector.starts_with("../")
+        || path.is_absolute()
+        || path.extension().is_some()
 }
 
 fn normalize_selector_path(workspace_root: &Path, selector: &str) -> Result<String> {
     let path = Path::new(selector);
-    if path.is_absolute() {
+    let normalized = if path.is_absolute() {
         let stripped = path.strip_prefix(workspace_root).with_context(|| {
             format!(
                 "path selector `{}` must stay inside workspace `{}`",
@@ -291,68 +295,123 @@ fn normalize_selector_path(workspace_root: &Path, selector: &str) -> Result<Stri
                 workspace_root.display()
             )
         })?;
-        return Ok(normalize_relative_path(stripped).display().to_string());
+        normalize_relative_path(stripped)
+    } else {
+        normalize_relative_path(path)
+    };
+
+    if normalized.as_os_str().is_empty()
+        || normalized.components().any(|component| {
+            matches!(
+                component,
+                Component::ParentDir | Component::RootDir | Component::Prefix(_)
+            )
+        })
+    {
+        bail!(
+            "path selector `{selector}` must stay inside workspace `{}`",
+            workspace_root.display()
+        );
     }
 
-    Ok(normalize_relative_path(path).display().to_string())
+    Ok(normalized.display().to_string())
 }
 
-fn normalize_relative_path(path: &Path) -> PathBuf {
-    let mut normalized = PathBuf::new();
-    for component in path.components() {
-        match component {
-            Component::CurDir => {}
-            other => normalized.push(other.as_os_str()),
+fn expand_related_ids(workspace: &Workspace, selected: RelatedIds) -> RelatedIds {
+    let mut related = selected.clone();
+    expand_upstream_ids(workspace, &selected, &mut related);
+    expand_downstream_ids(workspace, &selected, &mut related);
+    related
+}
+
+fn expand_upstream_ids(workspace: &Workspace, selected: &RelatedIds, related: &mut RelatedIds) {
+    let mut feature_frontier = selected.features.clone();
+    let mut requirement_frontier = selected.requirements.clone();
+    let mut policy_frontier = selected.policies.clone();
+
+    while !(feature_frontier.is_empty()
+        && requirement_frontier.is_empty()
+        && policy_frontier.is_empty())
+    {
+        let mut next_requirements = BTreeSet::new();
+        for item in &workspace.features {
+            if feature_frontier.contains(&item.id) {
+                for id in &item.linked_requirements {
+                    if related.requirements.insert(id.clone()) {
+                        next_requirements.insert(id.clone());
+                    }
+                }
+            }
         }
-    }
-    normalized
-}
 
-fn expand_related_ids(workspace: &Workspace, mut related: RelatedIds) -> RelatedIds {
-    let mut changed = true;
-    while changed {
-        changed = false;
-
-        for item in &workspace.philosophies {
-            if related.philosophies.contains(&item.id) {
+        let mut next_policies = BTreeSet::new();
+        for item in &workspace.requirements {
+            if requirement_frontier.contains(&item.id) {
                 for id in &item.linked_policies {
-                    changed |= related.policies.insert(id.clone());
+                    if related.policies.insert(id.clone()) {
+                        next_policies.insert(id.clone());
+                    }
                 }
             }
         }
 
         for item in &workspace.policies {
-            if related.policies.contains(&item.id) {
+            if policy_frontier.contains(&item.id) {
                 for id in &item.linked_philosophies {
-                    changed |= related.philosophies.insert(id.clone());
+                    related.philosophies.insert(id.clone());
                 }
+            }
+        }
+
+        feature_frontier.clear();
+        requirement_frontier = next_requirements;
+        policy_frontier = next_policies;
+    }
+}
+
+fn expand_downstream_ids(workspace: &Workspace, selected: &RelatedIds, related: &mut RelatedIds) {
+    let mut philosophy_frontier = selected.philosophies.clone();
+    let mut policy_frontier = selected.policies.clone();
+    let mut requirement_frontier = selected.requirements.clone();
+
+    while !(philosophy_frontier.is_empty()
+        && policy_frontier.is_empty()
+        && requirement_frontier.is_empty())
+    {
+        let mut next_policies = BTreeSet::new();
+        for item in &workspace.philosophies {
+            if philosophy_frontier.contains(&item.id) {
+                for id in &item.linked_policies {
+                    if related.policies.insert(id.clone()) {
+                        next_policies.insert(id.clone());
+                    }
+                }
+            }
+        }
+
+        let mut next_requirements = BTreeSet::new();
+        for item in &workspace.policies {
+            if policy_frontier.contains(&item.id) {
                 for id in &item.linked_requirements {
-                    changed |= related.requirements.insert(id.clone());
+                    if related.requirements.insert(id.clone()) {
+                        next_requirements.insert(id.clone());
+                    }
                 }
             }
         }
 
         for item in &workspace.requirements {
-            if related.requirements.contains(&item.id) {
-                for id in &item.linked_policies {
-                    changed |= related.policies.insert(id.clone());
-                }
+            if requirement_frontier.contains(&item.id) {
                 for id in &item.linked_features {
-                    changed |= related.features.insert(id.clone());
+                    related.features.insert(id.clone());
                 }
             }
         }
 
-        for item in &workspace.features {
-            if related.features.contains(&item.id) {
-                for id in &item.linked_requirements {
-                    changed |= related.requirements.insert(id.clone());
-                }
-            }
-        }
+        philosophy_frontier.clear();
+        policy_frontier = next_policies;
+        requirement_frontier = next_requirements;
     }
-
-    related
 }
 
 fn collect_matching_traces_for_path(workspace: &Workspace, path: &str) -> Vec<RelatedTrace> {
@@ -848,6 +907,7 @@ mod tests {
     use crate::{
         cli::LookupKind,
         config::SyuConfig,
+        coverage::normalize_relative_path,
         model::{Feature, Philosophy, Requirement},
         workspace::Workspace,
     };
@@ -855,7 +915,7 @@ mod tests {
     use super::{
         DirectMatches, JsonRelateOutput, RelatedIds, RelatedNode, RelatedTrace, RelationCatalog,
         SelectionKind, SelectionSource, SelectionSummary, collect_gaps, expand_related_ids,
-        normalize_relative_path, normalize_selector_path, render_relation_text, render_trace_line,
+        normalize_selector_path, render_relation_text, render_trace_line,
         resolve_definition_selection, resolve_path_selection, trace_is_direct_match,
     };
 
@@ -1111,6 +1171,13 @@ mod tests {
     }
 
     #[test]
+    fn normalize_selector_path_rejects_parent_directory_segments() {
+        let error = normalize_selector_path(Path::new("/repo"), "../src/command/relate.rs")
+            .expect_err("parent directories should be rejected");
+        assert!(error.to_string().contains("must stay inside workspace"));
+    }
+
+    #[test]
     fn expand_related_ids_walks_the_connected_component() {
         let workspace = demo_workspace();
         let related = expand_related_ids(
@@ -1126,6 +1193,48 @@ mod tests {
         assert!(related.policies.contains("POL-001"));
         assert!(related.requirements.contains("REQ-001"));
         assert!(related.features.contains("FEAT-001"));
+    }
+
+    #[test]
+    fn expand_related_ids_does_not_pull_in_sibling_branches() {
+        let mut workspace = demo_workspace();
+        workspace.policies[0]
+            .linked_requirements
+            .push("REQ-002".to_string());
+        workspace.requirements.push(Requirement {
+            id: "REQ-002".to_string(),
+            title: "Sibling requirement".to_string(),
+            description: "Description".to_string(),
+            priority: "medium".to_string(),
+            status: "implemented".to_string(),
+            linked_policies: vec!["POL-001".to_string()],
+            linked_features: vec!["FEAT-002".to_string()],
+            tests: BTreeMap::new(),
+        });
+        workspace.features.push(Feature {
+            id: "FEAT-002".to_string(),
+            title: "Sibling feature".to_string(),
+            summary: "Summary".to_string(),
+            status: "implemented".to_string(),
+            linked_requirements: vec!["REQ-002".to_string()],
+            implementations: BTreeMap::new(),
+        });
+
+        let related = expand_related_ids(
+            &workspace,
+            RelatedIds {
+                philosophies: BTreeSet::new(),
+                policies: BTreeSet::new(),
+                requirements: BTreeSet::from(["REQ-001".to_string()]),
+                features: BTreeSet::new(),
+            },
+        );
+
+        assert!(related.philosophies.contains("PHIL-001"));
+        assert!(related.policies.contains("POL-001"));
+        assert!(related.features.contains("FEAT-001"));
+        assert!(!related.requirements.contains("REQ-002"));
+        assert!(!related.features.contains("FEAT-002"));
     }
 
     #[test]
