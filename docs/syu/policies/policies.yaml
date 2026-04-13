@@ -41,6 +41,7 @@ policies:
       - REQ-CORE-017
       - REQ-CORE-018
       - REQ-CORE-019
+      - REQ-CORE-022
 
   - id: POL-003
     title: Traceability should prove ownership from specification to code and tests
@@ -57,6 +58,7 @@ policies:
     linked_requirements:
       - REQ-CORE-002
       - REQ-CORE-003
+      - REQ-CORE-022
 
   - id: POL-004
     title: Starting, browsing, and configuring syu should stay low ceremony
@@ -77,6 +79,7 @@ policies:
       - REQ-CORE-018
       - REQ-CORE-019
       - REQ-CORE-020
+      - REQ-CORE-022
 
   - id: POL-005
     title: Documentation and examples must lower adoption friction
@@ -95,6 +98,7 @@ policies:
       - REQ-CORE-012
       - REQ-CORE-016
       - REQ-CORE-017
+      - REQ-CORE-022
 
   - id: POL-006
     title: The self-hosted repository should demonstrate polyglot, contributor-friendly use
