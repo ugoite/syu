@@ -1,5 +1,6 @@
 // REQ-CORE-019
 // REQ-CORE-020
+// REQ-CORE-021
 
 use assert_cmd::cargo::CommandCargoExt;
 use std::process::Command;
@@ -30,7 +31,7 @@ fn root_help_includes_start_here_guidance() {
 #[test]
 fn workspace_help_uses_current_directory_default_consistently() {
     for command in [
-        "browse", "show", "search", "app", "validate", "check", "report", "add",
+        "browse", "show", "search", "log", "app", "validate", "check", "report", "add",
     ] {
         let output = Command::cargo_bin("syu")
             .expect("binary should build")
@@ -54,6 +55,23 @@ fn workspace_help_uses_current_directory_default_consistently() {
             "{command} help should not claim docs/syu is the workspace default",
         );
     }
+}
+
+#[test]
+fn log_help_mentions_kind_path_and_json_output() {
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .args(["log", "--help"])
+        .output()
+        .expect("help should render");
+
+    assert!(output.status.success(), "log help should succeed");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("--kind"));
+    assert!(stdout.contains("--path"));
+    assert!(stdout.contains("--format"));
+    assert!(stdout.contains("syu log FEAT-CHECK-001 --kind implementation --path src/command"));
 }
 
 #[test]

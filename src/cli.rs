@@ -1,6 +1,7 @@
 // FEAT-DOCS-001
 // FEAT-APP-001
 // FEAT-ADD-001
+// FEAT-LOG-001
 // FEAT-SEARCH-001
 // FEAT-BROWSE-001
 // FEAT-BROWSE-002
@@ -80,6 +81,12 @@ Examples:
   syu search traceability --kind requirement
   syu search FEAT-CHECK-001 --format json";
 
+const LOG_AFTER_HELP: &str = "\
+Examples:
+  syu log REQ-CORE-002
+  syu log FEAT-CHECK-001 --kind implementation --path src/command
+  syu log REQ-CORE-019 --format json";
+
 #[derive(Debug, Parser)]
 #[command(
     name = "syu",
@@ -113,6 +120,11 @@ pub enum Commands {
         after_help = SEARCH_AFTER_HELP
     )]
     Search(SearchArgs),
+    #[command(
+        about = "Show git history for one traced requirement or feature",
+        after_help = LOG_AFTER_HELP
+    )]
+    Log(LogArgs),
     #[command(
         about = "Start a local HTTP server and browser UI for workspace exploration, then print the URL to open in your browser",
         after_help = APP_AFTER_HELP
@@ -232,6 +244,54 @@ pub struct SearchArgs {
     pub kind: Option<LookupKind>,
 
     #[arg(help = "Output format for matched items")]
+    #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
+    pub format: OutputFormat,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum HistoryKind {
+    All,
+    #[value(alias = "spec")]
+    Definition,
+    #[value(alias = "tests")]
+    Test,
+    #[value(alias = "implementations")]
+    Implementation,
+}
+
+impl HistoryKind {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::All => "all",
+            Self::Definition => "definition",
+            Self::Test => "test",
+            Self::Implementation => "implementation",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct LogArgs {
+    #[arg(help = "Requirement or feature ID whose traced history should be inspected")]
+    pub id: String,
+
+    #[arg(help = WORKSPACE_HELP)]
+    #[arg(default_value = ".")]
+    pub workspace: PathBuf,
+
+    #[arg(help = "Limit matches to definition, test, or implementation paths")]
+    #[arg(long, value_enum, default_value_t = HistoryKind::All)]
+    pub kind: HistoryKind,
+
+    #[arg(help = "Limit traced paths to one repository-relative file or directory prefix")]
+    #[arg(long, value_name = "PATH")]
+    pub path: Option<PathBuf>,
+
+    #[arg(help = "Maximum number of matching commits to show")]
+    #[arg(long, default_value_t = 20)]
+    pub limit: usize,
+
+    #[arg(help = "Output format for matched history")]
     #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
     pub format: OutputFormat,
 }

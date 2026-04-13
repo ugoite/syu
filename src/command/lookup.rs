@@ -1,4 +1,5 @@
 // FEAT-SEARCH-001
+// FEAT-LOG-001
 // REQ-CORE-019
 // REQ-CORE-018
 
@@ -117,6 +118,18 @@ impl<'a> WorkspaceLookup<'a> {
                 item
             })
             .collect())
+    }
+
+    pub(crate) fn document_path_for_id(self, id: &str) -> Result<Option<String>> {
+        let Some(kind) = kind_for_id(id) else {
+            return Ok(None);
+        };
+
+        Ok(self
+            .entries_with_document_paths(kind)?
+            .into_iter()
+            .find(|item| item.id == id)
+            .and_then(|item| item.document_path))
     }
 
     pub(crate) fn title_for(self, kind: LookupKind, id: &str) -> Option<&'a str> {
@@ -316,6 +329,23 @@ fn workspace_relative_display(workspace: &Workspace, path: &Path) -> String {
 
 fn field_matches_query(value: &str, query: &str) -> bool {
     value.to_lowercase().contains(query)
+}
+
+fn kind_for_id(id: &str) -> Option<LookupKind> {
+    if id.starts_with("PHIL-") {
+        return Some(LookupKind::Philosophy);
+    }
+    if id.starts_with("POL-") {
+        return Some(LookupKind::Policy);
+    }
+    if id.starts_with("REQ-") {
+        return Some(LookupKind::Requirement);
+    }
+    if id.starts_with("FEAT-") {
+        return Some(LookupKind::Feature);
+    }
+
+    None
 }
 
 #[cfg(test)]

@@ -47,7 +47,8 @@ description: "Generated reference for docs/syu/policies/policies.yaml"
     - |
       A specification tool should not answer every problem with a wall of opaque
       failures. Validation should surface rule codes, summaries, and reasons;
-      reports should preserve that explanation; and the interactive browser
+      reports should preserve that explanation; Git-aware history lookup should
+      explain how traced paths changed over time; and the interactive browser
       should still show the user what exists today.
   - **linked_philosophies**:
     - PHIL-001
@@ -60,22 +61,26 @@ description: "Generated reference for docs/syu/policies/policies.yaml"
     - REQ-CORE-017
     - REQ-CORE-018
     - REQ-CORE-019
+    - REQ-CORE-021
 - **id**: POL-003
   - **title**: Traceability should prove ownership from specification to code and tests
-  - **summary**: Declared traces should map to real files, real symbols, and optional full-file ownership.
+  - **summary**: Declared traces should map to real files, real symbols, optional full-file ownership, and derivable repository history.
   - **description**:
     - |
       Declared traces are only credible when `syu` can verify the referenced
       file, symbol, owning ID, and optional documentation snippets from the
-      repository. When a project opts in, public APIs and tests should also be
-      required to belong to some feature or requirement so maintenance work does
-      not quietly outrun the specification.
+      repository. When that trace data is checked in, it should also be possible
+      to project it onto Git history so maintenance work and code review can see
+      which commits changed the traced surface. When a project opts in, public
+      APIs and tests should also be required to belong to some feature or
+      requirement so maintenance work does not quietly outrun the specification.
   - **linked_philosophies**:
     - PHIL-001
     - PHIL-002
   - **linked_requirements**:
     - REQ-CORE-002
     - REQ-CORE-003
+    - REQ-CORE-021
 - **id**: POL-004
   - **title**: Starting, browsing, and configuring syu should stay low ceremony
   - **summary**: Setup and exploration should be quick enough that teams do not resent the tool.
@@ -96,6 +101,7 @@ description: "Generated reference for docs/syu/policies/policies.yaml"
     - REQ-CORE-018
     - REQ-CORE-019
     - REQ-CORE-020
+    - REQ-CORE-021
 - **id**: POL-005
   - **title**: Documentation and examples must lower adoption friction
   - **summary**: Guides, reports, sites, and examples are part of the product surface.
@@ -184,7 +190,8 @@ policies:
     description: |
       A specification tool should not answer every problem with a wall of opaque
       failures. Validation should surface rule codes, summaries, and reasons;
-      reports should preserve that explanation; and the interactive browser
+      reports should preserve that explanation; Git-aware history lookup should
+      explain how traced paths changed over time; and the interactive browser
       should still show the user what exists today.
     linked_philosophies:
       - PHIL-001
@@ -197,22 +204,26 @@ policies:
       - REQ-CORE-017
       - REQ-CORE-018
       - REQ-CORE-019
+      - REQ-CORE-021
 
   - id: POL-003
     title: Traceability should prove ownership from specification to code and tests
-    summary: "Declared traces should map to real files, real symbols, and optional full-file ownership."
+    summary: "Declared traces should map to real files, real symbols, optional full-file ownership, and derivable repository history."
     description: |
       Declared traces are only credible when `syu` can verify the referenced
       file, symbol, owning ID, and optional documentation snippets from the
-      repository. When a project opts in, public APIs and tests should also be
-      required to belong to some feature or requirement so maintenance work does
-      not quietly outrun the specification.
+      repository. When that trace data is checked in, it should also be possible
+      to project it onto Git history so maintenance work and code review can see
+      which commits changed the traced surface. When a project opts in, public
+      APIs and tests should also be required to belong to some feature or
+      requirement so maintenance work does not quietly outrun the specification.
     linked_philosophies:
       - PHIL-001
       - PHIL-002
     linked_requirements:
       - REQ-CORE-002
       - REQ-CORE-003
+      - REQ-CORE-021
 
   - id: POL-004
     title: Starting, browsing, and configuring syu should stay low ceremony
@@ -233,6 +244,7 @@ policies:
       - REQ-CORE-018
       - REQ-CORE-019
       - REQ-CORE-020
+      - REQ-CORE-021
 
   - id: POL-005
     title: Documentation and examples must lower adoption friction
