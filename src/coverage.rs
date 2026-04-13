@@ -644,7 +644,7 @@ fn discover_go_targets(root: &Path) -> Result<Vec<CoverageTarget>, Box<Issue>> {
 
 fn collect_go_public_symbols(contents: &str) -> Vec<String> {
     let regex = Regex::new(
-        r"(?m)^\s*(?:func\s+(?:\([^)]*\)\s*)?(?P<function>[A-Z][A-Za-z0-9_]*)\s*\(|type\s+(?P<type>[A-Z][A-Za-z0-9_]*)\b)",
+        r"(?m)^\s*(?:func\s+(?:\([^)]*\)\s*)?(?P<function>[A-Z][A-Za-z0-9_]*)\s*(?:\[[^\n\r\]]+\])?\s*\(|type\s+(?P<type>[A-Z][A-Za-z0-9_]*)\b|(?:const|var)\s+(?P<value>[A-Z][A-Za-z0-9_]*)\b)",
     )
     .expect("Go public symbol regex should compile");
     regex
@@ -653,14 +653,16 @@ fn collect_go_public_symbols(contents: &str) -> Vec<String> {
             captures
                 .name("function")
                 .or_else(|| captures.name("type"))
+                .or_else(|| captures.name("value"))
                 .map(|symbol| symbol.as_str().to_string())
         })
         .collect()
 }
 
 fn collect_go_test_symbols(contents: &str) -> Vec<String> {
-    let regex = Regex::new(r"(?m)^\s*func\s+(?P<name>Test[A-Za-z0-9_]*)\s*\(")
-        .expect("Go test symbol regex should compile");
+    let regex =
+        Regex::new(r"(?m)^\s*func\s+(?P<name>(?:Test|Benchmark|Fuzz|Example)[A-Za-z0-9_]*)\s*\(")
+            .expect("Go test symbol regex should compile");
     regex
         .captures_iter(contents)
         .filter_map(|captures| {
@@ -806,10 +808,11 @@ mod tests {
     use tempfile::tempdir;
 
     use super::{
-        CoverageTargetKind, collect_feature_coverage, collect_requirement_coverage,
-        discover_go_targets, discover_python_targets, discover_rust_targets,
-        discover_typescript_targets, go_files_under, normalize_relative_path, python_files_under,
-        rust_files_under, typescript_files_under, validate_symbol_trace_coverage,
+        CoverageTargetKind, collect_feature_coverage, collect_go_public_symbols,
+        collect_go_test_symbols, collect_requirement_coverage, discover_go_targets,
+        discover_python_targets, discover_rust_targets, discover_typescript_targets,
+        go_files_under, normalize_relative_path, python_files_under, rust_files_under,
+        typescript_files_under, validate_symbol_trace_coverage,
         validate_symbol_trace_coverage_with,
     };
     use crate::{
@@ -1117,6 +1120,54 @@ mod tests {
         assert_eq!(
             normalize_relative_path(Path::new("../spec/trace.rs")),
             PathBuf::from("../spec/trace.rs")
+        );
+    }
+
+    #[test]
+    fn collect_go_public_symbols_covers_values_and_generic_functions() {
+        let symbols = collect_go_public_symbols(
+            "package trace\n\n\
+             func CoveredAPI() {}\n\
+             func GenericAPI[T any]() {}\n\
+             type PublicThing interface { Run() }\n\
+             var ExportedConfig = \"ok\"\n\
+             const ExportedFlag = true\n\
+             func hiddenAPI() {}\n\
+             var hiddenConfig = \"no\"\n",
+        );
+
+        assert_eq!(
+            symbols,
+            vec![
+                "CoveredAPI",
+                "GenericAPI",
+                "PublicThing",
+                "ExportedConfig",
+                "ExportedFlag"
+            ]
+        );
+    }
+
+    #[test]
+    fn collect_go_test_symbols_covers_all_go_entry_points() {
+        let symbols = collect_go_test_symbols(
+            "package trace\n\n\
+             import \"testing\"\n\n\
+             func TestCovered(t *testing.T) {}\n\
+             func BenchmarkCovered(b *testing.B) {}\n\
+             func FuzzCovered(f *testing.F) {}\n\
+             func ExampleCovered() {}\n\
+             func helperCase(t *testing.T) {}\n",
+        );
+
+        assert_eq!(
+            symbols,
+            vec![
+                "TestCovered",
+                "BenchmarkCovered",
+                "FuzzCovered",
+                "ExampleCovered"
+            ]
         );
     }
 

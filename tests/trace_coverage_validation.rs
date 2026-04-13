@@ -474,12 +474,12 @@ fn write_go_workspace(root: &Path, cover_everything: bool) {
 
     fs::write(
         root.join("src/api.go"),
-        "// FEAT-001\npackage trace\n\nfunc CoveredAPI() {}\n\nfunc UncoveredAPI() {}\n\ntype TraceService interface { Run() }\n\ntype coveredHelper struct{}\n",
+        "// FEAT-001\npackage trace\n\nfunc CoveredAPI() {}\n\nfunc UncoveredAPI() {}\n\nfunc GenericAPI[T any]() {}\n\nvar ExportedConfig = map[string]string{\"mode\": \"strict\"}\n\nconst ExportedFlag = true\n\ntype TraceService interface { Run() }\n\ntype coveredHelper struct{}\n",
     )
     .expect("source");
     fs::write(
         root.join("src/api_test.go"),
-        "// REQ-001\npackage trace\n\nimport \"testing\"\n\nfunc TestCoveredGo(t *testing.T) {}\n\nfunc TestUncoveredGo(t *testing.T) {}\n\nfunc helperTestCase(t *testing.T) {}\n",
+        "// REQ-001\npackage trace\n\nimport \"testing\"\n\nfunc TestCoveredGo(t *testing.T) {}\n\nfunc TestUncoveredGo(t *testing.T) {}\n\nfunc BenchmarkUncovered(b *testing.B) {}\n\nfunc FuzzUncovered(f *testing.F) {}\n\nfunc ExampleUncovered() {}\n\nfunc helperTestCase(t *testing.T) {}\n",
     )
     .expect("tests");
 }
@@ -506,6 +506,12 @@ fn validate_reports_untracked_go_symbols_and_tests() {
         stdout.contains("SYU-coverage-test-001"),
         "expected test coverage error, got:\n{stdout}"
     );
+    assert!(stdout.contains("GenericAPI"), "stdout:\n{stdout}");
+    assert!(stdout.contains("ExportedConfig"), "stdout:\n{stdout}");
+    assert!(stdout.contains("ExportedFlag"), "stdout:\n{stdout}");
+    assert!(stdout.contains("BenchmarkUncovered"), "stdout:\n{stdout}");
+    assert!(stdout.contains("FuzzUncovered"), "stdout:\n{stdout}");
+    assert!(stdout.contains("ExampleUncovered"), "stdout:\n{stdout}");
 }
 
 #[test]
