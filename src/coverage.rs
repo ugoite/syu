@@ -1169,8 +1169,9 @@ mod tests {
 
     use super::{
         CoverageTargetKind, collect_feature_coverage, collect_files_recursive_by_extension,
-        collect_go_public_symbols, collect_go_test_symbols, collect_requirement_coverage,
-        discover_go_targets, discover_java_targets, discover_python_targets, discover_rust_targets,
+        collect_go_public_symbols, collect_go_test_symbols, collect_java_public_symbols,
+        collect_java_test_symbols, collect_requirement_coverage, discover_go_targets,
+        discover_java_targets, discover_python_targets, discover_rust_targets,
         discover_typescript_targets, go_files_under, java_files_under, normalize_relative_path,
         normalized_symbol_trace_coverage_ignored_paths, python_files_under, rust_files_under,
         typescript_files_under, validate_symbol_trace_coverage,
@@ -1364,6 +1365,111 @@ mod tests {
     }
 
     #[test]
+    fn discover_java_targets_collects_public_symbols_and_tests() {
+        let tempdir = tempdir().expect("tempdir");
+        fs::create_dir_all(tempdir.path().join("src")).expect("src");
+        fs::create_dir_all(tempdir.path().join("tests")).expect("tests");
+        fs::write(
+            tempdir.path().join("src/TraceService.java"),
+            "public class TraceService {\n    public static final String TRACE_LABEL = \"ok\";\n    public void start() {}\n    void helper() {}\n}\npublic interface TraceApi {}\npublic enum TraceState { READY }\npublic record TraceRecord(String value) {}\n",
+        )
+        .expect("java source");
+        fs::write(
+            tempdir.path().join("src/TraceServiceTest.java"),
+            "import org.junit.jupiter.api.Test;\n\nclass TraceServiceTest {\n    @Test\n    void reqTraceJavaTest() {}\n}\n",
+        )
+        .expect("java src test");
+        fs::write(
+            tempdir.path().join("tests/TraceabilityTest.java"),
+            "import org.junit.Test;\n\npublic class TraceabilityTest {\n    @Test\n    public void reqTraceJavaIntegration() {}\n\n    public void testLegacyStyle() {}\n}\n",
+        )
+        .expect("java tests");
+
+        let targets =
+            discover_java_targets(&SyuConfig::default(), tempdir.path()).expect("targets");
+        assert!(targets.iter().any(|target| {
+            target.file == Path::new("src/TraceService.java")
+                && target.symbol == "TraceService"
+                && target.kind == CoverageTargetKind::PublicSymbol
+        }));
+        assert!(targets.iter().any(|target| {
+            target.file == Path::new("src/TraceService.java")
+                && target.symbol == "TraceApi"
+                && target.kind == CoverageTargetKind::PublicSymbol
+        }));
+        assert!(targets.iter().any(|target| {
+            target.file == Path::new("src/TraceService.java")
+                && target.symbol == "TraceState"
+                && target.kind == CoverageTargetKind::PublicSymbol
+        }));
+        assert!(targets.iter().any(|target| {
+            target.file == Path::new("src/TraceService.java")
+                && target.symbol == "TraceRecord"
+                && target.kind == CoverageTargetKind::PublicSymbol
+        }));
+        assert!(targets.iter().any(|target| {
+            target.file == Path::new("src/TraceService.java")
+                && target.symbol == "start"
+                && target.kind == CoverageTargetKind::PublicSymbol
+        }));
+        assert!(targets.iter().any(|target| {
+            target.file == Path::new("src/TraceService.java")
+                && target.symbol == "TRACE_LABEL"
+                && target.kind == CoverageTargetKind::PublicSymbol
+        }));
+        assert!(targets.iter().any(|target| {
+            target.file == Path::new("src/TraceServiceTest.java")
+                && target.symbol == "reqTraceJavaTest"
+                && target.kind == CoverageTargetKind::TestSymbol
+        }));
+        assert!(targets.iter().any(|target| {
+            target.file == Path::new("tests/TraceabilityTest.java")
+                && target.symbol == "reqTraceJavaIntegration"
+                && target.kind == CoverageTargetKind::TestSymbol
+        }));
+        assert!(targets.iter().any(|target| {
+            target.file == Path::new("tests/TraceabilityTest.java")
+                && target.symbol == "testLegacyStyle"
+                && target.kind == CoverageTargetKind::TestSymbol
+        }));
+        assert!(!targets.iter().any(|target| target.symbol == "helper"));
+    }
+
+    #[test]
+    fn collect_java_public_symbols_covers_interface_members_without_public_modifiers() {
+        let symbols = collect_java_public_symbols(
+            "public interface FeatureTrace {\n    void featureTraceJava();\n    String EXPORTED_NAME = \"ok\";\n    default void defaultHelper() {\n        if (true) {\n            featureTraceJava();\n        }\n    }\n    private void hiddenHelper() {}\n}\n",
+        );
+
+        assert_eq!(
+            symbols,
+            vec![
+                "EXPORTED_NAME",
+                "FeatureTrace",
+                "defaultHelper",
+                "featureTraceJava"
+            ]
+        );
+    }
+
+    #[test]
+    fn collect_java_test_symbols_covers_stacked_annotations() {
+        let symbols = collect_java_test_symbols(
+            "import org.junit.jupiter.api.DisplayName;\nimport org.junit.jupiter.api.Tag;\nimport org.junit.jupiter.api.Test;\n\nclass TraceabilityTest {\n    @Test\n    @DisplayName(\"stacked\")\n    @Tag(\"coverage\")\n    void untrackedStackedTest() {}\n}\n",
+        );
+
+        assert_eq!(symbols, vec!["untrackedStackedTest"]);
+    }
+
+    #[test]
+    fn collect_java_public_symbols_skips_unclosed_interface_bodies() {
+        let symbols = collect_java_public_symbols(
+            "public interface BrokenTrace {\n    void missingBrace();\n",
+        );
+
+        assert_eq!(symbols, vec!["BrokenTrace"]);
+    }
+
     fn rust_files_under_handles_missing_and_invalid_roots() {
         let tempdir = tempdir().expect("tempdir");
         let ignored_paths = BTreeSet::new();
