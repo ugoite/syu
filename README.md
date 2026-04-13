@@ -210,6 +210,7 @@ syu add feature FEAT-AUTH-LOGIN-001 --kind auth
 syu list requirement
 syu show REQ-001
 syu search traceability --kind requirement
+syu relate REQ-001
 syu app .
 syu report . --output reports/syu.md
 ```
@@ -367,6 +368,23 @@ syu search audit
 syu search traceability --kind requirement
 syu search FEAT-CHECK-001 --format json
 ```
+
+### `syu relate`
+
+Inspect the connected graph around one definition, repository path, or traced
+source symbol:
+
+```bash
+syu relate REQ-001
+syu relate src/command/search.rs
+syu relate run_search_command
+syu relate FEAT-SEARCH-001 --format json
+```
+
+`syu relate` walks upstream and downstream across philosophy, policy,
+requirement, and feature links, includes traced files and symbols for connected
+requirements and features, and calls out sparse or suspicious gaps such as
+missing adjacent links or missing evidence.
 
 ### `syu app`
 

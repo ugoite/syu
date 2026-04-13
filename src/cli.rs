@@ -1,6 +1,7 @@
 // FEAT-DOCS-001
 // FEAT-APP-001
 // FEAT-ADD-001
+// FEAT-RELATE-001
 // FEAT-SEARCH-001
 // FEAT-BROWSE-001
 // FEAT-BROWSE-002
@@ -80,6 +81,13 @@ Examples:
   syu search traceability --kind requirement
   syu search FEAT-CHECK-001 --format json";
 
+const RELATE_AFTER_HELP: &str = "\
+Examples:
+  syu relate REQ-CORE-018
+  syu relate FEAT-SEARCH-001 --format json
+  syu relate src/command/search.rs
+  syu relate run_search_command";
+
 #[derive(Debug, Parser)]
 #[command(
     name = "syu",
@@ -113,6 +121,11 @@ pub enum Commands {
         after_help = SEARCH_AFTER_HELP
     )]
     Search(SearchArgs),
+    #[command(
+        about = "Inspect the connected graph around one ID, path, or source symbol",
+        after_help = RELATE_AFTER_HELP
+    )]
+    Relate(RelateArgs),
     #[command(
         about = "Start a local HTTP server and browser UI for workspace exploration, then print the URL to open in your browser",
         after_help = APP_AFTER_HELP
@@ -232,6 +245,20 @@ pub struct SearchArgs {
     pub kind: Option<LookupKind>,
 
     #[arg(help = "Output format for matched items")]
+    #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
+    pub format: OutputFormat,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct RelateArgs {
+    #[arg(help = "Definition ID, repository-relative path, or traced source symbol to inspect")]
+    pub selector: String,
+
+    #[arg(help = WORKSPACE_HELP)]
+    #[arg(default_value = ".")]
+    pub workspace: PathBuf,
+
+    #[arg(help = "Output format for the related graph")]
     #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
     pub format: OutputFormat,
 }

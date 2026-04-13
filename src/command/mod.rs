@@ -10,6 +10,7 @@ pub mod init;
 mod issue_text;
 pub mod list;
 mod lookup;
+pub mod relate;
 pub mod report;
 pub mod search;
 pub mod show;
