@@ -2,7 +2,7 @@
 // REQ-CORE-021
 
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     fmt::Write,
     path::{Component, Path, PathBuf},
     process::Command,
@@ -389,15 +389,7 @@ fn load_git_history(
         }
     }
 
-    let mut commits = merged_commits.into_values().collect::<Vec<_>>();
-    commits.sort_by(|left, right| {
-        right
-            .authored_at
-            .cmp(&left.authored_at)
-            .then_with(|| right.sha.cmp(&left.sha))
-    });
-    commits.truncate(limit);
-    Ok(commits)
+    order_commits_by_repository_history(workspace_root, merged_commits, limit)
 }
 
 fn load_git_history_for_path(
@@ -435,6 +427,75 @@ fn load_git_history_for_path(
 
 fn normalized_tracked_path(path: &str) -> PathBuf {
     normalize_relative_path(Path::new(path))
+}
+
+fn order_commits_by_repository_history(
+    workspace_root: &Path,
+    mut commits_by_sha: BTreeMap<String, MatchedCommit>,
+    limit: usize,
+) -> Result<Vec<MatchedCommit>> {
+    let candidate_shas = commits_by_sha.keys().cloned().collect::<BTreeSet<_>>();
+    let ordered_shas = repository_history_order(workspace_root, &candidate_shas)?;
+    let mut commits = Vec::new();
+
+    for sha in ordered_shas {
+        if let Some(commit) = commits_by_sha.remove(&sha) {
+            commits.push(commit);
+            if commits.len() == limit {
+                return Ok(commits);
+            }
+        }
+    }
+
+    let mut remainder = commits_by_sha.into_values().collect::<Vec<_>>();
+    remainder.sort_by(|left, right| {
+        right
+            .authored_at
+            .cmp(&left.authored_at)
+            .then_with(|| right.sha.cmp(&left.sha))
+    });
+    commits.extend(remainder);
+    commits.truncate(limit);
+    Ok(commits)
+}
+
+fn repository_history_order(
+    workspace_root: &Path,
+    candidate_shas: &BTreeSet<String>,
+) -> Result<Vec<String>> {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(workspace_root)
+        .args(["rev-list", "HEAD"])
+        .output()
+        .with_context(|| {
+            format!(
+                "failed to run `git rev-list` in `{}`",
+                workspace_root.display()
+            )
+        })?;
+    if !output.status.success() {
+        bail!(
+            "failed to read git history order for `{}`: {}",
+            workspace_root.display(),
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
+
+    let history =
+        String::from_utf8(output.stdout).context("git rev-list output should be valid UTF-8")?;
+    let mut remaining = candidate_shas.clone();
+    let mut ordered = Vec::new();
+    for sha in history.lines() {
+        if remaining.remove(sha) {
+            ordered.push(sha.to_string());
+            if remaining.is_empty() {
+                break;
+            }
+        }
+    }
+
+    Ok(ordered)
 }
 
 fn parse_git_history(raw: &[u8]) -> Result<Vec<MatchedCommit>> {
