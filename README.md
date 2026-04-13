@@ -416,7 +416,7 @@ production bundle during Rust builds, so `syu app` still works from installed
 binaries without checking `app/dist/` into `main`.
 
 When contributors change browser app sources or build inputs, they should run
-`scripts/ci/check-browser-app-freshness.sh`. That flow refreshes the checked-in
+`scripts/ci/check-browser-app-freshness.sh`. That flow regenerates the local
 `app/src/wasm` bridge, typechecks the browser app, and builds a fresh local
 `app/dist/` artifact the same way CI does before uploading it.
 

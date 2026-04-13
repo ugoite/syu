@@ -72,10 +72,10 @@ match your change:
    scripts/ci/check-browser-app-freshness.sh
    ```
 
-   That script runs `npm run build:wasm`, `npm run check`, and `npm run build`.
-   It fails if the checked-in `app/src/wasm` bridge is stale, and it leaves a
-   fresh local `app/dist/` artifact behind for inspection without checking that
-   bundle into git.
+   That script clears any locally generated browser outputs, reruns
+   `npm run build:wasm`, then runs `npm run check` and `npm run build`. It
+   leaves a fresh local `app/src/wasm` bridge plus an `app/dist/` artifact
+   behind for inspection without checking either generated output into git.
 
    When the change affects browser behavior, routing, or Playwright coverage,
    also install the local browser once and run the end-to-end suite:

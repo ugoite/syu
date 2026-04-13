@@ -10,9 +10,11 @@ use std::{
 fn main() {
     let manifest_dir = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").expect("manifest dir"));
     let app_dir = manifest_dir.join("app");
+    let shared_core_dir = manifest_dir.join("crates").join("syu-core");
     let out_dir = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR")).join("syu-app-dist");
 
     println!("cargo:rerun-if-changed=build.rs");
+    emit_watch(&manifest_dir.join("Cargo.lock"));
     emit_watch(&app_dir.join("index.html"));
     emit_watch(&app_dir.join("package.json"));
     emit_watch(&app_dir.join("package-lock.json"));
@@ -21,10 +23,15 @@ fn main() {
     emit_watch(&app_dir.join("tsconfig.app.json"));
     emit_watch(&app_dir.join("tsconfig.node.json"));
     emit_watch_recursive(&app_dir.join("public"));
+    emit_watch_recursive(&app_dir.join("scripts"));
     emit_watch_recursive(&app_dir.join("src"));
+    emit_watch_recursive(&app_dir.join("wasm"));
+    emit_watch(&shared_core_dir.join("Cargo.toml"));
+    emit_watch_recursive(&shared_core_dir.join("src"));
 
-    if let Err(error) =
-        ensure_app_dependencies(&app_dir).and_then(|_| build_browser_bundle(&app_dir, &out_dir))
+    if let Err(error) = ensure_app_dependencies(&app_dir)
+        .and_then(|_| rebuild_browser_wasm_bindings(&app_dir))
+        .and_then(|_| build_browser_bundle(&app_dir, &out_dir))
     {
         panic!("{error}");
     }
@@ -108,11 +115,29 @@ fn ensure_app_dependencies(app_dir: &Path) -> Result<(), String> {
     )
 }
 
-fn build_browser_bundle(app_dir: &Path, out_dir: &Path) -> Result<(), String> {
-    if out_dir.exists() {
-        fs::remove_dir_all(out_dir)
-            .map_err(|error| format!("failed to clear generated browser bundle: {error}"))?;
+fn remove_dir_if_exists(path: &Path, description: &str) -> Result<(), String> {
+    if !path.exists() {
+        return Ok(());
     }
+
+    fs::remove_dir_all(path).map_err(|error| format!("failed to clear {description}: {error}"))
+}
+
+fn rebuild_browser_wasm_bindings(app_dir: &Path) -> Result<(), String> {
+    remove_dir_if_exists(
+        &app_dir.join("src").join("wasm"),
+        "generated browser app Wasm bindings",
+    )?;
+
+    run_npm(
+        app_dir,
+        &[String::from("run"), String::from("build:wasm")],
+        "generate the browser app Wasm bridge",
+    )
+}
+
+fn build_browser_bundle(app_dir: &Path, out_dir: &Path) -> Result<(), String> {
+    remove_dir_if_exists(out_dir, "generated browser bundle")?;
     fs::create_dir_all(out_dir)
         .map_err(|error| format!("failed to create browser bundle output directory: {error}"))?;
 
