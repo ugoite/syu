@@ -20,10 +20,40 @@ Need a different level of guidance?
 - Jump to [troubleshooting](./troubleshooting.md) when validation or linking is
   already failing and you need to unblock a workspace.
 
-This guide assumes `syu` is already installed. Unlike the README quick start,
-it slows down at the first manual editing step so you can see where the
-scaffolded files live, how reciprocal links fit together, and what to fix
-before the first `syu validate .` run.
+If you are still deciding whether to adopt `syu`, use the fit check below before
+installing anything. The rest of this guide assumes `syu` is already installed.
+Unlike the README quick start, it slows down at the first manual editing step so
+you can see where the scaffolded files live, how reciprocal links fit together,
+and what to fix before the first `syu validate .` run.
+
+## Is syu right for this repository?
+
+Reach for `syu` when you want traceability to stay checked into the repository
+instead of living only in scattered docs or team memory.
+
+**`syu` is usually a good fit when:**
+
+- the repository needs requirements and features tied to code, tests, and ongoing maintenance work
+- reviewers and future contributors need one place to follow why a change exists and what it satisfies
+- docs-only workflows have already started to drift away from the implementation
+- the project is long-lived, cross-team, polyglot, regulated, or otherwise benefits from explicit ownership and traceability
+
+**`syu` is probably too heavy when:**
+
+- a lightweight README, ADR log, or issue template already gives your team enough coordination
+- the repository is small or short-lived enough that manual docs rarely fall out of sync
+- the team does not want to maintain reciprocal links and trace declarations in version control
+- you want the lowest possible setup overhead before shipping the first change
+
+**Trade-offs compared with docs-only workflows**
+
+- `syu` adds more structure and a little more checked-in YAML
+- in return, it gives you validation, reviewer-friendly traceability, and one repository-native path from intent to implementation
+- the trade-off pays off most in repositories where drift, maintenance, and contributor handoffs already hurt
+
+If that sounds like your repository, continue with the install and scaffold flow
+below. If not, stick with lighter docs for now and revisit `syu` when the
+repository needs stronger traceability.
 
 ## Before you begin
 

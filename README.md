@@ -49,6 +49,35 @@ Keep the detailed guides close:
 - [`docs/guide/troubleshooting.md`](docs/guide/troubleshooting.md)
 - [`CONTRIBUTING.md`](CONTRIBUTING.md)
 
+## Is syu right for this repository?
+
+Use `syu` when your repository benefits from checked-in, reviewable traceability
+instead of a lighter docs-only workflow.
+
+**`syu` is usually a good fit when:**
+
+- the repository needs requirements and features tied back to code, tests, and maintenance work
+- multiple contributors need one checked-in place to see why a change exists and what it satisfies
+- informal docs have already started to drift away from the implementation
+- the project is long-lived, multi-team, polyglot, regulated, or otherwise benefits from stronger change explainability
+
+**`syu` is probably too heavy when:**
+
+- a short README, ADR log, or issue template already gives your team enough coordination
+- the repository is small or short-lived enough that manual docs rarely drift
+- the team does not want to maintain reciprocal links and explicit trace declarations in version control
+- you want zero modeling overhead before the first code change lands
+
+**Trade-offs compared with docs-only workflows**
+
+- `syu` adds more structure and YAML maintenance up front
+- in return, it gives you repository-native validation, clearer review context, and stronger traceability from intent to code
+- the payoff is highest when the repository needs durable change history and explicit ownership, not just one-time setup notes
+
+If that trade-off sounds right for your repository, continue to the install flow
+below. If not, start with lighter documentation and adopt `syu` later when the
+repository needs stronger traceability.
+
 ## Install from published releases
 
 `syu` publishes a release-hosted installer entrypoint and repository-scoped

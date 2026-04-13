@@ -28,6 +28,12 @@ const layers = [
 
 const journeys = [
   {
+    title: 'Check repository fit',
+    description:
+      'Read the adoption guide first when you are still deciding whether repository-native traceability is worth the extra structure.',
+    to: '/docs/guide/getting-started#is-syu-right-for-this-repository'
+  },
+  {
     title: 'Start a workspace',
     description: 'Scaffold a project, fill in the layered spec, and run validate without guessing the layout.',
     to: '/docs/guide/getting-started'
