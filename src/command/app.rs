@@ -163,6 +163,18 @@ enum StartupLine {
     Stderr(String),
 }
 
+fn bind_failure_message(bind: IpAddr, port: u16, error: &std::io::Error) -> String {
+    let likely_cause = if error.kind() == std::io::ErrorKind::AddrInUse {
+        "The selected port is likely already in use."
+    } else {
+        "The selected address or port may be unavailable on this machine."
+    };
+
+    format!(
+        "failed to bind `{bind}:{port}`. {likely_cause} Try `syu app . --port <free-port>` to retry with a different port, or set `app.port` in syu.yaml to change the default. {error}"
+    )
+}
+
 pub fn run_app_command(args: &AppArgs) -> Result<i32> {
     let workspace_root = canonical_workspace_root(&args.workspace)?;
     let loaded = load_config(&workspace_root)?;
@@ -184,7 +196,7 @@ pub fn run_app_command(args: &AppArgs) -> Result<i32> {
         let refresher = tokio::spawn(refresh_current_until_shutdown(state.clone()));
         let listener = tokio::net::TcpListener::bind((bind, settings.port))
             .await
-            .with_context(|| format!("failed to bind `{bind}:{}`", settings.port))?;
+            .map_err(|error| anyhow!(bind_failure_message(bind, settings.port, &error)))?;
         let local_addr = listener
             .local_addr()
             .context("failed to inspect bind address")?;
