@@ -109,6 +109,26 @@ fn update_file(path: &Path, contents: &str) {
     fs::write(path, contents).expect("file should update");
 }
 
+fn write_fake_git_for_log_failure(script_dir: &Path) {
+    let script_path = script_dir.join("git");
+    fs::write(
+        &script_path,
+        "#!/bin/sh\nset -eu\nworkspace=\"$2\"\ncommand_name=\"$3\"\nif [ \"$command_name\" = \"rev-parse\" ]; then\n  printf '%s\\n' \"$workspace\"\n  exit 0\nfi\nif [ \"$command_name\" = \"log\" ]; then\n  echo 'synthetic git log failure' >&2\n  exit 1\nfi\necho 'unexpected git invocation' >&2\nexit 1\n",
+    )
+    .expect("fake git script");
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        let mut permissions = fs::metadata(&script_path)
+            .expect("fake git metadata")
+            .permissions();
+        permissions.set_mode(0o755);
+        fs::set_permissions(&script_path, permissions).expect("fake git permissions");
+    }
+}
+
 #[test]
 fn log_command_renders_requirement_definition_and_test_history() {
     let workspace = write_history_workspace();
@@ -183,6 +203,183 @@ fn log_command_supports_json_kind_and_path_filters() {
     assert_eq!(
         json["commits"][1]["summary"],
         "chore: initial history fixture"
+    );
+}
+
+#[test]
+fn log_command_rejects_zero_limit() {
+    let workspace = write_history_workspace();
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .args([
+            "log",
+            "REQ-HIST-001",
+            workspace.path().to_str().expect("utf8 path"),
+            "--limit",
+            "0",
+        ])
+        .output()
+        .expect("command should run");
+
+    assert_eq!(output.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("greater than zero"));
+}
+
+#[test]
+fn log_command_rejects_unknown_ids() {
+    let workspace = write_history_workspace();
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .args([
+            "log",
+            "REQ-HIST-404",
+            workspace.path().to_str().expect("utf8 path"),
+        ])
+        .output()
+        .expect("command should run");
+
+    assert_eq!(output.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("was not found"));
+}
+
+#[test]
+fn log_command_rejects_non_trace_layers() {
+    let workspace = write_history_workspace();
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .args([
+            "log",
+            "PHIL-HIST-001",
+            workspace.path().to_str().expect("utf8 path"),
+        ])
+        .output()
+        .expect("command should run");
+
+    assert_eq!(output.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("requirement and feature IDs only"));
+}
+
+#[test]
+fn log_command_rejects_incompatible_requirement_kinds() {
+    let workspace = write_history_workspace();
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .args([
+            "log",
+            "REQ-HIST-001",
+            workspace.path().to_str().expect("utf8 path"),
+            "--kind",
+            "implementation",
+        ])
+        .output()
+        .expect("command should run");
+
+    assert_eq!(output.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("--kind implementation"));
+}
+
+#[test]
+fn log_command_rejects_incompatible_feature_kinds() {
+    let workspace = write_history_workspace();
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .args([
+            "log",
+            "FEAT-HIST-001",
+            workspace.path().to_str().expect("utf8 path"),
+            "--kind",
+            "test",
+        ])
+        .output()
+        .expect("command should run");
+
+    assert_eq!(output.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("--kind test"));
+}
+
+#[test]
+fn log_command_rejects_empty_path_selections() {
+    let workspace = write_history_workspace();
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .args([
+            "log",
+            "FEAT-HIST-001",
+            workspace.path().to_str().expect("utf8 path"),
+            "--kind",
+            "implementation",
+            "--path",
+            "docs",
+        ])
+        .output()
+        .expect("command should run");
+
+    assert_eq!(output.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("no tracked history paths remain"));
+}
+
+#[test]
+fn log_command_rejects_absolute_path_filters_outside_workspace() {
+    let workspace = write_history_workspace();
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .args([
+            "log",
+            "REQ-HIST-001",
+            workspace.path().to_str().expect("utf8 path"),
+            "--path",
+            "/tmp/outside-history-path",
+        ])
+        .output()
+        .expect("command should run");
+
+    assert_eq!(output.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("must stay inside workspace"));
+}
+
+#[test]
+fn log_command_reports_git_spawn_errors() {
+    let workspace = write_history_workspace();
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .env("PATH", "")
+        .args([
+            "log",
+            "REQ-HIST-001",
+            workspace.path().to_str().expect("utf8 path"),
+        ])
+        .output()
+        .expect("command should run");
+
+    assert_eq!(output.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("failed to run `git rev-parse`"));
+}
+
+#[test]
+fn log_command_reports_git_log_failures() {
+    let workspace = write_history_workspace();
+    let fake_bin = tempdir().expect("tempdir should exist");
+    write_fake_git_for_log_failure(fake_bin.path());
+
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .env("PATH", fake_bin.path())
+        .args([
+            "log",
+            "REQ-HIST-001",
+            workspace.path().to_str().expect("utf8 path"),
+        ])
+        .output()
+        .expect("command should run");
+
+    assert_eq!(output.status.code(), Some(2));
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("failed to read git history"),
+        "stderr should explain git log failures"
+    );
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("synthetic git log failure"),
+        "stderr should preserve git stderr"
     );
 }
 

@@ -476,15 +476,34 @@ mod tests {
     use std::collections::BTreeMap;
     use std::path::{Path, PathBuf};
 
-    use crate::model::TraceReference;
+    use crate::model::{Feature, Requirement, TraceReference};
 
-    use super::{HistoryKind, collect_trace_paths, matched_reasons, normalize_path_filter};
+    use super::{
+        HistoryKind, MatchedCommit, TrackedPath, collect_trace_paths, load_git_history,
+        matched_reasons, normalize_path_filter, parse_git_history, render_history_text,
+        tracked_paths_for_feature, tracked_paths_for_requirement,
+    };
 
     #[test]
     fn normalize_path_filter_accepts_relative_paths() {
         let normalized = normalize_path_filter(Path::new("/repo"), Path::new("src/command"))
             .expect("relative path should stay unchanged");
         assert_eq!(normalized, Path::new("src/command"));
+    }
+
+    #[test]
+    fn normalize_path_filter_strips_workspace_prefix_from_absolute_paths() {
+        let normalized =
+            normalize_path_filter(Path::new("/repo"), Path::new("/repo/src/command/log.rs"))
+                .expect("absolute path inside workspace should be normalized");
+        assert_eq!(normalized, Path::new("src/command/log.rs"));
+    }
+
+    #[test]
+    fn normalize_path_filter_rejects_absolute_paths_outside_workspace() {
+        let error = normalize_path_filter(Path::new("/repo"), Path::new("/outside/src/log.rs"))
+            .expect_err("outside path should be rejected");
+        assert!(error.to_string().contains("must stay inside workspace"));
     }
 
     #[test]
@@ -504,6 +523,79 @@ mod tests {
         assert_eq!(tracked[0].path, "src/log.rs");
         assert_eq!(tracked[0].language.as_deref(), Some("rust"));
         assert_eq!(tracked[0].symbols, vec!["run_log_command"]);
+    }
+
+    #[test]
+    fn requirement_kind_branches_return_expected_paths() {
+        let requirement = Requirement {
+            id: "REQ-LOG-001".to_string(),
+            title: "Requirement history".to_string(),
+            description: "Requirement history".to_string(),
+            priority: "medium".to_string(),
+            status: "implemented".to_string(),
+            linked_policies: Vec::new(),
+            linked_features: Vec::new(),
+            tests: trace_map("src/history_tests.rs", "history_test"),
+        };
+
+        let all = tracked_paths_for_requirement(&requirement, HistoryKind::All, "docs/req.yaml")
+            .expect("all history should work");
+        assert_eq!(all.len(), 2);
+        assert_eq!(all[0].kind, "definition");
+        assert_eq!(all[1].kind, "test");
+
+        let definition =
+            tracked_paths_for_requirement(&requirement, HistoryKind::Definition, "docs/req.yaml")
+                .expect("definition history should work");
+        assert_eq!(definition.len(), 1);
+        assert_eq!(definition[0].kind, "definition");
+
+        let tests = tracked_paths_for_requirement(&requirement, HistoryKind::Test, "docs/req.yaml")
+            .expect("test history should work");
+        assert_eq!(tests.len(), 1);
+        assert_eq!(tests[0].kind, "test");
+
+        let error = tracked_paths_for_requirement(
+            &requirement,
+            HistoryKind::Implementation,
+            "docs/req.yaml",
+        )
+        .expect_err("requirements should reject implementation history");
+        assert!(error.to_string().contains("--kind implementation"));
+    }
+
+    #[test]
+    fn feature_kind_branches_return_expected_paths() {
+        let feature = Feature {
+            id: "FEAT-LOG-001".to_string(),
+            title: "Feature history".to_string(),
+            summary: "Feature history".to_string(),
+            status: "implemented".to_string(),
+            linked_requirements: Vec::new(),
+            implementations: trace_map("src/history_feature.rs", "history_feature"),
+        };
+
+        let all = tracked_paths_for_feature(&feature, HistoryKind::All, "docs/feat.yaml")
+            .expect("all history should work");
+        assert_eq!(all.len(), 2);
+        assert_eq!(all[0].kind, "definition");
+        assert_eq!(all[1].kind, "implementation");
+
+        let definition =
+            tracked_paths_for_feature(&feature, HistoryKind::Definition, "docs/feat.yaml")
+                .expect("definition history should work");
+        assert_eq!(definition.len(), 1);
+        assert_eq!(definition[0].kind, "definition");
+
+        let implementations =
+            tracked_paths_for_feature(&feature, HistoryKind::Implementation, "docs/feat.yaml")
+                .expect("implementation history should work");
+        assert_eq!(implementations.len(), 1);
+        assert_eq!(implementations[0].kind, "implementation");
+
+        let error = tracked_paths_for_feature(&feature, HistoryKind::Test, "docs/feat.yaml")
+            .expect_err("features should reject test history");
+        assert!(error.to_string().contains("--kind test"));
     }
 
     #[test]
@@ -529,10 +621,123 @@ mod tests {
     }
 
     #[test]
+    fn load_git_history_returns_empty_without_tracked_paths() {
+        let history =
+            load_git_history(Path::new("."), 5, &[]).expect("empty tracked paths are okay");
+        assert!(history.is_empty());
+    }
+
+    #[test]
+    fn parse_git_history_rejects_malformed_records() {
+        let error = parse_git_history(b"\x1ebad-record\x00", &[])
+            .expect_err("malformed git records should be rejected");
+        assert!(error.to_string().contains("unexpected `git log` output"));
+    }
+
+    #[test]
+    fn parse_git_history_skips_commits_without_matching_reasons() {
+        let raw = b"\x1esha\x00short\x00author\x002026-04-13T00:00:00+00:00\x00subject\x00\nsrc/other.rs\x00";
+        let commits = parse_git_history(
+            raw,
+            &[TrackedPath {
+                kind: "implementation",
+                path: "src/history.rs".to_string(),
+                language: Some("rust".to_string()),
+                symbols: vec!["history".to_string()],
+            }],
+        )
+        .expect("parsing should succeed");
+        assert!(commits.is_empty());
+    }
+
+    #[test]
+    fn parse_git_history_ignores_invalid_utf8_file_names() {
+        let raw =
+            b"\x1esha\x00short\x00author\x002026-04-13T00:00:00+00:00\x00subject\x00\n\xff\x00";
+        let commits = parse_git_history(
+            raw,
+            &[TrackedPath {
+                kind: "implementation",
+                path: "src/history.rs".to_string(),
+                language: Some("rust".to_string()),
+                symbols: vec!["history".to_string()],
+            }],
+        )
+        .expect("parsing should succeed");
+        assert!(commits.is_empty());
+    }
+
+    #[test]
+    fn render_history_text_handles_empty_commit_lists() {
+        let rendered = render_history_text(
+            &super::HistoryTarget {
+                id: "REQ-LOG-001".to_string(),
+                entity_kind: "requirement",
+                title: "Requirement history".to_string(),
+                tracked_paths: vec![TrackedPath::definition("docs/req.yaml")],
+            },
+            Path::new("/repo"),
+            HistoryKind::Definition,
+            Some(Path::new("docs")),
+            &[],
+        );
+        assert!(rendered.contains("Path filter: docs"));
+        assert!(rendered.contains("Commits:\n- none"));
+    }
+
+    #[test]
+    fn render_history_text_lists_commit_reasons() {
+        let rendered = render_history_text(
+            &super::HistoryTarget {
+                id: "FEAT-LOG-001".to_string(),
+                entity_kind: "feature",
+                title: "Feature history".to_string(),
+                tracked_paths: vec![TrackedPath {
+                    kind: "implementation",
+                    path: "src/history.rs".to_string(),
+                    language: Some("rust".to_string()),
+                    symbols: vec!["history".to_string()],
+                }],
+            },
+            Path::new("/repo"),
+            HistoryKind::Implementation,
+            None,
+            &[MatchedCommit {
+                sha: "abc".to_string(),
+                short_sha: "abc".to_string(),
+                summary: "feat: update history".to_string(),
+                author: "Tester".to_string(),
+                authored_at: "2026-04-13T00:00:00+00:00".to_string(),
+                reasons: vec![TrackedPath {
+                    kind: "implementation",
+                    path: "src/history.rs".to_string(),
+                    language: Some("rust".to_string()),
+                    symbols: vec!["history".to_string()],
+                }],
+            }],
+        );
+        assert!(rendered.contains("feat: update history"));
+        assert!(rendered.contains("implementation\tsrc/history.rs\trust\t[`history`]"));
+    }
+
+    #[test]
     fn history_kind_labels_match_cli_values() {
         assert_eq!(HistoryKind::All.label(), "all");
         assert_eq!(HistoryKind::Definition.label(), "definition");
         assert_eq!(HistoryKind::Test.label(), "test");
         assert_eq!(HistoryKind::Implementation.label(), "implementation");
+    }
+
+    fn trace_map(path: &str, symbol: &str) -> BTreeMap<String, Vec<TraceReference>> {
+        let mut traces = BTreeMap::new();
+        traces.insert(
+            "rust".to_string(),
+            vec![TraceReference {
+                file: PathBuf::from(path),
+                symbols: vec![symbol.to_string()],
+                doc_contains: Vec::new(),
+            }],
+        );
+        traces
     }
 }

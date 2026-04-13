@@ -361,7 +361,7 @@ mod tests {
         workspace::Workspace,
     };
 
-    use super::WorkspaceLookup;
+    use super::{WorkspaceLookup, kind_for_id};
 
     #[test]
     fn entries_with_document_paths_reports_missing_philosophy_directory() {
@@ -437,6 +437,40 @@ mod tests {
             .entries_with_document_paths(LookupKind::Feature)
             .expect_err("missing feature directory should surface an error");
         assert!(error.to_string().contains("feature registry"));
+    }
+
+    #[test]
+    fn document_path_for_id_returns_none_for_unknown_prefixes() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        let workspace = Workspace {
+            root: tempdir.path().to_path_buf(),
+            spec_root: tempdir.path().join("docs/syu"),
+            config: SyuConfig::default(),
+            philosophies: Vec::new(),
+            policies: Vec::new(),
+            requirements: Vec::new(),
+            features: Vec::new(),
+        };
+
+        let document_path = WorkspaceLookup::new(&workspace)
+            .document_path_for_id("UNKNOWN-001")
+            .expect("unknown prefixes should not error");
+        assert!(document_path.is_none());
+    }
+
+    #[test]
+    fn kind_for_id_recognizes_supported_prefixes() {
+        assert!(matches!(
+            kind_for_id("PHIL-001"),
+            Some(LookupKind::Philosophy)
+        ));
+        assert!(matches!(kind_for_id("POL-001"), Some(LookupKind::Policy)));
+        assert!(matches!(
+            kind_for_id("REQ-001"),
+            Some(LookupKind::Requirement)
+        ));
+        assert!(matches!(kind_for_id("FEAT-001"), Some(LookupKind::Feature)));
+        assert!(kind_for_id("UNKNOWN-001").is_none());
     }
 
     #[test]
