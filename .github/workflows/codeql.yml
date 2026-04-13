@@ -49,6 +49,11 @@ jobs:
       - name: Restore Rust cache
         uses: Swatinem/rust-cache@v2
 
+      - name: Install wasm-pack
+        uses: taiki-e/cache-cargo-install-action@v3
+        with:
+          tool: wasm-pack
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:

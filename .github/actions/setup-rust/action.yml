@@ -28,5 +28,10 @@ runs:
         cache: npm
         cache-dependency-path: app/package-lock.json
 
+    - name: Install wasm-pack
+      uses: taiki-e/cache-cargo-install-action@v3
+      with:
+        tool: wasm-pack
+
     - name: Restore Rust cache
       uses: Swatinem/rust-cache@v2

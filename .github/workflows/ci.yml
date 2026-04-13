@@ -245,11 +245,6 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
 
-      - name: Install wasm-pack
-        uses: taiki-e/cache-cargo-install-action@v3
-        with:
-          tool: wasm-pack
-
       - name: Build browser app bundle
         run: scripts/ci/check-browser-app-freshness.sh
 
@@ -284,6 +279,14 @@ jobs:
           node-version: "25"
           cache: npm
           cache-dependency-path: app/package-lock.json
+
+      - name: Install stable toolchain for wasm-pack bootstrap
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install wasm-pack
+        uses: taiki-e/cache-cargo-install-action@v3
+        with:
+          tool: wasm-pack
 
       - name: Install MSRV toolchain
         uses: dtolnay/rust-toolchain@master

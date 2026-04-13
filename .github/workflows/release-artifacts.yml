@@ -91,6 +91,11 @@ jobs:
       - name: Restore Rust cache
         uses: Swatinem/rust-cache@v2
 
+      - name: Install wasm-pack
+        uses: taiki-e/cache-cargo-install-action@v3
+        with:
+          tool: wasm-pack
+
       - name: Install cross-compilation toolchain (aarch64-linux-gnu)
         if: matrix.cross_compile == true
         run: |

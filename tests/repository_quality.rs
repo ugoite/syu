@@ -576,11 +576,13 @@ fn repository_declares_dependency_hygiene_and_ci_caching() {
     assert!(ci_workflow.contains("./.github/actions/setup-rust"));
     assert!(setup_rust_action.contains("actions/setup-node@v6"));
     assert!(setup_rust_action.contains("cache-dependency-path: app/package-lock.json"));
+    assert!(setup_rust_action.contains("tool: wasm-pack"));
     assert!(setup_rust_action.contains("Restore Rust cache"));
     assert!(setup_rust_action.contains("Swatinem/rust-cache@v2"));
     assert!(ci_workflow.contains("taiki-e/cache-cargo-install-action@v3"));
     assert!(ci_workflow.contains("tool: cargo-llvm-cov"));
     assert!(ci_workflow.contains("tool: cargo-audit"));
+    assert!(ci_workflow.contains("tool: wasm-pack"));
     assert!(ci_workflow.contains("merge_group:"));
     assert!(ci_workflow.contains("Set up Python with pip cache"));
     assert!(ci_workflow.contains("cache: pip"));
@@ -601,6 +603,7 @@ fn repository_declares_dependency_hygiene_and_ci_caching() {
     assert!(codeql_workflow.contains("actions/setup-node@v6"));
     assert!(codeql_workflow.contains("dtolnay/rust-toolchain@stable"));
     assert!(codeql_workflow.contains("Swatinem/rust-cache@v2"));
+    assert!(codeql_workflow.contains("tool: wasm-pack"));
     assert!(codeql_workflow.contains("github/codeql-action/init@v4"));
     assert!(codeql_workflow.contains("github/codeql-action/autobuild@v4"));
     assert!(codeql_workflow.contains("github/codeql-action/analyze@v4"));
@@ -608,6 +611,7 @@ fn repository_declares_dependency_hygiene_and_ci_caching() {
     assert!(release_artifacts.contains("Restore Rust cache"));
     assert!(release_artifacts.contains("Swatinem/rust-cache@v2"));
     assert!(release_artifacts.contains("actions/setup-node@v6"));
+    assert!(release_artifacts.contains("tool: wasm-pack"));
 
     assert!(dependabot.contains("FEAT-QUALITY-001"));
     assert!(dependabot.contains("package-ecosystem: cargo"));
