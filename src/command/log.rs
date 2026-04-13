@@ -2,9 +2,9 @@
 // REQ-CORE-021
 
 use std::{
-    collections::BTreeSet,
+    collections::BTreeMap,
     fmt::Write,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
     process::Command,
 };
 
@@ -12,7 +12,8 @@ use anyhow::{Context, Result, bail};
 use serde::Serialize;
 
 use crate::{
-    cli::{HistoryKind, LogArgs, OutputFormat},
+    cli::{HistoryKind, LogArgs, LookupKind, OutputFormat},
+    coverage::normalize_relative_path,
     model::{Feature, Requirement, TraceReference},
     workspace::load_workspace,
 };
@@ -76,7 +77,8 @@ pub fn run_log_command(args: &LogArgs) -> Result<i32> {
         .path
         .as_deref()
         .map(|path| normalize_path_filter(&workspace.root, path))
-        .transpose()?;
+        .transpose()?
+        .filter(|path| !path.as_os_str().is_empty());
     let target = build_history_target(
         lookup,
         &workspace.root,
@@ -124,17 +126,7 @@ fn build_history_target(
     kind: HistoryKind,
     path_filter: Option<&Path>,
 ) -> Result<HistoryTarget> {
-    let Some(entity) = lookup.find(id) else {
-        let workspace_arg = shell_quote_path(workspace_root);
-        bail!(
-            "definition `{id}` was not found in `{}`\n\nhint: Run `syu list {workspace_arg}` to see all available IDs, or `syu search {id} {workspace_arg}` to find related items.",
-            workspace_root.display()
-        );
-    };
-
-    let definition_path = lookup
-        .document_path_for_id(id)?
-        .with_context(|| format!("checked-in definition path for `{id}` was not found"))?;
+    let (entity, definition_path) = resolve_history_entity(lookup, workspace_root, id)?;
 
     let (entity_kind, title, traces) = match entity {
         WorkspaceEntity::Requirement(item) => (
@@ -156,7 +148,8 @@ fn build_history_target(
 
     let mut tracked_paths = traces;
     if let Some(path_filter) = path_filter {
-        tracked_paths.retain(|tracked| Path::new(&tracked.path).starts_with(path_filter));
+        tracked_paths
+            .retain(|tracked| normalized_tracked_path(&tracked.path).starts_with(path_filter));
     }
 
     if tracked_paths.is_empty() {
@@ -176,6 +169,72 @@ fn build_history_target(
         title,
         tracked_paths,
     })
+}
+
+fn resolve_history_entity<'a>(
+    lookup: WorkspaceLookup<'a>,
+    workspace_root: &Path,
+    id: &str,
+) -> Result<(WorkspaceEntity<'a>, String)> {
+    let Some(kind) = lookup_kind_for_id(id) else {
+        let workspace_arg = shell_quote_path(workspace_root);
+        bail!(
+            "definition `{id}` was not found in `{}`\n\nhint: Run `syu list {workspace_arg}` to see all available IDs, or `syu search {id} {workspace_arg}` to find related items.",
+            workspace_root.display()
+        );
+    };
+
+    let entries = lookup
+        .entries_with_document_paths(kind)?
+        .into_iter()
+        .filter(|entry| entry.id == id)
+        .collect::<Vec<_>>();
+
+    if entries.is_empty() {
+        let workspace_arg = shell_quote_path(workspace_root);
+        bail!(
+            "definition `{id}` was not found in `{}`\n\nhint: Run `syu list {workspace_arg}` to see all available IDs, or `syu search {id} {workspace_arg}` to find related items.",
+            workspace_root.display()
+        );
+    }
+
+    if entries.len() > 1 {
+        let documents = entries
+            .iter()
+            .filter_map(|entry| entry.document_path.as_deref())
+            .map(|path| format!("- {path}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        bail!(
+            "definition `{id}` is ambiguous because it appears in multiple documents:\n{documents}\n\nhint: fix the duplicate ID before using `syu log`."
+        );
+    }
+
+    let entity = lookup
+        .find(id)
+        .expect("a document-path match must also exist in the workspace model");
+    let definition_path = lookup
+        .document_path_for_id(id)?
+        .with_context(|| format!("checked-in definition path for `{id}` was not found"))?;
+
+    Ok((entity, definition_path))
+}
+
+fn lookup_kind_for_id(id: &str) -> Option<LookupKind> {
+    if id.starts_with("PHIL-") {
+        return Some(LookupKind::Philosophy);
+    }
+    if id.starts_with("POL-") {
+        return Some(LookupKind::Policy);
+    }
+    if id.starts_with("REQ-") {
+        return Some(LookupKind::Requirement);
+    }
+    if id.starts_with("FEAT-") {
+        return Some(LookupKind::Feature);
+    }
+
+    None
 }
 
 fn tracked_paths_for_requirement(
@@ -240,7 +299,7 @@ fn collect_trace_paths(
 
 fn normalize_path_filter(workspace_root: &Path, path: &Path) -> Result<PathBuf> {
     if path.is_absolute() {
-        return path
+        let relative = path
             .strip_prefix(workspace_root)
             .map(Path::to_path_buf)
             .with_context(|| {
@@ -249,10 +308,24 @@ fn normalize_path_filter(workspace_root: &Path, path: &Path) -> Result<PathBuf> 
                     path.display(),
                     workspace_root.display()
                 )
-            });
+            })?;
+        return normalize_path_filter(workspace_root, &relative);
     }
 
-    Ok(path.to_path_buf())
+    let normalized = normalize_relative_path(path);
+    if normalized.is_absolute()
+        || normalized
+            .components()
+            .any(|component| !matches!(component, Component::Normal(_)))
+    {
+        bail!(
+            "path filter `{}` must stay inside workspace `{}`",
+            path.display(),
+            workspace_root.display()
+        );
+    }
+
+    Ok(normalized)
 }
 
 fn resolve_git_repository_root(workspace_root: &Path) -> Result<PathBuf> {
@@ -287,19 +360,56 @@ fn load_git_history(
     limit: usize,
     tracked_paths: &[TrackedPath],
 ) -> Result<Vec<MatchedCommit>> {
-    let unique_paths = tracked_paths
-        .iter()
-        .map(|tracked| tracked.path.as_str())
-        .collect::<BTreeSet<_>>();
-    if unique_paths.is_empty() {
+    if tracked_paths.is_empty() {
         return Ok(Vec::new());
     }
 
+    let mut grouped_paths = BTreeMap::<PathBuf, Vec<TrackedPath>>::new();
+    for tracked in tracked_paths {
+        grouped_paths
+            .entry(normalized_tracked_path(&tracked.path))
+            .or_default()
+            .push(tracked.clone());
+    }
+
+    let mut merged_commits = BTreeMap::<String, MatchedCommit>::new();
+    for (path, reasons) in grouped_paths {
+        for commit in load_git_history_for_path(workspace_root, limit, &path)? {
+            let entry = merged_commits
+                .entry(commit.sha.clone())
+                .or_insert_with(|| MatchedCommit {
+                    reasons: Vec::new(),
+                    ..commit
+                });
+            for reason in &reasons {
+                if !entry.reasons.contains(reason) {
+                    entry.reasons.push(reason.clone());
+                }
+            }
+        }
+    }
+
+    let mut commits = merged_commits.into_values().collect::<Vec<_>>();
+    commits.sort_by(|left, right| {
+        right
+            .authored_at
+            .cmp(&left.authored_at)
+            .then_with(|| right.sha.cmp(&left.sha))
+    });
+    commits.truncate(limit);
+    Ok(commits)
+}
+
+fn load_git_history_for_path(
+    workspace_root: &Path,
+    limit: usize,
+    path: &Path,
+) -> Result<Vec<MatchedCommit>> {
     let mut command = Command::new("git");
     command.arg("-C").arg(workspace_root).args([
         "log",
+        "--follow",
         "--relative",
-        "--no-renames",
         "--max-count",
         &limit.to_string(),
         "--format=%x1E%H%x00%h%x00%an%x00%aI%x00%s",
@@ -307,9 +417,7 @@ fn load_git_history(
         "-z",
         "--",
     ]);
-    for path in unique_paths {
-        command.arg(path);
-    }
+    command.arg(path);
 
     let output = command
         .output()
@@ -322,10 +430,14 @@ fn load_git_history(
         );
     }
 
-    parse_git_history(&output.stdout, tracked_paths)
+    parse_git_history(&output.stdout)
 }
 
-fn parse_git_history(raw: &[u8], tracked_paths: &[TrackedPath]) -> Result<Vec<MatchedCommit>> {
+fn normalized_tracked_path(path: &str) -> PathBuf {
+    normalize_relative_path(Path::new(path))
+}
+
+fn parse_git_history(raw: &[u8]) -> Result<Vec<MatchedCommit>> {
     let mut commits = Vec::new();
 
     for record in raw.split(|byte| *byte == GIT_RECORD_SEPARATOR) {
@@ -338,32 +450,13 @@ fn parse_git_history(raw: &[u8], tracked_paths: &[TrackedPath]) -> Result<Vec<Ma
             bail!("unexpected `git log` output while parsing commit history");
         }
 
-        let changed_files = fields[5..]
-            .iter()
-            .filter_map(|field| {
-                let Ok(value) = std::str::from_utf8(field) else {
-                    return None;
-                };
-                let trimmed = value.trim_start_matches('\n').trim();
-                if trimmed.is_empty() {
-                    None
-                } else {
-                    Some(trimmed.to_string())
-                }
-            })
-            .collect::<Vec<_>>();
-        let reasons = matched_reasons(&changed_files, tracked_paths);
-        if reasons.is_empty() {
-            continue;
-        }
-
         commits.push(MatchedCommit {
             sha: parse_git_field(fields[0])?,
             short_sha: parse_git_field(fields[1])?,
             author: parse_git_field(fields[2])?,
             authored_at: parse_git_field(fields[3])?,
             summary: parse_git_field(fields[4])?,
-            reasons,
+            reasons: Vec::new(),
         });
     }
 
@@ -374,19 +467,6 @@ fn parse_git_field(field: &[u8]) -> Result<String> {
     Ok(std::str::from_utf8(field)
         .context("git output should be valid UTF-8")?
         .to_string())
-}
-
-fn matched_reasons(changed_files: &[String], tracked_paths: &[TrackedPath]) -> Vec<TrackedPath> {
-    let changed = changed_files
-        .iter()
-        .map(String::as_str)
-        .collect::<BTreeSet<_>>();
-
-    tracked_paths
-        .iter()
-        .filter(|tracked| changed.contains(tracked.path.as_str()))
-        .cloned()
-        .collect()
 }
 
 fn render_history_text(
@@ -480,14 +560,15 @@ mod tests {
 
     use super::{
         HistoryKind, MatchedCommit, TrackedPath, collect_trace_paths, load_git_history,
-        matched_reasons, normalize_path_filter, parse_git_history, render_history_text,
-        tracked_paths_for_feature, tracked_paths_for_requirement,
+        normalize_path_filter, parse_git_history, render_history_text, tracked_paths_for_feature,
+        tracked_paths_for_requirement,
     };
 
     #[test]
     fn normalize_path_filter_accepts_relative_paths() {
-        let normalized = normalize_path_filter(Path::new("/repo"), Path::new("src/command"))
-            .expect("relative path should stay unchanged");
+        let normalized =
+            normalize_path_filter(Path::new("/repo"), Path::new("./src/../src/command"))
+                .expect("relative path should stay normalized");
         assert_eq!(normalized, Path::new("src/command"));
     }
 
@@ -503,6 +584,13 @@ mod tests {
     fn normalize_path_filter_rejects_absolute_paths_outside_workspace() {
         let error = normalize_path_filter(Path::new("/repo"), Path::new("/outside/src/log.rs"))
             .expect_err("outside path should be rejected");
+        assert!(error.to_string().contains("must stay inside workspace"));
+    }
+
+    #[test]
+    fn normalize_path_filter_rejects_parent_segments() {
+        let error = normalize_path_filter(Path::new("/repo"), Path::new("../src/log.rs"))
+            .expect_err("parent paths should be rejected");
         assert!(error.to_string().contains("must stay inside workspace"));
     }
 
@@ -599,28 +687,6 @@ mod tests {
     }
 
     #[test]
-    fn matched_reasons_ignore_non_traced_files() {
-        let tracked = vec![
-            super::TrackedPath::definition("docs/syu/requirements/core/workspace.yaml"),
-            super::TrackedPath {
-                kind: "test",
-                path: "tests/log_command.rs".to_string(),
-                language: Some("rust".to_string()),
-                symbols: vec!["history_command_supports_json".to_string()],
-            },
-        ];
-
-        let reasons = matched_reasons(
-            &["README.md".to_string(), "tests/log_command.rs".to_string()],
-            &tracked,
-        );
-
-        assert_eq!(reasons.len(), 1);
-        assert_eq!(reasons[0].kind, "test");
-        assert_eq!(reasons[0].path, "tests/log_command.rs");
-    }
-
-    #[test]
     fn load_git_history_returns_empty_without_tracked_paths() {
         let history =
             load_git_history(Path::new("."), 5, &[]).expect("empty tracked paths are okay");
@@ -629,42 +695,28 @@ mod tests {
 
     #[test]
     fn parse_git_history_rejects_malformed_records() {
-        let error = parse_git_history(b"\x1ebad-record\x00", &[])
+        let error = parse_git_history(b"\x1ebad-record\x00")
             .expect_err("malformed git records should be rejected");
         assert!(error.to_string().contains("unexpected `git log` output"));
     }
 
     #[test]
-    fn parse_git_history_skips_commits_without_matching_reasons() {
+    fn parse_git_history_parses_commit_records_without_reason_filtering() {
         let raw = b"\x1esha\x00short\x00author\x002026-04-13T00:00:00+00:00\x00subject\x00\nsrc/other.rs\x00";
-        let commits = parse_git_history(
-            raw,
-            &[TrackedPath {
-                kind: "implementation",
-                path: "src/history.rs".to_string(),
-                language: Some("rust".to_string()),
-                symbols: vec!["history".to_string()],
-            }],
-        )
-        .expect("parsing should succeed");
-        assert!(commits.is_empty());
+        let commits = parse_git_history(raw).expect("parsing should succeed");
+        assert_eq!(commits.len(), 1);
+        assert_eq!(commits[0].summary, "subject");
+        assert!(commits[0].reasons.is_empty());
     }
 
     #[test]
-    fn parse_git_history_ignores_invalid_utf8_file_names() {
+    fn parse_git_history_ignores_invalid_utf8_file_names_after_the_subject() {
         let raw =
             b"\x1esha\x00short\x00author\x002026-04-13T00:00:00+00:00\x00subject\x00\n\xff\x00";
-        let commits = parse_git_history(
-            raw,
-            &[TrackedPath {
-                kind: "implementation",
-                path: "src/history.rs".to_string(),
-                language: Some("rust".to_string()),
-                symbols: vec!["history".to_string()],
-            }],
-        )
-        .expect("parsing should succeed");
-        assert!(commits.is_empty());
+        let commits = parse_git_history(raw).expect("parsing should succeed");
+        assert_eq!(commits.len(), 1);
+        assert_eq!(commits[0].sha, "sha");
+        assert!(commits[0].reasons.is_empty());
     }
 
     #[test]

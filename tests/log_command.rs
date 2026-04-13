@@ -207,6 +207,128 @@ fn log_command_supports_json_kind_and_path_filters() {
 }
 
 #[test]
+fn log_command_normalizes_non_canonical_trace_paths_and_filters() {
+    let workspace = write_history_workspace();
+    update_file(
+        &workspace.path().join("docs/syu/requirements/core.yaml"),
+        "category: Core\nprefix: REQ-HIST\n\nrequirements:\n  - id: REQ-HIST-001\n    title: Requirement history lookup\n    description: Requirement history should show the traced test, checked-in definition, and maintenance story.\n    priority: medium\n    status: implemented\n    linked_policies:\n      - POL-HIST-001\n    linked_features:\n      - FEAT-HIST-001\n    tests:\n      rust:\n        - file: ./src/../src/history_tests.rs\n          symbols:\n            - requirement_history_test\n",
+    );
+    git_commit(workspace.path(), "docs: rewrite requirement trace path");
+
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .args([
+            "log",
+            "REQ-HIST-001",
+            workspace.path().to_str().expect("utf8 path"),
+            "--kind",
+            "test",
+            "--path",
+            "./src/../src",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("command should run");
+
+    assert!(
+        output.status.success(),
+        "stdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let json: Value = serde_json::from_slice(&output.stdout).expect("output should be valid JSON");
+    assert_eq!(json["path_filter"], "src");
+    assert_eq!(
+        json["tracked_paths"][0]["path"],
+        "./src/../src/history_tests.rs"
+    );
+    let summaries = json["commits"]
+        .as_array()
+        .expect("commit array")
+        .iter()
+        .map(|commit| commit["summary"].as_str().expect("summary"))
+        .collect::<Vec<_>>();
+    assert!(summaries.contains(&"test: adjust traced requirement coverage"));
+    assert!(summaries.contains(&"chore: initial history fixture"));
+    assert!(!summaries.contains(&"docs: rewrite requirement trace path"));
+}
+
+#[test]
+fn log_command_follows_tracked_file_renames() {
+    let workspace = write_history_workspace();
+    fs::rename(
+        workspace.path().join("src/history_feature.rs"),
+        workspace.path().join("src/history_feature_renamed.rs"),
+    )
+    .expect("feature implementation should rename");
+    update_file(
+        &workspace.path().join("docs/syu/features/cli/history.yaml"),
+        "category: History\nversion: 1\nfeatures:\n  - id: FEAT-HIST-001\n    title: Feature history lookup\n    summary: Feature history should show the traced implementation and checked-in definition.\n    status: implemented\n    linked_requirements:\n      - REQ-HIST-001\n    implementations:\n      rust:\n        - file: src/history_feature_renamed.rs\n          symbols:\n            - feature_history\n",
+    );
+    git_commit(workspace.path(), "feat: rename traced implementation file");
+
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .args([
+            "log",
+            "FEAT-HIST-001",
+            workspace.path().to_str().expect("utf8 path"),
+            "--kind",
+            "implementation",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("command should run");
+
+    assert!(
+        output.status.success(),
+        "stdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let json: Value = serde_json::from_slice(&output.stdout).expect("output should be valid JSON");
+    let summaries = json["commits"]
+        .as_array()
+        .expect("commit array")
+        .iter()
+        .map(|commit| commit["summary"].as_str().expect("summary"))
+        .collect::<Vec<_>>();
+    assert_eq!(summaries[0], "feat: rename traced implementation file");
+    assert!(summaries.contains(&"feat: update traced implementation"));
+    assert!(summaries.contains(&"chore: initial history fixture"));
+}
+
+#[test]
+fn log_command_rejects_ambiguous_duplicate_ids() {
+    let workspace = write_history_workspace();
+    fs::write(
+        workspace.path().join("docs/syu/requirements/duplicate.yaml"),
+        "category: Core\nprefix: REQ-HIST\n\nrequirements:\n  - id: REQ-HIST-001\n    title: Duplicate history lookup\n    description: Duplicate copy.\n    priority: medium\n    status: implemented\n    linked_policies: []\n    linked_features: []\n    tests: {}\n",
+    )
+    .expect("duplicate requirement file should write");
+
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .args([
+            "log",
+            "REQ-HIST-001",
+            workspace.path().to_str().expect("utf8 path"),
+        ])
+        .output()
+        .expect("command should run");
+
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("ambiguous because it appears in multiple documents"));
+    assert!(stderr.contains("docs/syu/requirements/core.yaml"));
+    assert!(stderr.contains("docs/syu/requirements/duplicate.yaml"));
+}
+
+#[test]
 fn log_command_rejects_zero_limit() {
     let workspace = write_history_workspace();
     let output = Command::cargo_bin("syu")
