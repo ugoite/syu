@@ -77,6 +77,16 @@ pub struct ValidateConfig {
     pub require_reciprocal_links: bool,
     #[serde(default)]
     pub require_symbol_trace_coverage: bool,
+    #[serde(default)]
+    pub trace_ownership_mode: TraceOwnershipMode,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum TraceOwnershipMode {
+    #[default]
+    Inline,
+    Sidecar,
 }
 
 impl Default for ValidateConfig {
@@ -87,6 +97,7 @@ impl Default for ValidateConfig {
             require_non_orphaned_items: default_require_non_orphaned_items(),
             require_reciprocal_links: default_require_reciprocal_links(),
             require_symbol_trace_coverage: false,
+            trace_ownership_mode: TraceOwnershipMode::Inline,
         }
     }
 }
@@ -304,8 +315,8 @@ mod tests {
     use tempfile::tempdir;
 
     use super::{
-        CONFIG_FILE_NAME, RuntimeConfig, SyuConfig, config_path, current_cli_version, load_config,
-        render_config, resolve_spec_root,
+        CONFIG_FILE_NAME, RuntimeConfig, SyuConfig, TraceOwnershipMode, config_path,
+        current_cli_version, load_config, render_config, resolve_spec_root,
     };
 
     #[test]
@@ -325,6 +336,10 @@ mod tests {
         assert!(loaded.config.validate.require_non_orphaned_items);
         assert!(loaded.config.validate.require_reciprocal_links);
         assert!(!loaded.config.validate.require_symbol_trace_coverage);
+        assert_eq!(
+            loaded.config.validate.trace_ownership_mode,
+            TraceOwnershipMode::Inline
+        );
         assert_eq!(loaded.config.report.output, None);
         assert_eq!(loaded.config.app.bind, "127.0.0.1");
         assert_eq!(loaded.config.app.port, 3000);
@@ -336,7 +351,7 @@ mod tests {
         fs::write(
             tempdir.path().join(CONFIG_FILE_NAME),
             format!(
-                "version: {version}\nspec:\n  root: spec/contracts\nvalidate:\n  default_fix: true\n  allow_planned: false\n  require_non_orphaned_items: false\n  require_reciprocal_links: false\n  require_symbol_trace_coverage: true\nreport:\n  output: docs/generated/syu-report.md\napp:\n  bind: 0.0.0.0\n  port: 4321\nruntimes:\n  python:\n    command: python3\n  node:\n    command: node\n",
+                "version: {version}\nspec:\n  root: spec/contracts\nvalidate:\n  default_fix: true\n  allow_planned: false\n  require_non_orphaned_items: false\n  require_reciprocal_links: false\n  require_symbol_trace_coverage: true\n  trace_ownership_mode: sidecar\nreport:\n  output: docs/generated/syu-report.md\napp:\n  bind: 0.0.0.0\n  port: 4321\nruntimes:\n  python:\n    command: python3\n  node:\n    command: node\n",
                 version = current_cli_version()
             ),
         )
@@ -353,6 +368,10 @@ mod tests {
         assert!(!loaded.config.validate.require_non_orphaned_items);
         assert!(!loaded.config.validate.require_reciprocal_links);
         assert!(loaded.config.validate.require_symbol_trace_coverage);
+        assert_eq!(
+            loaded.config.validate.trace_ownership_mode,
+            TraceOwnershipMode::Sidecar
+        );
         assert_eq!(
             loaded.config.report.output,
             Some(std::path::PathBuf::from("docs/generated/syu-report.md"))
@@ -371,6 +390,7 @@ mod tests {
         assert!(rendered.contains("require_non_orphaned_items: true"));
         assert!(rendered.contains("require_reciprocal_links: true"));
         assert!(rendered.contains("require_symbol_trace_coverage: false"));
+        assert!(rendered.contains("trace_ownership_mode: inline"));
         assert!(!rendered.contains("report:"));
         assert!(rendered.contains("bind: 127.0.0.1"));
         assert!(rendered.contains("port: 3000"));

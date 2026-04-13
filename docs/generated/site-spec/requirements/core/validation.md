@@ -92,15 +92,16 @@ description: "Generated reference for docs/syu/requirements/core/validation.yaml
       feature-to-implementation traceability in the languages used by `syu`
       today: Rust, Python, and TypeScript/JavaScript. A declared trace is valid
       only when the file exists, the symbol exists, the trace path uses canonical
-      repository-relative form, the file explicitly mentions the owning ID, and
-      any `doc_contains` snippets are present in the symbol documentation.
-      Validation MUST also reject duplicate trace mappings inside a single
-      language list, support wildcard file ownership, and provide an optional
-      mode that requires every public symbol (non-underscore-prefixed for Python,
-      `pub` for Rust, exported for TypeScript/JavaScript) and every test symbol
-      (`test_*` functions for Python, `#[test]` for Rust, `test*`-prefixed
-      functions for TypeScript/JavaScript) in repository source and test roots
-      to belong to some feature or requirement respectively.
+      repository-relative form, the owning ID is declared either inline or in a
+      checked-in sidecar ownership manifest, and any `doc_contains` snippets are
+      present in the symbol documentation. Validation MUST also reject duplicate
+      trace mappings inside a single language list, support wildcard file
+      ownership, and provide an optional mode that requires every public symbol
+      (non-underscore-prefixed for Python, `pub` for Rust, exported for
+      TypeScript/JavaScript) and every test symbol (`test_*` functions for
+      Python, `#[test]` for Rust, `test*`-prefixed functions for
+      TypeScript/JavaScript) in repository source and test roots to belong to
+      some feature or requirement respectively.
   - **priority**: high
   - **status**: implemented
   - **linked_policies**:
@@ -117,6 +118,9 @@ description: "Generated reference for docs/syu/requirements/core/validation.yaml
           - check_command_warns_for_non_canonical_relative_trace_paths
           - check_command_warns_for_backslash_trace_paths
       - **file**: tests/trace_coverage_validation.rs
+        - **symbols**:
+          - *
+      - **file**: tests/sidecar_ownership_validation.rs
         - **symbols**:
           - *
       - **file**: tests/validate_override_command.rs
@@ -156,7 +160,9 @@ description: "Generated reference for docs/syu/requirements/core/validation.yaml
       The `validate` command MUST provide a `--fix` mode that performs safe,
       mechanical repairs for documentation-style trace gaps. `syu.yaml` MUST be
       able to configure default fix behavior, and `--no-fix` MUST disable it.
-      Autofix MUST stay conservative and avoid speculative structural edits.
+      When sidecar ownership manifests are enabled, autofix MUST update the
+      checked-in manifest instead of inserting owner IDs into source. Autofix
+      MUST stay conservative and avoid speculative structural edits.
   - **priority**: high
   - **status**: implemented
   - **linked_policies**:
@@ -280,15 +286,16 @@ requirements:
       feature-to-implementation traceability in the languages used by `syu`
       today: Rust, Python, and TypeScript/JavaScript. A declared trace is valid
       only when the file exists, the symbol exists, the trace path uses canonical
-      repository-relative form, the file explicitly mentions the owning ID, and
-      any `doc_contains` snippets are present in the symbol documentation.
-      Validation MUST also reject duplicate trace mappings inside a single
-      language list, support wildcard file ownership, and provide an optional
-      mode that requires every public symbol (non-underscore-prefixed for Python,
-      `pub` for Rust, exported for TypeScript/JavaScript) and every test symbol
-      (`test_*` functions for Python, `#[test]` for Rust, `test*`-prefixed
-      functions for TypeScript/JavaScript) in repository source and test roots
-      to belong to some feature or requirement respectively.
+      repository-relative form, the owning ID is declared either inline or in a
+      checked-in sidecar ownership manifest, and any `doc_contains` snippets are
+      present in the symbol documentation. Validation MUST also reject duplicate
+      trace mappings inside a single language list, support wildcard file
+      ownership, and provide an optional mode that requires every public symbol
+      (non-underscore-prefixed for Python, `pub` for Rust, exported for
+      TypeScript/JavaScript) and every test symbol (`test_*` functions for
+      Python, `#[test]` for Rust, `test*`-prefixed functions for
+      TypeScript/JavaScript) in repository source and test roots to belong to
+      some feature or requirement respectively.
     priority: high
     status: implemented
     linked_policies:
@@ -305,6 +312,9 @@ requirements:
             - check_command_warns_for_non_canonical_relative_trace_paths
             - check_command_warns_for_backslash_trace_paths
         - file: tests/trace_coverage_validation.rs
+          symbols:
+            - '*'
+        - file: tests/sidecar_ownership_validation.rs
           symbols:
             - '*'
         - file: tests/validate_override_command.rs
@@ -343,7 +353,9 @@ requirements:
       The `validate` command MUST provide a `--fix` mode that performs safe,
       mechanical repairs for documentation-style trace gaps. `syu.yaml` MUST be
       able to configure default fix behavior, and `--no-fix` MUST disable it.
-      Autofix MUST stay conservative and avoid speculative structural edits.
+      When sidecar ownership manifests are enabled, autofix MUST update the
+      checked-in manifest instead of inserting owner IDs into source. Autofix
+      MUST stay conservative and avoid speculative structural edits.
     priority: high
     status: implemented
     linked_policies:

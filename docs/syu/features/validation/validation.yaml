@@ -257,14 +257,15 @@ rules:
   - code: SYU-trace-id-001
     genre: trace
     severity: error
-    title: Traced files must mention the owning specification ID
-    summary: A trace should be explicit inside the implementation or test artifact itself.
+    title: Traced artifacts must declare the owning specification ID
+    summary: A trace should stay explicit in the artifact itself or its checked-in sidecar manifest.
     description: |
       `syu` is built around repository-native explainability. It is not enough
-      for YAML to say a file belongs to a requirement or feature; the file should
-      also mention that ownership so someone reading the code or test can see the
-      link without consulting another system. This rule keeps traceability visible
-      at the point where work actually happens.
+      for YAML to say a file belongs to a requirement or feature; the repository
+      should also declare that ownership where someone reviewing the code or test
+      can find it immediately. Inline mentions remain the default, while
+      sidecar ownership manifests allow teams to keep source files untouched when
+      the same explainability can stay next to the artifact in version control.
 
   - code: SYU-trace-symbol-001
     genre: trace

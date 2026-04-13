@@ -231,6 +231,39 @@ For the browser app, CLI flags override config:
 2. `app.port`
 3. `3000`
 
+## Ownership declaration mode
+
+`validate.trace_ownership_mode` controls where traced files declare their owning
+requirement or feature ID:
+
+```yaml
+validate:
+  trace_ownership_mode: sidecar
+```
+
+- `inline` keeps the default behavior: the traced source or test file mentions
+  the owning ID directly.
+- `sidecar` expects a checked-in manifest next to each traced file, named
+  `<file>.syu-ownership.yaml`.
+
+Example sidecar manifest:
+
+```yaml
+version: 1
+owners:
+  - id: REQ-001
+    symbols:
+      - req_trace
+  - id: FEAT-001
+    symbols:
+      - req_trace
+```
+
+Use `sidecar` when you want to keep ownership explicit in version control
+without forcing repository IDs into source comments. `syu validate --fix`
+updates the sidecar manifest instead of inserting IDs into the traced file in
+this mode.
+
 ## Wildcard file ownership
 
 Traces may use `symbols: ['*']` when one requirement or feature intentionally
@@ -259,6 +292,8 @@ want strict ownership checks without enumerating every public symbol by hand.
   backlinks after stabilizing the forward graph
 - turn on `validate.require_symbol_trace_coverage: true` once the repository
   wants public APIs and tests to remain fully owned by the spec
+- keep `validate.trace_ownership_mode: inline` unless your repository has a
+  deliberate reason to store ownership in checked-in sidecar manifests
 - set `report.output` when your repository checks in one stable report artifact
   path
 - set `app.bind` and `app.port` only when your team really has a stable local

@@ -92,6 +92,18 @@ description: "Generated reference for docs/syu/config/validate.yaml"
       verifying declared traces. The validate command can enable or disable this
       for one run with `--require-symbol-trace-coverage` or
       `--require-symbol-trace-coverage=false`.
+- **key**: validate.trace_ownership_mode
+  - **type**: enum(inline|sidecar)
+  - **default**: inline
+  - **summary**: Chooses whether trace ownership is declared inline or in checked-in sidecar manifests.
+  - **description**:
+    - |
+      `inline` keeps the existing behavior where traced source and test files
+      mention their owning requirement or feature ID directly. `sidecar` keeps
+      YAML trace mappings as the canonical file/symbol links but requires each
+      traced file to have an adjacent `<file>.syu-ownership.yaml` manifest with
+      matching owner IDs and symbols. Autofix updates the sidecar manifest
+      instead of inserting IDs into source when this mode is enabled.
 
 ## Source YAML
 
@@ -164,4 +176,15 @@ items:
       verifying declared traces. The validate command can enable or disable this
       for one run with `--require-symbol-trace-coverage` or
       `--require-symbol-trace-coverage=false`.
+  - key: validate.trace_ownership_mode
+    type: enum(inline|sidecar)
+    default: inline
+    summary: Chooses whether trace ownership is declared inline or in checked-in sidecar manifests.
+    description: |
+      `inline` keeps the existing behavior where traced source and test files
+      mention their owning requirement or feature ID directly. `sidecar` keeps
+      YAML trace mappings as the canonical file/symbol links but requires each
+      traced file to have an adjacent `<file>.syu-ownership.yaml` manifest with
+      matching owner IDs and symbols. Autofix updates the sidecar manifest
+      instead of inserting IDs into source when this mode is enabled.
 ```
