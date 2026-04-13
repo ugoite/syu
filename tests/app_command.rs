@@ -4,7 +4,7 @@ use std::{
     io::{Read, Write},
     net::{TcpListener, TcpStream},
     path::{Path, PathBuf},
-    process::{Child, Command, Output, Stdio},
+    process::{Child, Command, Stdio},
     thread,
     time::Duration,
 };
@@ -93,20 +93,6 @@ fn shutdown_child(child: &mut Child) {
 
     let status = child.wait().expect("child should exit");
     assert!(status.success(), "app command should exit cleanly");
-}
-
-fn shutdown_child_with_output(child: Child) -> Output {
-    #[cfg(unix)]
-    unsafe {
-        libc::kill(child.id() as i32, libc::SIGINT);
-    }
-
-    #[cfg(not(unix))]
-    child.kill().expect("child should terminate");
-
-    let output = child.wait_with_output().expect("child should exit");
-    assert!(output.status.success(), "app command should exit cleanly");
-    output
 }
 
 fn wait_for_output_fragment(path: &Path, fragment: &str) {
@@ -235,7 +221,10 @@ fn app_command_help_mentions_browser_and_stop_instructions() {
 #[test]
 fn app_command_warns_on_non_loopback_binds() {
     let port = reserve_port();
-    let child = Command::cargo_bin("syu")
+    let tempdir = tempdir().expect("tempdir should exist");
+    let log_path = tempdir.path().join("app.log");
+    let log = fs::File::create(&log_path).expect("log file should open");
+    let mut child = Command::cargo_bin("syu")
         .expect("binary should build")
         .arg("app")
         .arg(fixture_path("passing"))
@@ -244,18 +233,34 @@ fn app_command_warns_on_non_loopback_binds() {
         .arg("--port")
         .arg(port.to_string())
         .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
+        .stdout(Stdio::from(
+            log.try_clone().expect("stdout log handle should clone"),
+        ))
+        .stderr(Stdio::from(log))
         .spawn()
         .expect("app command should start");
 
     wait_for_server(port);
+    wait_for_output_fragment(&log_path, "warning: syu app is bound to 0.0.0.0");
+    wait_for_output_fragment(
+        &log_path,
+        &format!("syu app listening on http://0.0.0.0:{port}"),
+    );
 
-    let output = shutdown_child_with_output(child);
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("warning: syu app is bound to 0.0.0.0"));
-    assert!(stderr.contains("workspace data and source documents may be reachable"));
-    assert!(stderr.contains("use --bind 127.0.0.1 to keep the browser UI local"));
+    shutdown_child(&mut child);
+    let log = fs::read_to_string(&log_path).expect("combined log should be readable");
+    let warning_index = log
+        .find("warning: syu app is bound to 0.0.0.0")
+        .expect("warning should be present");
+    let listening_index = log
+        .find(&format!("syu app listening on http://0.0.0.0:{port}"))
+        .expect("listening line should be present");
+    assert!(
+        warning_index < listening_index,
+        "warning should appear before the listening URL:\n{log}",
+    );
+    assert!(log.contains("workspace data and source documents may be reachable"));
+    assert!(log.contains("use --bind 127.0.0.1 to keep the browser UI local"));
 }
 
 #[test]
