@@ -135,6 +135,12 @@ If you use the hooks, install them once:
 scripts/install-precommit.sh
 ```
 
+If bootstrap fails or the script cannot find the final `pre-commit` binary, run
+`python -m site --user-base` and `pipx environment --value PIPX_BIN_DIR` to see
+where the binary should live, compare those paths with your `PATH`, then rerun
+`scripts/install-precommit.sh`. The script prints the same checks when setup
+fails.
+
 The devcontainer/Codespaces post-create step runs
 `.devcontainer/post-create.sh` automatically so the setup explains itself while
 it provisions. That script:
