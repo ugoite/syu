@@ -662,7 +662,7 @@ function App() {
                 id="spec-search"
                 type="search"
                 aria-describedby="spec-search-shortcuts"
-                placeholder="Search items by ID or keyword…"
+                placeholder="Search items by ID or keyword (up to 20 matches)…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => {
@@ -711,6 +711,10 @@ function App() {
               <kbd className={SEARCH_SHORTCUT_KEY_CLASS_NAME}>Escape</kbd>
               <span>clear the search</span>
             </p>
+            <p className="mt-2 text-xs text-slate-400">
+              Search shows up to 20 matches at a time, so refine broad queries for a narrower result
+              list.
+            </p>
             {searchQuery.trim().length > 0 && (
               <div id="search-results-list" className="mt-3 space-y-1">
                 {searchResults.length === 0 ? (
@@ -743,7 +747,7 @@ function App() {
                 )}
                 {searchResults.length === 20 && (
                   <p className="px-2 py-1 text-[11px] text-slate-500">
-                    Showing first 20 results — refine your query for fewer matches.
+                    Showing the first 20 matches — refine your query for fewer results.
                   </p>
                 )}
               </div>

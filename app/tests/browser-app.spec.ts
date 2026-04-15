@@ -97,12 +97,21 @@ test("loads deep links and supports keyboard search navigation", async ({ page }
 
   const searchInput = page.getByRole("searchbox", { name: "Search spec items" });
   await expect(searchInput).toHaveAttribute("aria-describedby", "spec-search-shortcuts");
+  await expect(searchInput).toHaveAttribute(
+    "placeholder",
+    "Search items by ID or keyword (up to 20 matches)…",
+  );
   const shortcutHint = page.locator("#spec-search-shortcuts");
   await expect(shortcutHint).toBeVisible();
   await expect(shortcutHint).toContainText("ArrowDown");
   await expect(shortcutHint).toContainText("ArrowUp");
   await expect(shortcutHint).toContainText("Enter");
   await expect(shortcutHint).toContainText("Escape");
+  await expect(
+    page.getByText(
+      "Search shows up to 20 matches at a time, so refine broad queries for a narrower result list.",
+    ),
+  ).toBeVisible();
   await searchInput.fill("FEAT-CHECK-001");
   await searchInput.press("ArrowDown");
   await searchInput.press("ArrowUp");
