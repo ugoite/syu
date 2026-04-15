@@ -148,6 +148,14 @@ This is useful once the repository wants maintenance work to stay fully owned by
 the specification across the supported implementation languages.
 For an experimental strict run, use `syu validate . --require-symbol-trace-coverage`.
 
+For mixed-language repositories, keep this `false` until the unsupported
+implementation areas can either stay on declared traces only or move onto a
+supported rich-inspection language. Unsupported-language files can still be
+traced with file paths, explicit symbols, and wildcard ownership; the strict
+coverage scan is what stays limited to Rust, Python, and TypeScript/JavaScript.
+See [getting started](./getting-started.md#unsupported-implementation-languages-still-work-today)
+for the current adoption path.
+
 ### `app.bind`
 
 Controls the default address that `syu app` binds to.

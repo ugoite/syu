@@ -277,8 +277,27 @@ remove the `doc_contains:` assertion from the trace if it no longer applies.
 **What it means:** `doc_contains:` is only supported for `rust`, `python`, and
 `typescript`. You declared it on a `lang:` that `syu` cannot inspect.
 
-**Fix:** Remove the `doc_contains:` assertion, or switch to a supported
-language.
+**Fix:** Remove the `doc_contains:` assertion from that mapping, or switch to a
+supported language for rich doc inspection.
+
+You do **not** need to remove the whole trace. Unsupported-language mappings can
+still point to:
+
+- the traced file
+- explicit `symbols:`
+- wildcard ownership with `symbols: ["*"]`
+
+For example, this is still valid today:
+
+```yaml
+implementations:
+  go:
+    - file: internal/auth/login.go
+      symbols:
+        - LoginUser
+```
+
+Use that lighter mapping until the language gains richer inspection support.
 
 ---
 

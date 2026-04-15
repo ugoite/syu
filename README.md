@@ -279,6 +279,12 @@ starter IDs from the first command, and the per-layer `--*-prefix` flags when a
 single shared stem is not enough. Use `--spec-root` to scaffold into a
 repository-relative spec tree without moving the generated files by hand later.
 
+Working in Go, Java, C#, or another language without rich `doc_contains`
+inspection yet? You can still adopt `syu` with file traces, explicit symbols,
+and wildcard ownership while leaving `validate.require_symbol_trace_coverage`
+off. The newcomer path and roadmap links live in
+[`docs/guide/getting-started.md`](docs/guide/getting-started.md#unsupported-implementation-languages-still-work-today).
+
 ### `syu add`
 
 Scaffold a new YAML stub after the initial workspace exists:
