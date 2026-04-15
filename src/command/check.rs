@@ -1375,7 +1375,21 @@ fn load_ownership_manifest(path: &Path) -> std::result::Result<OwnershipManifest
             manifest.version
         ));
     }
+    validate_ownership_manifest(&manifest)?;
     Ok(manifest)
+}
+
+fn validate_ownership_manifest(manifest: &OwnershipManifest) -> std::result::Result<(), String> {
+    let mut owner_ids = BTreeSet::new();
+    for entry in &manifest.owners {
+        if !owner_ids.insert(entry.id.clone()) {
+            return Err(format!(
+                "duplicate ownership entry `{}` in `owners`",
+                entry.id
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn manifest_declares_owner(
@@ -4239,6 +4253,42 @@ mod tests {
     }
 
     #[test]
+    fn verify_trace_reference_reports_duplicate_owner_entries_in_sidecar_manifests() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        let path = tempdir.path().join("trace.rs");
+        fs::write(&path, "pub fn expected() {}\n").expect("file should exist");
+        fs::write(
+            tempdir.path().join("trace.rs.syu-ownership.yaml"),
+            "version: 1\nowners:\n  - id: REQ-1\n    symbols:\n      - expected\n  - id: REQ-1\n    symbols:\n      - other\n",
+        )
+        .expect("ownership manifest should exist");
+
+        let mut config = SyuConfig::default();
+        config.validate.trace_ownership_mode = TraceOwnershipMode::Sidecar;
+        let mut issues = Vec::new();
+
+        assert!(!verify_trace_reference(
+            tempdir.path(),
+            &config,
+            "REQ-1",
+            TraceRole::RequirementTest,
+            "rust",
+            &TraceReference {
+                file: PathBuf::from("trace.rs"),
+                symbols: vec!["expected".to_string()],
+                doc_contains: Vec::new(),
+            },
+            &mut issues,
+        ));
+        let issue = issues
+            .iter()
+            .find(|issue| issue.code == "SYU-trace-id-001")
+            .expect("duplicate sidecar issue");
+        assert!(issue.message.contains("is invalid"));
+        assert!(issue.message.contains("duplicate ownership entry `REQ-1`"));
+    }
+
+    #[test]
     fn apply_autofix_for_reference_leaves_existing_sidecar_entries_unchanged() {
         let tempdir = tempdir().expect("tempdir should exist");
         let root = tempdir.path();
@@ -4302,6 +4352,42 @@ mod tests {
         .expect_err("invalid sidecar manifests should fail autofix");
         assert!(error.to_string().contains("failed to load"));
         assert!(error.to_string().contains("trace.rs.syu-ownership.yaml"));
+    }
+
+    #[test]
+    fn apply_autofix_for_reference_reports_duplicate_owner_entries_in_sidecar_manifests() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        let root = tempdir.path();
+        fs::write(root.join("trace.rs"), "pub fn expected() {}\n")
+            .expect("trace file should exist");
+        fs::write(
+            root.join("trace.rs.syu-ownership.yaml"),
+            "version: 1\nowners:\n  - id: REQ-1\n    symbols:\n      - expected\n  - id: REQ-1\n    symbols:\n      - other\n",
+        )
+        .expect("ownership manifest should exist");
+
+        let mut config = SyuConfig::default();
+        config.validate.trace_ownership_mode = TraceOwnershipMode::Sidecar;
+
+        let error = apply_autofix_for_reference(
+            root,
+            &config,
+            "REQ-1",
+            "rust",
+            &TraceReference {
+                file: PathBuf::from("trace.rs"),
+                symbols: vec!["expected".to_string()],
+                doc_contains: Vec::new(),
+            },
+            &mut super::AutofixSummary::default(),
+        )
+        .expect_err("duplicate owner manifests should fail autofix");
+        assert!(error.to_string().contains("failed to load"));
+        assert!(
+            error
+                .to_string()
+                .contains("duplicate ownership entry `REQ-1`")
+        );
     }
 
     #[test]

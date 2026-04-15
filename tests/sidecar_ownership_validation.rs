@@ -106,3 +106,31 @@ fn validate_reports_missing_sidecar_ownership_manifests() {
     assert!(stdout.contains("SYU-trace-id-001"));
     assert!(stdout.contains("src/trace.rs.syu-ownership.yaml"));
 }
+
+#[test]
+// REQ-CORE-002
+fn validate_reports_duplicate_sidecar_owner_entries() {
+    let tempdir = tempdir().expect("tempdir should exist");
+    write_workspace(tempdir.path(), false);
+    fs::write(
+        tempdir.path().join("src/trace.rs.syu-ownership.yaml"),
+        "version: 1\nowners:\n  - id: REQ-001\n    symbols:\n      - req_trace\n  - id: REQ-001\n    symbols:\n      - other_symbol\n",
+    )
+    .expect("ownership manifest");
+
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .arg("validate")
+        .arg(tempdir.path())
+        .output()
+        .expect("validate should run");
+
+    assert!(
+        !output.status.success(),
+        "validation should fail with duplicate sidecar owner entries"
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("SYU-trace-id-001"));
+    assert!(stdout.contains("duplicate ownership entry `REQ-001`"));
+}
