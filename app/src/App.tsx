@@ -697,20 +697,28 @@ function App() {
                 className="w-full rounded-2xl border border-white/10 bg-slate-900/60 py-2 pl-9 pr-4 text-sm text-slate-100 placeholder-slate-500 focus:border-sky-400/60 focus:outline-none focus:ring-1 focus:ring-sky-400/40"
               />
             </div>
-            <p
+            <div
               id="spec-search-shortcuts"
-              className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-slate-400"
+              role="note"
+              className="mt-3 rounded-2xl border border-sky-400/20 bg-sky-400/10 px-3 py-3 text-sm text-sky-50"
             >
-              <span className="mr-1">Shortcuts:</span>
-              <kbd className={SEARCH_SHORTCUT_KEY_CLASS_NAME}>ArrowDown</kbd>
-              <span>next result</span>
-              <kbd className={SEARCH_SHORTCUT_KEY_CLASS_NAME}>ArrowUp</kbd>
-              <span>previous result</span>
-              <kbd className={SEARCH_SHORTCUT_KEY_CLASS_NAME}>Enter</kbd>
-              <span>open the highlighted or only match</span>
-              <kbd className={SEARCH_SHORTCUT_KEY_CLASS_NAME}>Escape</kbd>
-              <span>clear the search</span>
-            </p>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-200">
+                Search shortcuts
+              </p>
+              <p className="mt-1 text-sm text-sky-100">
+                Keep focus in the search box and use the keyboard to move through results.
+              </p>
+              <p className="mt-2 flex flex-wrap items-center gap-1.5 text-sm text-sky-100">
+                <kbd className={SEARCH_SHORTCUT_KEY_CLASS_NAME}>ArrowDown</kbd>
+                <span>next result</span>
+                <kbd className={SEARCH_SHORTCUT_KEY_CLASS_NAME}>ArrowUp</kbd>
+                <span>previous result</span>
+                <kbd className={SEARCH_SHORTCUT_KEY_CLASS_NAME}>Enter</kbd>
+                <span>open the highlighted or only match</span>
+                <kbd className={SEARCH_SHORTCUT_KEY_CLASS_NAME}>Escape</kbd>
+                <span>clear the search</span>
+              </p>
+            </div>
             {searchQuery.trim().length > 0 && (
               <div id="search-results-list" className="mt-3 space-y-1">
                 {searchResults.length === 0 ? (

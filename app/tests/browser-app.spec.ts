@@ -99,6 +99,10 @@ test("loads deep links and supports keyboard search navigation", async ({ page }
   await expect(searchInput).toHaveAttribute("aria-describedby", "spec-search-shortcuts");
   const shortcutHint = page.locator("#spec-search-shortcuts");
   await expect(shortcutHint).toBeVisible();
+  await expect(shortcutHint).toContainText("Search shortcuts");
+  await expect(shortcutHint).toContainText(
+    "Keep focus in the search box and use the keyboard to move through results.",
+  );
   await expect(shortcutHint).toContainText("ArrowDown");
   await expect(shortcutHint).toContainText("ArrowUp");
   await expect(shortcutHint).toContainText("Enter");
