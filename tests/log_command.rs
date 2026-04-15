@@ -74,6 +74,8 @@ fn write_history_workspace() -> TempDir {
 
 fn init_git_repository(workspace: &Path) {
     git(workspace, &["init"]);
+    fs::create_dir_all(workspace.join(".git-hooks")).expect("hooks dir");
+    git(workspace, &["config", "core.hooksPath", ".git-hooks"]);
     git(workspace, &["config", "user.name", "Test User"]);
     git(workspace, &["config", "user.email", "test@example.com"]);
     git(workspace, &["add", "."]);
@@ -89,19 +91,30 @@ fn git_commit(workspace: &Path, summary: &str) {
 }
 
 fn git(workspace: &Path, args: &[&str]) {
-    let output = Command::new("git")
-        .arg("-C")
-        .arg(workspace)
-        .args(args)
-        .output()
-        .expect("git should run");
+    let mut command = Command::new("git");
+    command.arg("-C").arg(workspace).args(args);
+    for key in [
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_CEILING_DIRECTORIES",
+        "GIT_COMMON_DIR",
+        "GIT_DIR",
+        "GIT_INDEX_FILE",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_PREFIX",
+        "GIT_WORK_TREE",
+    ] {
+        command.env_remove(key);
+    }
+    let output = command.output().expect("git should run");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
 
     assert!(
         output.status.success(),
         "git {:?} failed\nstdout:\n{}\nstderr:\n{}",
         args,
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
+        stdout,
+        stderr
     );
 }
 

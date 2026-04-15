@@ -24,6 +24,16 @@ use super::{
 };
 
 const GIT_RECORD_SEPARATOR: u8 = 0x1e;
+const GIT_ENVIRONMENT_KEYS: [&str; 8] = [
+    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    "GIT_CEILING_DIRECTORIES",
+    "GIT_COMMON_DIR",
+    "GIT_DIR",
+    "GIT_INDEX_FILE",
+    "GIT_OBJECT_DIRECTORY",
+    "GIT_PREFIX",
+    "GIT_WORK_TREE",
+];
 
 #[derive(Debug, Serialize)]
 struct JsonLogOutput {
@@ -329,9 +339,7 @@ fn normalize_path_filter(workspace_root: &Path, path: &Path) -> Result<PathBuf> 
 }
 
 fn resolve_git_repository_root(workspace_root: &Path) -> Result<PathBuf> {
-    let output = Command::new("git")
-        .arg("-C")
-        .arg(workspace_root)
+    let output = git_command(workspace_root)
         .args(["rev-parse", "--show-toplevel"])
         .output()
         .with_context(|| {
@@ -397,8 +405,8 @@ fn load_git_history_for_path(
     limit: usize,
     path: &Path,
 ) -> Result<Vec<MatchedCommit>> {
-    let mut command = Command::new("git");
-    command.arg("-C").arg(workspace_root).args([
+    let mut command = git_command(workspace_root);
+    command.args([
         "log",
         "--follow",
         "--relative",
@@ -464,9 +472,7 @@ fn repository_history_order(
     workspace_root: &Path,
     candidate_shas: &BTreeSet<String>,
 ) -> Result<Vec<String>> {
-    let output = Command::new("git")
-        .arg("-C")
-        .arg(workspace_root)
+    let output = git_command(workspace_root)
         .args(["rev-list", "HEAD"])
         .output()
         .with_context(|| {
@@ -497,6 +503,15 @@ fn repository_history_order(
     }
 
     Ok(ordered)
+}
+
+fn git_command(workspace_root: &Path) -> Command {
+    let mut command = Command::new("git");
+    command.arg("-C").arg(workspace_root);
+    for key in GIT_ENVIRONMENT_KEYS {
+        command.env_remove(key);
+    }
+    command
 }
 
 fn parse_git_history(raw: &[u8]) -> Result<Vec<MatchedCommit>> {
