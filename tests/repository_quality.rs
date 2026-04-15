@@ -64,7 +64,7 @@ fn repository_declares_precommit_and_quality_gates() {
     assert!(contributing.contains("Contributors do **not** need to run manual audits"));
     assert!(contributing.contains("check-generated-docs-freshness.sh"));
     assert!(contributing.contains("docs/generated/"));
-    assert!(contributing.contains("python -m site --user-base"));
+    assert!(contributing.contains("python3 -m site --user-base"));
     assert!(contributing.contains("pipx environment --value PIPX_BIN_DIR"));
 
     assert!(repo_config.contains("FEAT-CHECK-001"));

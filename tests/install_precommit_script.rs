@@ -77,8 +77,9 @@ fn install_precommit_reports_lookup_paths_when_hook_bootstrap_fails() {
     assert!(stderr.contains(&format!("{}/pre-commit", pipx_bin.display())));
     assert!(stderr.contains("Fallback hook installation via"));
     assert!(stderr.contains("mock pre_commit install failed"));
-    assert!(stderr.contains(
-        "Troubleshooting: compare 'python -m site --user-base' and 'pipx environment --value PIPX_BIN_DIR' with your PATH"
-    ));
+    assert!(stderr.contains(&format!(
+        "Troubleshooting: compare '{}/python3 -m site --user-base' and 'pipx environment --value PIPX_BIN_DIR' with your PATH",
+        bin_dir.display()
+    )));
     assert!(stderr.contains("See CONTRIBUTING.md#local-checks"));
 }

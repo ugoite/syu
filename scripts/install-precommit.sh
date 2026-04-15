@@ -8,7 +8,8 @@ log_step() {
 }
 
 print_troubleshooting_hint() {
-  echo "Troubleshooting: compare 'python -m site --user-base' and 'pipx environment --value PIPX_BIN_DIR' with your PATH, then rerun scripts/install-precommit.sh." >&2
+  local python_bin="$1"
+  echo "Troubleshooting: compare '$python_bin -m site --user-base' and 'pipx environment --value PIPX_BIN_DIR' with your PATH, then rerun scripts/install-precommit.sh." >&2
   echo "See CONTRIBUTING.md#local-checks for the expected local bootstrap flow." >&2
 }
 
@@ -37,7 +38,7 @@ install_precommit() {
     fi
 
     echo "pipx install --force pre-commit failed." >&2
-    print_troubleshooting_hint
+    print_troubleshooting_hint "$python_bin"
     return 1
   fi
 
@@ -47,7 +48,7 @@ install_precommit() {
   fi
 
   echo "Python user-base installation failed while running '$python_bin -m pip install --user --upgrade pip pre-commit'." >&2
-  print_troubleshooting_hint
+  print_troubleshooting_hint "$python_bin"
   return 1
 }
 
@@ -66,7 +67,7 @@ find_precommit_bin() {
     if [ -n "$user_base_output" ]; then
       echo "$user_base_output" >&2
     fi
-    print_troubleshooting_hint
+    print_troubleshooting_hint "$python_bin"
     return 1
   fi
 
@@ -88,7 +89,7 @@ find_precommit_bin() {
         if [ -n "$pipx_output" ]; then
           echo "$pipx_output" >&2
         fi
-        print_troubleshooting_hint
+        print_troubleshooting_hint "$python_bin"
         return 1
       fi
       pipx_bin="$pipx_output"
@@ -107,7 +108,7 @@ find_precommit_bin() {
     echo "pipx is not installed, so no pipx bin lookup was available." >&2
   fi
 
-  print_troubleshooting_hint
+  print_troubleshooting_hint "$python_bin"
   return 1
 }
 
@@ -127,7 +128,7 @@ install_hooks() {
   fi
 
   echo "Fallback hook installation via '$python_bin -m pre_commit install' failed." >&2
-  print_troubleshooting_hint
+  print_troubleshooting_hint "$python_bin"
   return 1
 }
 
