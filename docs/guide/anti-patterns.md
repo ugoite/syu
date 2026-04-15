@@ -45,8 +45,10 @@ one behavior, move it down to a requirement.
 **Smell:** the policy and requirement say almost the same thing.
 
 ```yaml
-policy: Every login response must include an audit ID.
-requirement: Every login response must include an audit ID.
+- id: POL-AUDIT-001
+  title: Every login response must include an audit ID.
+- id: REQ-AUDIT-001
+  title: Every login response must include an audit ID.
 ```
 
 **Why it hurts:** policy should be the reusable rule; requirement should be one
