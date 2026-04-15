@@ -163,15 +163,21 @@ enum StartupLine {
     Stderr(String),
 }
 
-fn bind_failure_message(bind: IpAddr, port: u16, error: &std::io::Error) -> String {
+fn bind_failure_message(
+    workspace_root: &Path,
+    bind: IpAddr,
+    port: u16,
+    error: &std::io::Error,
+) -> String {
     let likely_cause = if error.kind() == std::io::ErrorKind::AddrInUse {
         "The selected port is likely already in use."
     } else {
         "The selected address or port may be unavailable on this machine."
     };
+    let workspace = workspace_root.display();
 
     format!(
-        "failed to bind `{bind}:{port}`. {likely_cause} Try `syu app . --port <free-port>` to retry with a different port, or set `app.port` in syu.yaml to change the default. {error}"
+        "failed to bind `{bind}:{port}`. {likely_cause} Try `syu app {workspace} --port <free-port>` to retry with a different port, or set `app.port` in syu.yaml to change the default. {error}"
     )
 }
 
@@ -184,7 +190,7 @@ pub fn run_app_command(args: &AppArgs) -> Result<i32> {
         .parse::<IpAddr>()
         .with_context(|| format!("invalid bind address `{}`", settings.bind))?;
     build_app_payload_from_config(&workspace_root, &loaded.config)?;
-    let state = AppState::new(workspace_root, loaded.config);
+    let state = AppState::new(workspace_root.clone(), loaded.config);
     let _ = state.refresh_current();
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -196,7 +202,14 @@ pub fn run_app_command(args: &AppArgs) -> Result<i32> {
         let refresher = tokio::spawn(refresh_current_until_shutdown(state.clone()));
         let listener = tokio::net::TcpListener::bind((bind, settings.port))
             .await
-            .map_err(|error| anyhow!(bind_failure_message(bind, settings.port, &error)))?;
+            .map_err(|error| {
+                anyhow!(bind_failure_message(
+                    &workspace_root,
+                    bind,
+                    settings.port,
+                    &error,
+                ))
+            })?;
         let local_addr = listener
             .local_addr()
             .context("failed to inspect bind address")?;

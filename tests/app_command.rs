@@ -335,7 +335,10 @@ fn app_command_explains_how_to_recover_from_port_binding_failures() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains(&format!("failed to bind `127.0.0.1:{port}`")));
     assert!(stderr.contains("selected port is likely already in use"));
-    assert!(stderr.contains("syu app . --port <free-port>"));
+    assert!(stderr.contains(&format!(
+        "syu app {} --port <free-port>",
+        fixture_path("passing").display()
+    )));
     assert!(stderr.contains("app.port"));
 }
 
