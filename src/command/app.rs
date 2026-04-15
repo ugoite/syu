@@ -1248,6 +1248,7 @@ mod tests {
     #[test]
     fn bind_failure_message_mentions_port_retries_for_addr_in_use() {
         let message = bind_failure_message(
+            Path::new("tests/fixtures/workspaces/passing"),
             "127.0.0.1".parse().expect("valid ip"),
             3000,
             &Error::from(ErrorKind::AddrInUse),
@@ -1255,13 +1256,16 @@ mod tests {
 
         assert!(message.contains("failed to bind `127.0.0.1:3000`"));
         assert!(message.contains("selected port is likely already in use"));
-        assert!(message.contains("syu app . --port <free-port>"));
+        assert!(message.contains(
+            "syu app tests/fixtures/workspaces/passing --port <free-port>"
+        ));
         assert!(message.contains("app.port"));
     }
 
     #[test]
     fn bind_failure_message_covers_non_addr_in_use_errors() {
         let message = bind_failure_message(
+            Path::new("tests/fixtures/workspaces/passing"),
             "127.0.0.1".parse().expect("valid ip"),
             3000,
             &Error::from(ErrorKind::AddrNotAvailable),
