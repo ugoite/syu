@@ -252,7 +252,11 @@ fn app_command_warns_on_non_loopback_binds() {
     wait_for_server(port);
 
     let output = shutdown_child_with_output(child);
+    let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stdout.contains(&format!("syu app listening on http://0.0.0.0:{port}")));
+    assert!(stdout.contains(&format!("syu app ready: http://0.0.0.0:{port}")));
+    assert!(stdout.contains(&format!("Open http://0.0.0.0:{port} in your browser.")));
     assert!(stderr.contains("warning: syu app is bound to 0.0.0.0"));
     assert!(stderr.contains("workspace data and source documents may be reachable"));
     assert!(stderr.contains("use --bind 127.0.0.1 to keep the browser UI local"));

@@ -194,22 +194,10 @@ pub fn run_app_command(args: &AppArgs) -> Result<i32> {
                 .await
                 .context("local app server exited unexpectedly")
         });
-        println!("syu app listening on http://{local_addr}");
         tokio::task::spawn_blocking(move || wait_for_ready(local_addr))
             .await
             .context("local app readiness probe panicked")??;
-        for line in startup_lines(local_addr) {
-            match line {
-                StartupLine::Stdout(message) => println!("{message}"),
-                StartupLine::Stderr(message) => eprintln!("{message}"),
-            }
-        }
-        std::io::stderr()
-            .flush()
-            .context("failed to flush stderr")?;
-        std::io::stdout()
-            .flush()
-            .context("failed to flush stdout")?;
+        emit_startup_lines(startup_lines(local_addr))?;
 
         let result = server.await.context("local app server task panicked")?;
         refresher.abort();
@@ -222,6 +210,9 @@ pub fn run_app_command(args: &AppArgs) -> Result<i32> {
 fn startup_lines(local_addr: SocketAddr) -> Vec<StartupLine> {
     let mut lines = Vec::new();
     lines.extend(non_loopback_warning_lines(local_addr.ip()));
+    lines.push(StartupLine::Stdout(format!(
+        "syu app listening on http://{local_addr}"
+    )));
     lines.push(StartupLine::Stdout(format!(
         "syu app ready: http://{local_addr}"
     )));
@@ -246,6 +237,27 @@ fn non_loopback_warning_lines(bind: IpAddr) -> Vec<StartupLine> {
                 .to_string(),
         ),
     ]
+}
+
+fn emit_startup_lines(lines: Vec<StartupLine>) -> Result<()> {
+    for line in lines {
+        match line {
+            StartupLine::Stdout(message) => {
+                println!("{message}");
+                std::io::stdout()
+                    .flush()
+                    .context("failed to flush stdout")?;
+            }
+            StartupLine::Stderr(message) => {
+                eprintln!("{message}");
+                std::io::stderr()
+                    .flush()
+                    .context("failed to flush stderr")?;
+            }
+        }
+    }
+
+    Ok(())
 }
 
 fn resolve_app_server_settings(args: &AppArgs, config: &SyuConfig) -> AppServerSettings {
@@ -1199,7 +1211,7 @@ mod tests {
     }
 
     #[test]
-    fn startup_lines_warn_before_ready_for_non_loopback_addresses() {
+    fn startup_lines_warn_before_listening_for_non_loopback_addresses() {
         let lines = startup_lines("0.0.0.0:4123".parse().expect("valid socket"));
         assert_eq!(
             lines,
@@ -1211,6 +1223,7 @@ mod tests {
                     "warning: use --bind 127.0.0.1 to keep the browser UI local to this machine."
                         .to_string()
                 ),
+                StartupLine::Stdout("syu app listening on http://0.0.0.0:4123".to_string()),
                 StartupLine::Stdout("syu app ready: http://0.0.0.0:4123".to_string()),
                 StartupLine::Stdout(
                     "Open http://0.0.0.0:4123 in your browser.".to_string()
