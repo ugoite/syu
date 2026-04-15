@@ -1256,9 +1256,7 @@ mod tests {
 
         assert!(message.contains("failed to bind `127.0.0.1:3000`"));
         assert!(message.contains("selected port is likely already in use"));
-        assert!(message.contains(
-            "syu app tests/fixtures/workspaces/passing --port <free-port>"
-        ));
+        assert!(message.contains("syu app tests/fixtures/workspaces/passing --port <free-port>"));
         assert!(message.contains("app.port"));
     }
 
