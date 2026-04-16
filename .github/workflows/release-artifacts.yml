@@ -76,6 +76,13 @@ jobs:
         with:
           ref: refs/tags/${{ env.RELEASE_TAG }}
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "25"
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -83,6 +90,11 @@ jobs:
 
       - name: Restore Rust cache
         uses: Swatinem/rust-cache@v2
+
+      - name: Install wasm-pack
+        uses: taiki-e/cache-cargo-install-action@v3
+        with:
+          tool: wasm-pack
 
       - name: Install cross-compilation toolchain (aarch64-linux-gnu)
         if: matrix.cross_compile == true
@@ -109,7 +121,7 @@ jobs:
             release-artifacts
 
       - name: Set up ORAS
-        uses: oras-project/setup-oras@v1.2.4
+        uses: oras-project/setup-oras@v2.0.0
 
       - name: Publish package artifacts
         shell: bash
@@ -145,12 +157,12 @@ jobs:
           fi
 
       - name: Attest release artifacts
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: release-artifacts/*
 
       - name: Upload release assets
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           files: release-artifacts/*
