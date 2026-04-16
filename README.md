@@ -32,11 +32,13 @@ verified.
 Pick the newcomer path that matches what you need next:
 
 - **Quick start**: stay in this README when you already grasp the four-layer
-  idea, want a roughly 5-minute reference-style setup path, and only need a
-  short refresher before the first commands.
+  idea, want a roughly 5-minute reference-style setup path, and are comfortable
+  making the first manual YAML edits after a short refresher.
+- **Getting started**: follow
+  [`docs/guide/getting-started.md`](docs/guide/getting-started.md) when you want
+  the first setup narrated step by step before the manual editing work.
 - **Tutorial**: follow [`docs/guide/tutorial.md`](docs/guide/tutorial.md) when you
-  are new to `syu`, prefer a narrative walkthrough over a reference card, and
-  want a more realistic end-to-end repository story.
+  want a realistic end-to-end repository story instead of a short setup path.
 - **Troubleshooting**: jump to
   [`docs/guide/troubleshooting.md`](docs/guide/troubleshooting.md) when you
   already have a workspace and validation or traceability errors are blocking
