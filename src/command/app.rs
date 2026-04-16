@@ -39,7 +39,7 @@ use crate::{
     },
 };
 
-static APP_DIST: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/app/dist");
+static APP_DIST: Dir<'_> = include_dir!("$OUT_DIR/syu-app-dist");
 
 #[derive(Clone)]
 struct AppState {
