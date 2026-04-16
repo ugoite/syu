@@ -367,9 +367,7 @@ fn repository_declares_documentation_guides() {
     assert!(getting_started.contains("examples/rust-only"));
     assert!(getting_started.contains("examples/python-only"));
     assert!(getting_started.contains("examples/polyglot"));
-    assert!(
-        getting_started.contains("[examples-versus-templates guide](./examples-and-templates.md)")
-    );
+    assert!(getting_started.contains("[examples and templates guide](./examples-and-templates.md)"));
     assert!(
         getting_started
             .matches("Follow the [end-to-end tutorial](./tutorial.md)")
