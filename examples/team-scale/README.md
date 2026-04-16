@@ -17,6 +17,11 @@ separate Rust source and test files.
   a few safe changes you can make to see reciprocal-link, missing-file, and
   drift recovery workflows in action.
 
+This workspace intentionally keeps `validate.allow_planned: true` in
+`syu.yaml`. It is demonstrating a migration-friendly, phased-adoption story
+rather than a fully tightened end state, so treat that flag as part of the
+teaching setup instead of a recommended steady-state default.
+
 ## Files
 
 | Path | What it defines |
