@@ -21,9 +21,10 @@ Philosophy should protect values that survive multiple releases. If a
 philosophy entry changes whenever the current delivery plan changes, it is
 usually living in the wrong layer.
 
-**Bad smell:**
+**Bad smell:** this conceptual sketch shows the problem title only; it is **not**
+a full copy-pasteable `syu` document.
 
-```yaml
+```text
 - id: PHIL-CHECKOUT-001
   title: Move checkout onto GraphQL federation this quarter
 ```
@@ -37,7 +38,7 @@ tool choice, or current architecture changes.
 **Usually better:** keep the philosophy at the durable value level, then push
 the concrete rule or delivery choice down.
 
-```yaml
+```text
 - id: PHIL-CHECKOUT-001
   title: Checkout integrations should stay replaceable without rewriting the order flow
 ```
@@ -57,9 +58,9 @@ Policy should turn philosophy into repository-wide rules. It is the wrong
 layer when it only restates a philosophy in stricter prose, or when it
 duplicates one requirement or feature almost word for word.
 
-**Bad smell:**
+**Bad smell:** this is a title-level sketch, not a full `syu` YAML document.
 
-```yaml
+```text
 - id: POL-AUTH-001
   title: Authentication should be secure
 ```
@@ -69,7 +70,7 @@ philosophy-shaped.
 
 Another failure mode goes the other direction:
 
-```yaml
+```text
 - id: POL-AUTH-002
   title: Login must hash passwords with bcrypt in src/auth/passwords.rs
 ```
@@ -82,7 +83,7 @@ only exists to mirror one lower-layer item.
 **Usually better:** write policy as a reusable rule that can govern several
 requirements.
 
-```yaml
+```text
 - id: POL-AUTH-001
   title: Credentials must only be stored and compared using approved one-way password hashing
 ```
@@ -102,7 +103,7 @@ governance, or names implementation details instead of a testable outcome.
 joined by "and", or one requirement keeps accumulating exceptions and
 sub-bullets.
 
-```yaml
+```text
 - id: REQ-CHECKOUT-001
   title: Checkout must calculate totals, reserve inventory, and send receipts
 ```
@@ -116,7 +117,7 @@ requirement?" with one coherent test story.
 **Bad smell:** the requirement tells every contributor how to work across the
 repository instead of describing one concrete obligation.
 
-```yaml
+```text
 - id: REQ-CORE-001
   title: Every public API change must update user-facing documentation
 ```
@@ -129,7 +130,7 @@ individual documentation requirements underneath it.
 **Bad smell:** the requirement mainly names a file, symbol, library, endpoint
 path, or framework mechanic.
 
-```yaml
+```text
 - id: REQ-AUTH-001
   title: Use `src/auth.rs` and Redis to track login attempts
 ```
