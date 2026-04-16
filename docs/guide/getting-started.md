@@ -20,10 +20,8 @@ Need a different level of guidance?
 - Jump to [troubleshooting](./troubleshooting.md) when validation or linking is
   already failing and you need to unblock a workspace.
 
-This guide assumes `syu` is already installed. Unlike the README quick start,
-it slows down at the first manual editing step so you can see where the
-scaffolded files live, how reciprocal links fit together, and what to fix
-before the first `syu validate .` run.
+This guide assumes `syu` is already installed. Treat it as the canonical
+first-run walkthrough: unlike the README quick start, it slows down at the first manual editing step so you can see where the scaffolded files live, how reciprocal links fit together, and what to fix before the first `syu validate .` run.
 
 ## Before you begin
 
