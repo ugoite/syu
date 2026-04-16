@@ -170,59 +170,26 @@ different prefix, use `--philosophy-prefix`, `--policy-prefix`,
 Starter requirements and features begin as `status: planned`. Keep them planned
 until you are ready to declare real tests and implementation traces.
 
-### Unsupported implementation languages still work today
+### Unsupported implementation languages can still adopt the spec layers first
 
-Rich `doc_contains` inspection is currently limited to Rust, Python, and
-TypeScript/JavaScript, but that does **not** mean Go-, Java-, C#-, or
-shell-heavy repositories have to wait before adopting `syu`.
+Rich source inspection is currently limited to Rust, Python, and
+TypeScript/JavaScript. Repositories that are mostly Go, Java, C#, shell, or
+another unsupported language can still adopt `syu` today, but they should treat
+code-level trace mappings for those languages as future work instead of a
+working first-run path.
 
 Today you can still:
 
-- trace requirements and features to real files
-- map explicit symbols in unsupported-language files
-- use wildcard ownership (`symbols: ["*"]`) when one file belongs to one item
-- keep unsupported-language areas in the repository while
-  `validate.require_symbol_trace_coverage` stays `false`
+- document philosophy, policy, requirements, and features for unsupported-language areas
+- keep those areas in the same repository while `validate.require_symbol_trace_coverage` stays `false`
+- use examples, templates, and higher-layer links to explain intent before source adapters land
 
-What you should avoid on unsupported-language mappings is `doc_contains:`. That
-check raises `SYU-trace-docsupport-001` because `syu` cannot inspect rich
-documentation comments for those languages yet.
-
-A minimal unsupported-language trace looks like this:
-
-```yaml
-requirements:
-  - id: REQ-AUTH-001
-    title: Keep login behavior testable
-    description: Verify the login path from the checked-in spec.
-    priority: high
-    status: implemented
-    linked_policies:
-      - POL-AUTH-001
-    linked_features:
-      - FEAT-AUTH-LOGIN-001
-    tests:
-      go:
-        - file: internal/auth/login_test.go
-          symbols:
-            - TestLoginUser
-
-features:
-  - id: FEAT-AUTH-LOGIN-001
-    title: Implement the login entry point
-    summary: Map the login handler back to the requirement without doc inspection.
-    status: implemented
-    linked_requirements:
-      - REQ-AUTH-001
-    implementations:
-      go:
-        - file: internal/auth/login.go
-          symbols:
-            - LoginUser
-```
-
-If one file belongs entirely to one item, you can replace the explicit symbol
-list with `symbols: ["*"]` instead.
+What you should avoid for unsupported-language files today is adding
+language-specific `tests:` or `implementations:` entries such as `go:`,
+`java:`, or `csharp:`. Those keys still fail validation before `doc_contains`
+support even becomes relevant. If you need code-level tracing immediately, stay
+with Rust, Python, or TypeScript/JavaScript for now; otherwise, keep the spec
+layers connected and add the source mappings once adapter support lands.
 
 Keep this adoption path in mind for mixed-language repositories too: start with
 declared traces, keep `validate.require_symbol_trace_coverage: false`, then turn
