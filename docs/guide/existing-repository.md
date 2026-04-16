@@ -18,10 +18,13 @@ Want a different entry point?
 ## 1. Pick a spec home without reorganising the repository
 
 `syu` does not require a brand-new repository. Add a `syu.yaml` at the workspace
-root and point `spec.root` at the directory that fits your current layout:
+root and point `spec.root` at the directory that fits your current layout.
+Treat the example below as schematic: keep the fields, but let `syu init` or a
+freshly generated `syu.yaml` supply the concrete `version` string for the CLI
+release you are actually running:
 
 ```yaml
-version: 0.0.1-alpha.7
+version: <current syu CLI version>
 spec:
   root: docs/syu
 validate:
