@@ -57,6 +57,9 @@ match your change:
    scripts/ci/coverage.sh summary
    ```
 
+   That command also emits a requirement/feature coverage summary so reviewers
+   can inspect the current Rust line coverage in spec terms.
+
 3. **Browser app, WASM, or checked-in `app/dist` bundle** (`app/src`,
    `app/wasm`, browser build config, or generated browser assets)
 

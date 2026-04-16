@@ -73,6 +73,7 @@ fn repository_declares_precommit_and_quality_gates() {
 // REQ-CORE-006
 fn repository_declares_coverage_gate_at_one_hundred_percent() {
     let coverage_script = read_file("scripts/ci/coverage.sh");
+    let spec_summary_script = read_file("scripts/ci/write-spec-coverage-summary.py");
     let ci_workflow = read_file(".github/workflows/ci.yml");
 
     assert!(coverage_script.contains("FEAT-QUALITY-001"));
@@ -80,10 +81,19 @@ fn repository_declares_coverage_gate_at_one_hundred_percent() {
     assert!(coverage_script.contains("LINE_THRESHOLD=100"));
     assert!(coverage_script.contains("--fail-under-lines 100"));
     assert!(coverage_script.contains("cargo llvm-cov"));
+    assert!(coverage_script.contains("generate_spec_coverage_summary"));
+    assert!(coverage_script.contains("target/coverage/spec-coverage-summary.md"));
+    assert!(coverage_script.contains("GITHUB_STEP_SUMMARY"));
+
+    assert!(spec_summary_script.contains("FEAT-QUALITY-001"));
+    assert!(spec_summary_script.contains("Coverage by requirement and feature"));
+    assert!(spec_summary_script.contains("cargo\", \"run\", \"--quiet\", \"--\""));
+    assert!(spec_summary_script.contains("Rust implementation coverage"));
 
     assert!(ci_workflow.contains("coverage:"));
     assert!(ci_workflow.contains("scripts/ci/coverage.sh lcov"));
     assert!(ci_workflow.contains("cargo-llvm-cov"));
+    assert!(ci_workflow.contains("target/coverage/spec-coverage-summary.md"));
 }
 
 #[test]
@@ -513,6 +523,7 @@ fn repository_declares_contribution_workflow_assets() {
     assert!(contributing.contains("scripts/ci/check-generated-docs-freshness.sh"));
     assert!(contributing.contains("docs/generated/"));
     assert!(contributing.contains("scripts/ci/check-app-dist-freshness.sh"));
+    assert!(contributing.contains("requirement/feature coverage summary"));
     assert!(contributing.contains("app/dist"));
     assert!(contributing.contains("npm run build:wasm"));
     assert!(contributing.contains("npm run check"));
