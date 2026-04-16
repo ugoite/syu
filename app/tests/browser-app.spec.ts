@@ -19,6 +19,23 @@ type AppDataPayload = {
   };
 };
 
+function duplicateIssueCodeForMessages(payload: AppDataPayload, messages: string[]): string {
+  const matchingCodes = payload.validation.issues
+    .filter((issue) => messages.includes(issue.message))
+    .map((issue) => issue.code);
+
+  if (matchingCodes.length !== messages.length) {
+    throw new Error(`Expected ${messages.length} matching issues in the app payload.`);
+  }
+
+  const [firstCode, ...rest] = matchingCodes;
+  if (!firstCode || rest.some((code) => code !== firstCode)) {
+    throw new Error("Expected the selected duplicate issues to share the same code.");
+  }
+
+  return firstCode;
+}
+
 function swapDuplicateIssues(payload: AppDataPayload, code: string): AppDataPayload {
   const duplicateIndexes = payload.validation.issues
     .map((issue, index) => ({ issue, index }))
@@ -132,10 +149,20 @@ test("keeps duplicate validation issues independently selectable", async ({ page
 
   await page.goto("/");
 
-  const duplicateIssueRows = page.getByRole("button", { name: /SYU-trace-id-001/i });
+  const payloadResponse = await page.request.get("/api/app-data.json");
+  expect(payloadResponse.ok()).toBeTruthy();
+
+  const duplicateIssueCode = duplicateIssueCodeForMessages(await payloadResponse.json(), [
+    "Declared implementation file `frontend/broken-feature.ts` does not mention `FEAT-FAIL-001`.",
+    "Declared test file `src/broken_tests.rs` does not mention `REQ-FAIL-001`.",
+  ]);
+
+  const duplicateIssueRows = page.getByRole("button", {
+    name: new RegExp(duplicateIssueCode, "i"),
+  });
   await expect(duplicateIssueRows).toHaveCount(2);
   const selectedIssue = page
-    .getByRole("heading", { level: 3, name: "SYU-trace-id-001" })
+    .getByRole("heading", { level: 3, name: duplicateIssueCode })
     .locator("..");
 
   await duplicateIssueRows.nth(0).click();
@@ -167,13 +194,19 @@ test("keeps the selected validation issue stable across refresh reordering", asy
   expect(payloadResponse.ok()).toBeTruthy();
 
   const payload = (await payloadResponse.json()) as AppDataPayload;
-  const reorderedPayload = swapDuplicateIssues(payload, "SYU-trace-id-001");
+  const duplicateIssueCode = duplicateIssueCodeForMessages(payload, [
+    "Declared implementation file `frontend/broken-feature.ts` does not mention `FEAT-FAIL-001`.",
+    "Declared test file `src/broken_tests.rs` does not mention `REQ-FAIL-001`.",
+  ]);
+  const reorderedPayload = swapDuplicateIssues(payload, duplicateIssueCode);
 
-  const duplicateIssueRows = page.getByRole("button", { name: /SYU-trace-id-001/i });
+  const duplicateIssueRows = page.getByRole("button", {
+    name: new RegExp(duplicateIssueCode, "i"),
+  });
   await expect(duplicateIssueRows).toHaveCount(2);
 
   const selectedIssue = page
-    .getByRole("heading", { level: 3, name: "SYU-trace-id-001" })
+    .getByRole("heading", { level: 3, name: duplicateIssueCode })
     .locator("..");
 
   await duplicateIssueRows.nth(1).click();
