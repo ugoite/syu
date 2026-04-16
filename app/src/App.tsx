@@ -324,10 +324,13 @@ function App() {
     return Math.max(1, ...sectionSummaries.map((summary) => summary.itemCount));
   }, [sectionSummaries]);
 
-  const searchResults = useMemo(() => {
+  const searchState = useMemo(() => {
     const trimmed = searchQuery.trim().toLowerCase();
     if (!workspace || trimmed.length === 0) {
-      return [];
+      return {
+        results: [] as Array<{ id: string; title: string; kind: SectionKind }>,
+        hasMore: false,
+      };
     }
     const results: Array<{ id: string; title: string; kind: SectionKind }> = [];
     for (const section of workspace.sections) {
@@ -344,8 +347,12 @@ function App() {
         }
       }
     }
-    return results.slice(0, 20);
+    return {
+      results: results.slice(0, 20),
+      hasMore: results.length > 20,
+    };
   }, [workspace, searchQuery]);
+  const searchResults = searchState.results;
 
   useEffect(() => {
     if (loading || !workspace) {
@@ -745,7 +752,7 @@ function App() {
                     </button>
                   ))
                 )}
-                {searchResults.length === 20 && (
+                {searchState.hasMore && (
                   <p className="px-2 py-1 text-[11px] text-slate-500">
                     Showing the first 20 matches — refine your query for fewer results.
                   </p>
