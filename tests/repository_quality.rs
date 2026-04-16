@@ -235,6 +235,7 @@ fn repository_declares_documentation_guides() {
     let readme = read_file("README.md");
     let concepts = read_file("docs/guide/concepts.md");
     let app_guide = read_file("docs/guide/app.md");
+    let examples_and_templates = read_file("docs/guide/examples-and-templates.md");
     let getting_started = read_file("docs/guide/getting-started.md");
     let configuration = read_file("docs/guide/configuration.md");
     let config_overview = read_file("docs/syu/config/overview.yaml");
@@ -287,6 +288,7 @@ fn repository_declares_documentation_guides() {
     assert!(!readme.contains("syu show REQ-CORE-015"));
     assert!(readme.contains("syu app"));
     assert!(readme.contains("examples/polyglot"));
+    assert!(readme.contains("examples-and-templates.md"));
     assert!(readme.contains("CONTRIBUTING.md"));
     assert!(readme.contains("Contributing and local development"));
     assert!(readme.contains("Documentation site"));
@@ -366,6 +368,9 @@ fn repository_declares_documentation_guides() {
     assert!(getting_started.contains("examples/python-only"));
     assert!(getting_started.contains("examples/polyglot"));
     assert!(
+        getting_started.contains("[examples-versus-templates guide](./examples-and-templates.md)")
+    );
+    assert!(
         getting_started
             .matches("Follow the [end-to-end tutorial](./tutorial.md)")
             .count()
@@ -379,6 +384,10 @@ fn repository_declares_documentation_guides() {
     assert!(tutorial.contains("[troubleshooting](./troubleshooting.md)"));
     assert!(tutorial.contains("starter registry entry"));
     assert!(tutorial.contains("Only add another `files` entry"));
+    assert!(examples_and_templates.contains("starter templates"));
+    assert!(examples_and_templates.contains("checked-in examples"));
+    assert!(examples_and_templates.contains("`syu init . --template rust-only`"));
+    assert!(examples_and_templates.contains("examples/polyglot"));
     assert!(configuration.contains("validate.default_fix"));
     assert!(configuration.contains("validate.allow_planned"));
     assert!(configuration.contains("Rust, Python, and TypeScript/JavaScript"));
