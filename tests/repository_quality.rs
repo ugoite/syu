@@ -296,6 +296,7 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("syu show REQ-001"));
     assert!(!readme.contains("syu show REQ-CORE-015"));
     assert!(readme.contains("syu app"));
+    assert!(readme.contains("examples/go-only"));
     assert!(readme.contains("examples/polyglot"));
     assert!(readme.contains("CONTRIBUTING.md"));
     assert!(readme.contains("Contributing and local development"));
@@ -373,6 +374,7 @@ fn repository_declares_documentation_guides() {
     assert!(getting_started.contains("status: implemented"));
     assert!(getting_started.contains("Keep exploring"));
     assert!(getting_started.contains("examples/rust-only"));
+    assert!(getting_started.contains("examples/go-only"));
     assert!(getting_started.contains("examples/python-only"));
     assert!(getting_started.contains("examples/polyglot"));
     assert!(
@@ -391,7 +393,7 @@ fn repository_declares_documentation_guides() {
     assert!(tutorial.contains("Only add another `files` entry"));
     assert!(configuration.contains("validate.default_fix"));
     assert!(configuration.contains("validate.allow_planned"));
-    assert!(configuration.contains("Rust, Python, and TypeScript/JavaScript"));
+    assert!(configuration.contains("Rust, Python, Go, and TypeScript/JavaScript"));
     assert!(configuration.contains("--spec-root"));
     assert!(configuration.contains(&format!("version: {current_version}")));
     assert!(configuration.contains("docs/syu/config/overview.yaml"));
@@ -401,13 +403,13 @@ fn repository_declares_documentation_guides() {
     assert!(config_spec.contains("spec.root"));
     assert!(config_validate.contains("validate.default_fix"));
     assert!(config_validate.contains("validate.require_symbol_trace_coverage"));
-    assert!(config_validate.contains("Rust, Python, and TypeScript/JavaScript"));
+    assert!(config_validate.contains("Rust, Python, Go, and TypeScript/JavaScript"));
     assert!(config_runtimes.contains("runtimes.python.command"));
     assert!(generated_config_overview.contains("docs/syu/config/overview.yaml"));
     assert!(generated_config_overview.contains("current CLI version"));
     assert!(generated_config_spec.contains("docs/syu/config/spec.yaml"));
     assert!(generated_config_validate.contains("validate.default_fix"));
-    assert!(generated_config_validate.contains("Rust, Python, and TypeScript/JavaScript"));
+    assert!(generated_config_validate.contains("Rust, Python, Go, and TypeScript/JavaScript"));
     assert!(generated_config_runtimes.contains("docs/syu/config/runtimes.yaml"));
     assert!(generated_site_index.contains("/docs/generated/site-spec/features/cli/show-list"));
     assert!(generated_site_index.contains("/docs/generated/site-spec/features/validation"));
@@ -415,7 +417,7 @@ fn repository_declares_documentation_guides() {
     assert!(generated_validation.contains("SYU-graph-reference-001"));
     assert!(
         generated_validation
-            .contains("Rust, Python, and TypeScript/JavaScript source and test files")
+            .contains("Rust, Python, Go, and TypeScript/JavaScript source and test files")
     );
     assert!(generated_docs_freshness.contains("FEAT-QUALITY-001"));
     assert!(generated_docs_freshness.contains("check_generated_docs_freshness"));
@@ -482,6 +484,7 @@ fn repository_ships_example_workspaces() {
     let rust_example_requirement =
         read_file("examples/rust-only/docs/syu/requirements/core/rust.yaml");
     let rust_example_config = read_file("examples/rust-only/syu.yaml");
+    let go_example_requirement = read_file("examples/go-only/docs/syu/requirements/core/go.yaml");
     let python_example_requirement =
         read_file("examples/python-only/docs/syu/requirements/core/python.yaml");
     let polyglot_feature = read_file("examples/polyglot/docs/syu/features/languages/polyglot.yaml");
@@ -489,10 +492,12 @@ fn repository_ships_example_workspaces() {
 
     assert!(rust_example_requirement.contains("REQ-RUST-001"));
     assert!(rust_example_config.contains(&format!("version: {current_version}")));
+    assert!(go_example_requirement.contains("REQ-GO-001"));
     assert!(python_example_requirement.contains("REQ-PY-001"));
     assert!(polyglot_feature.contains("FEAT-MIX-001"));
     assert!(polyglot_feature.contains("status: implemented"));
     assert!(example_tests.contains("rust_only_example_validates"));
+    assert!(example_tests.contains("go_only_example_validates"));
     assert!(example_tests.contains("python_only_example_validates"));
     assert!(example_tests.contains("polyglot_example_validates"));
 }

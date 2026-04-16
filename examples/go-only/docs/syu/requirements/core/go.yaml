@@ -1,0 +1,18 @@
+category: Go Example Requirements
+prefix: REQ-GO
+
+requirements:
+  - id: REQ-GO-001
+    title: Demonstrate a Go requirement trace
+    description: The Go example should link a requirement to a documented Go test symbol.
+    priority: high
+    status: implemented
+    linked_policies:
+      - POL-GO-001
+    linked_features:
+      - FEAT-GO-001
+    tests:
+      go:
+        - file: go/app_test.go
+          symbols:
+            - TestGoRequirement

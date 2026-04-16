@@ -90,16 +90,17 @@ description: "Generated reference for docs/syu/requirements/core/validation.yaml
     - |
       The `validate` command MUST verify requirement-to-test and
       feature-to-implementation traceability in the languages used by `syu`
-      today: Rust, Python, and TypeScript/JavaScript. A declared trace is valid
+      today: Rust, Python, Go, and TypeScript/JavaScript. A declared trace is valid
       only when the file exists, the symbol exists, the trace path uses canonical
       repository-relative form, the file explicitly mentions the owning ID, and
       any `doc_contains` snippets are present in the symbol documentation.
       Validation MUST also reject duplicate trace mappings inside a single
       language list, support wildcard file ownership, and provide an optional
       mode that requires every public symbol (non-underscore-prefixed for Python,
-      `pub` for Rust, exported for TypeScript/JavaScript) and every test symbol
-      (`test_*` functions for Python, `#[test]` for Rust, `test*`-prefixed
-      functions for TypeScript/JavaScript) in repository source and test roots
+      `pub` for Rust, exported for Go, exported for TypeScript/JavaScript) and
+      every test symbol (`test_*` functions for Python, `#[test]` for Rust,
+      `Test*` functions for Go, `test*`-prefixed functions for TypeScript/JavaScript) in
+      repository source and test roots
       to belong to some feature or requirement respectively.
   - **priority**: high
   - **status**: implemented
@@ -139,6 +140,7 @@ description: "Generated reference for docs/syu/requirements/core/validation.yaml
           - *
       - **file**: tests/example_workspaces.rs
         - **symbols**:
+          - go_only_example_validates
           - python_only_example_validates
           - polyglot_example_validates
     - **python**:
@@ -278,16 +280,17 @@ requirements:
     description: |
       The `validate` command MUST verify requirement-to-test and
       feature-to-implementation traceability in the languages used by `syu`
-      today: Rust, Python, and TypeScript/JavaScript. A declared trace is valid
+      today: Rust, Python, Go, and TypeScript/JavaScript. A declared trace is valid
       only when the file exists, the symbol exists, the trace path uses canonical
       repository-relative form, the file explicitly mentions the owning ID, and
       any `doc_contains` snippets are present in the symbol documentation.
       Validation MUST also reject duplicate trace mappings inside a single
       language list, support wildcard file ownership, and provide an optional
       mode that requires every public symbol (non-underscore-prefixed for Python,
-      `pub` for Rust, exported for TypeScript/JavaScript) and every test symbol
-      (`test_*` functions for Python, `#[test]` for Rust, `test*`-prefixed
-      functions for TypeScript/JavaScript) in repository source and test roots
+      `pub` for Rust, exported for Go, exported for TypeScript/JavaScript) and
+      every test symbol (`test_*` functions for Python, `#[test]` for Rust,
+      `Test*` functions for Go, `test*`-prefixed functions for TypeScript/JavaScript) in
+      repository source and test roots
       to belong to some feature or requirement respectively.
     priority: high
     status: implemented
@@ -327,6 +330,7 @@ requirements:
             - '*'
         - file: tests/example_workspaces.rs
           symbols:
+            - go_only_example_validates
             - python_only_example_validates
             - polyglot_example_validates
       python:

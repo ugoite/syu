@@ -1,0 +1,13 @@
+category: Policies
+version: 1
+language: en
+
+policies:
+  - id: POL-GO-001
+    title: Go requirement and feature traces must be documented
+    summary: Demonstrate a single-language Go workflow.
+    description: Require the traced Go functions to carry both the stable ID and a short explanatory line.
+    linked_philosophies:
+      - PHIL-GO-001
+    linked_requirements:
+      - REQ-GO-001

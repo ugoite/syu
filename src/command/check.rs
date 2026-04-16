@@ -1966,10 +1966,10 @@ fn verify_trace_reference(
             subject,
             Some(format_reference_location(language, reference)),
             format!(
-                "Language `{language}` is not supported. Built-in adapters currently cover Rust, Python, TypeScript, Shell, YAML, JSON, Markdown, and Gitignore."
+                "Language `{language}` is not supported. Built-in adapters currently cover Rust, Python, TypeScript, Go, Shell, YAML, JSON, Markdown, and Gitignore."
             ),
             Some(format!(
-                "Use a supported language alias such as `rust`, `python`, `typescript`, `shell`, `yaml`, `json`, `markdown`, or `gitignore` for `{owner_id}`."
+                "Use a supported language alias such as `rust`, `python`, `typescript`, `go`, `shell`, `yaml`, `json`, `markdown`, or `gitignore` for `{owner_id}`."
             )),
         ));
         return false;
@@ -3285,9 +3285,9 @@ mod tests {
         let mut entry = requirement("REQ-1");
         entry.status = "proposed".to_string();
         entry.tests.insert(
-            "go".to_string(),
+            "java".to_string(),
             vec![TraceReference {
-                file: PathBuf::from("trace.go"),
+                file: PathBuf::from("Trace.java"),
                 symbols: vec!["trace".to_string()],
                 doc_contains: Vec::new(),
             }],
@@ -3475,7 +3475,7 @@ mod tests {
     #[test]
     fn verify_trace_reference_reports_unsupported_languages() {
         let reference = TraceReference {
-            file: PathBuf::from("test.go"),
+            file: PathBuf::from("Test.java"),
             symbols: vec!["main".to_string()],
             doc_contains: Vec::new(),
         };
@@ -3485,7 +3485,7 @@ mod tests {
             &SyuConfig::default(),
             "REQ-1",
             TraceRole::RequirementTest,
-            "go",
+            "java",
             &reference,
             &mut issues,
         ));

@@ -454,7 +454,7 @@ Key behaviors:
 - `validate.allow_planned` controls whether `planned` requirements and features are allowed at all
 - `validate.require_non_orphaned_items` turns isolated layered definitions into validation errors
 - `validate.require_reciprocal_links` keeps adjacent-layer backlinks mandatory by default while still allowing phased migration when disabled
-- `validate.require_symbol_trace_coverage` opt-in checks that public Rust, Python, and TypeScript/JavaScript symbols belong to features and tests belong to requirements
+- `validate.require_symbol_trace_coverage` opt-in checks that public Rust, Python, Go, and TypeScript/JavaScript symbols belong to features and tests belong to requirements
 - `report.output` sets the default `syu report` destination while `--output` still takes precedence
 - `app.bind` and `app.port` define the default local browser-app address and port unless `--bind` / `--port` override them
 - `report.output` sets the default `syu report` destination while `--output` still takes precedence
@@ -494,7 +494,7 @@ The `syu` repository itself enables `validate.require_non_orphaned_items`,
 documentation-style trace gaps that can be updated mechanically:
 
 - missing requirement / feature IDs in symbol documentation
-- missing `doc_contains` snippets for Rust, Python, and TypeScript symbols
+- missing `doc_contains` snippets for Rust, Python, Go, and TypeScript symbols
 
 It does **not** attempt speculative edits like renaming symbols or inventing
 missing files.
@@ -504,6 +504,7 @@ missing files.
 The repository ships working example projects:
 
 - [`examples/rust-only`](examples/rust-only)
+- [`examples/go-only`](examples/go-only)
 - [`examples/python-only`](examples/python-only)
 - [`examples/polyglot`](examples/polyglot)
 

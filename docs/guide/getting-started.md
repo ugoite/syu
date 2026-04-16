@@ -355,7 +355,7 @@ syu validate . --fix
 ```
 
 Autofix is conservative. It currently repairs documentation-style trace gaps
-for Rust, Python, and TypeScript without guessing at larger structural changes.
+for Rust, Python, Go, and TypeScript without guessing at larger structural changes.
 
 ## 6. Generate a report
 
@@ -368,12 +368,14 @@ syu report . --output reports/syu.md
 The repository includes complete examples:
 
 - `examples/rust-only`
+- `examples/go-only`
 - `examples/python-only`
 - `examples/polyglot`
 
 If one of those examples is already close to your repository, use the matching
-`syu init --template ...` option so the starter scaffold begins nearer to that
-shape.
+`syu init --template ...` option when one exists so the starter scaffold begins
+nearer to that shape. `examples/go-only` is currently a checked-in example
+workspace rather than an `init` template.
 
 ## Keep exploring
 

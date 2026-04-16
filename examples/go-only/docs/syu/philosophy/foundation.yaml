@@ -1,0 +1,11 @@
+category: Philosophy
+version: 1
+language: en
+
+philosophies:
+  - id: PHIL-GO-001
+    title: Go traces should stay explicit
+    product_design_principle: Keep the Go example small and runnable.
+    coding_guideline: Use stable IDs and Go doc comments on traced functions.
+    linked_policies:
+      - POL-GO-001
