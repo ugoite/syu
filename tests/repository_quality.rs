@@ -40,6 +40,7 @@ fn repository_declares_precommit_and_quality_gates() {
     assert!(ci_workflow.contains("actionlint:"));
     assert!(ci_workflow.contains("dependency-audit:"));
     assert!(ci_workflow.contains("dependency-review:"));
+    assert!(ci_workflow.contains("squash-history-spec-ids:"));
     assert!(ci_workflow.contains("installer-smoke:"));
     assert!(ci_workflow.contains("installed-binary-smoke:"));
     assert!(ci_workflow.contains("--hook-stage pre-commit"));
@@ -50,6 +51,8 @@ fn repository_declares_precommit_and_quality_gates() {
     assert!(ci_workflow.contains("0 6 * * 1"));
     assert!(ci_workflow.contains("github.event_name != 'schedule'"));
     assert!(ci_workflow.contains("Review dependency changes"));
+    assert!(ci_workflow.contains("Require spec IDs in squash commit titles"));
+    assert!(ci_workflow.contains("scripts/ci/check-squash-title-spec-ids.sh"));
     assert!(ci_workflow.contains("scripts/ci/installer-smoke.sh"));
     assert!(ci_workflow.contains("scripts/ci/installed-binary-smoke.sh"));
 
@@ -495,6 +498,7 @@ fn repository_declares_contribution_workflow_assets() {
     let bug_report = read_file(".github/ISSUE_TEMPLATE/bug_report.yml");
     let feature_request = read_file(".github/ISSUE_TEMPLATE/feature_request.yml");
     let issue_config = read_file(".github/ISSUE_TEMPLATE/config.yml");
+    let squash_title_script = read_file("scripts/ci/check-squash-title-spec-ids.sh");
     let gitignore = read_file(".gitignore");
 
     assert!(contributing.contains("FEAT-CONTRIB-002"));
@@ -513,6 +517,7 @@ fn repository_declares_contribution_workflow_assets() {
     assert!(contributing.contains("scripts/ci/check-generated-docs-freshness.sh"));
     assert!(contributing.contains("docs/generated/"));
     assert!(contributing.contains("scripts/ci/check-app-dist-freshness.sh"));
+    assert!(contributing.contains("GitHub uses the PR title as the squash commit headline"));
     assert!(contributing.contains("app/dist"));
     assert!(contributing.contains("npm run build:wasm"));
     assert!(contributing.contains("npm run check"));
@@ -537,6 +542,12 @@ fn repository_declares_contribution_workflow_assets() {
     assert!(pr_template.contains("FEAT-CONTRIB-002"));
     assert!(pr_template.contains("scripts/ci/quality-gates.sh"));
     assert!(pr_template.contains("cargo run -- validate ."));
+    assert!(pr_template.contains("include the same IDs in the PR title"));
+    assert!(pr_template.contains("preserves them in `git log`"));
+
+    assert!(squash_title_script.contains("FEAT-CONTRIB-002"));
+    assert!(squash_title_script.contains("GitHub squash merges use the PR title"));
+    assert!(squash_title_script.contains("local git history traceable"));
 
     assert!(bug_report.contains("FEAT-CONTRIB-002"));
     assert!(bug_report.contains("What happened?"));
