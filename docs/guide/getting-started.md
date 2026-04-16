@@ -27,37 +27,15 @@ before the first `syu validate .` run.
 
 ## Is syu right for this repository?
 
-`syu` works best when the repository wants machine-readable traceability kept
-close to the code instead of treated as separate project documentation.
+Use the canonical fit check in the
+[README](https://github.com/ugoite/syu/blob/main/README.md#is-syu-right-for-this-repository)
+to decide whether `syu` is the right level of structure for this repository.
+That section stays the source of truth for who benefits most, when `syu` is too
+heavy, and what trade-offs it adds to the contributor loop.
 
-Use it when you want to:
-
-- keep philosophy, policy, requirements, and features checked in beside normal
-  repository work
-- review requirement, implementation, and test links as part of everyday pull
-  requests
-- carry the same traceability model across a Rust-only, Python-only, or
-  polyglot codebase
-- give a long-lived team a durable record of why the repository works the way it
-  does
-
-It is probably too heavy for a throwaway prototype, a tiny solo repository, or
-any codebase where lightweight notes and code review are already enough because
-nobody needs enforced traceability.
-
-That trade-off matters: compared with docs-only workflows, `syu` adds structured
-YAML, reciprocal links, and validation checks to the contributor loop. In
-exchange, the repository gets auditable, searchable, repository-native
-traceability that stays attached to implementation and tests instead of drifting
-into separate documentation.
-
-The strongest fit is usually a repository with multiple contributors, long-lived
-maintenance, cross-language surface area, or review/compliance pressure that
-benefits from a checked-in explanation of intent all the way down to code.
-
-If that matches your repository, install `syu` and continue below. If not, stay
-with a lighter docs-only workflow until the repository needs stronger
-traceability guarantees.
+If the README fit check sounds right and you want the first-run setup narrated
+step by step, continue below. If not, stay with a lighter docs-only workflow
+until the repository needs stronger traceability guarantees.
 
 ## Before you begin
 
