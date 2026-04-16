@@ -268,7 +268,10 @@ fn app_command_warns_on_non_loopback_binds() {
     assert!(warning_index < listening_index);
     assert!(stdout.contains("workspace data and source documents may be reachable"));
     assert!(stdout.contains("use --bind 127.0.0.1 to keep the browser UI local"));
-    assert!(stderr.trim().is_empty(), "startup warnings should stay on stdout");
+    assert!(
+        stderr.trim().is_empty(),
+        "startup warnings should stay on stdout"
+    );
 }
 
 #[test]

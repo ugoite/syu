@@ -220,8 +220,7 @@ fn non_loopback_warning_lines(bind: IpAddr) -> Vec<String> {
         format!(
             "warning: syu app is bound to {bind}, so workspace data and source documents may be reachable from other machines on your network."
         ),
-        "warning: use --bind 127.0.0.1 to keep the browser UI local to this machine."
-            .to_string(),
+        "warning: use --bind 127.0.0.1 to keep the browser UI local to this machine.".to_string(),
     ]
 }
 
