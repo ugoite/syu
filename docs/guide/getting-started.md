@@ -17,6 +17,9 @@ Need a different level of guidance?
   step, including why the manual YAML edits matter before validation.
 - Follow the [end-to-end tutorial](./tutorial.md) when you want a realistic,
   worked repository story instead of the shortest setup path.
+- Use the [trace adapter capability matrix](./trace-adapter-support.md) when
+  you need to know which built-in languages support symbol validation only
+  versus `doc_contains` and strict coverage.
 - Jump to [troubleshooting](./troubleshooting.md) when validation or linking is
   already failing and you need to unblock a workspace.
 
@@ -266,6 +269,12 @@ fn test_store_upload() { /* … */ }
 appears in it. If the string is missing, the rule `SYU-trace-doc-001`
 fires with a suggestion to add the snippet (or run `syu validate --fix`).
 
+That richer `doc_contains` inspection is currently limited to Rust, Python, and
+TypeScript / JavaScript traces. The same built-in matrix also tells you which
+languages participate in strict `validate.require_symbol_trace_coverage`
+inventory and which ones stop at symbol-existence checks: see the [trace
+adapter capability matrix](./trace-adapter-support.md).
+
 Requirements should declare tests:
 
 ```yaml
@@ -380,6 +389,7 @@ shape.
 - Follow the [end-to-end tutorial](./tutorial.md) to build a complete four-layer spec from scratch
 - Read [syu concepts](./concepts.md) for the reasoning behind the four layers
 - Review [configuration](./configuration.md) before tightening validation in a real repository
+- Check the [trace adapter capability matrix](./trace-adapter-support.md) before depending on `doc_contains` or strict ownership coverage in a mixed-language codebase
 - Read the [syu app browser guide](./app.md) to learn how to navigate the browser UI
 - Check the [troubleshooting guide](./troubleshooting.md) when `syu validate` returns an unfamiliar error code
 - If you run `syu report`, your own project can generate a local Markdown report.
