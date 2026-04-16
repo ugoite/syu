@@ -511,9 +511,7 @@ impl ValidationGenreFilter {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        Cli, Commands, LookupKind, OutputFormat, ValidationGenreFilter, ValidationSeverityFilter,
-    };
+    use super::{Cli, LookupKind, ValidationGenreFilter, ValidationSeverityFilter};
     use clap::Parser;
 
     #[test]
@@ -584,15 +582,9 @@ mod tests {
     #[test]
     fn templates_args_default_to_text_format() {
         let cli = Cli::try_parse_from(["syu", "templates"]).expect("templates args should parse");
-
-        let Cli {
-            command: Some(Commands::Templates(args)),
-        } = cli
-        else {
-            panic!("expected templates command");
-        };
-
-        assert_eq!(args.format, OutputFormat::Text);
+        let rendered = format!("{cli:?}");
+        assert!(rendered.contains("command: Some(Templates("));
+        assert!(rendered.contains("format: Text"));
     }
 
     #[test]

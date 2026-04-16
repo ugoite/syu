@@ -100,6 +100,7 @@ description: "Generated reference for docs/syu/requirements/core/workspace.yaml"
       - **file**: src/lib.rs
         - **symbols**:
           - dispatches_interactive_bare_invocations_to_browse_defaults
+          - print_help_dispatch_renders_successfully
       - **file**: src/command/browse.rs
         - **symbols**:
           - *
@@ -345,6 +346,7 @@ requirements:
         - file: src/lib.rs
           symbols:
             - dispatches_interactive_bare_invocations_to_browse_defaults
+            - print_help_dispatch_renders_successfully
         - file: src/command/browse.rs
           symbols:
             - '*'

@@ -138,6 +138,14 @@ mod tests {
     }
 
     #[test]
+    // REQ-CORE-015
+    fn print_help_dispatch_renders_successfully() {
+        let code = super::run_dispatch(super::Dispatch::PrintHelp)
+            .expect("print help dispatch should succeed");
+        assert_eq!(code, 0);
+    }
+
+    #[test]
     // REQ-CORE-017
     fn dispatches_app_subcommands_without_rewriting_them() {
         let action = super::dispatch(

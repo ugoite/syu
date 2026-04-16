@@ -114,7 +114,7 @@ impl TemplateCatalogEntry {
 
 #[cfg(test)]
 mod tests {
-    use super::{TemplateRelationship, starter_template_catalog};
+    use super::starter_template_catalog;
 
     #[test]
     fn starter_template_catalog_lists_every_supported_template() {
@@ -129,10 +129,8 @@ mod tests {
     #[test]
     fn starter_template_catalog_marks_example_backed_templates() {
         let templates = starter_template_catalog();
-        assert!(matches!(
-            templates[0].relationship,
-            TemplateRelationship::StarterOnly
-        ));
+        assert_eq!(templates[0].relationship_label(), "starter-only");
+        assert_eq!(templates[1].relationship_label(), "template-and-example");
         assert_eq!(templates[0].related_example, None);
         assert_eq!(templates[1].related_example, Some("examples/rust-only"));
         assert_eq!(templates[2].related_example, Some("examples/python-only"));
