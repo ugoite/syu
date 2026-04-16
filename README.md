@@ -283,7 +283,7 @@ Working in Go, Java, C#, or another language without rich `doc_contains`
 inspection yet? You can still adopt `syu` with file traces, explicit symbols,
 and wildcard ownership while leaving `validate.require_symbol_trace_coverage`
 off. The newcomer path and roadmap links live in
-[`docs/guide/getting-started.md`](docs/guide/getting-started.md#unsupported-implementation-languages-still-work-today).
+[`docs/guide/getting-started.md`](docs/guide/getting-started.md#unsupported-implementation-languages-can-still-adopt-the-spec-layers-first).
 
 ### `syu add`
 

@@ -153,7 +153,7 @@ implementation areas can either stay on declared traces only or move onto a
 supported rich-inspection language. Unsupported-language files can still be
 traced with file paths, explicit symbols, and wildcard ownership; the strict
 coverage scan is what stays limited to Rust, Python, and TypeScript/JavaScript.
-See [getting started](./getting-started.md#unsupported-implementation-languages-still-work-today)
+See [getting started](./getting-started.md#unsupported-implementation-languages-can-still-adopt-the-spec-layers-first)
 for the current adoption path.
 
 ### `app.bind`
