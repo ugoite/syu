@@ -27,9 +27,9 @@ after-the-fact documentation.
 5. Merge with squash once CI is green and review conversations are resolved.
 6. Delete the branch after merge.
 
-When the PR body lists requirement or feature IDs, include the same IDs in the
-PR title. GitHub uses the PR title as the squash commit headline, so this keeps
-spec traceability visible in local `git log` after merge.
+When the PR body lists philosophy, policy, requirement, or feature IDs, include
+the same IDs in the PR title. GitHub uses the PR title as the squash commit headline,
+so this keeps spec traceability visible in local `git log` after merge.
 
 Local helper worktrees under `.worktrees/` are treated as contributor-local
 state and ignored by the repository so `git status` stays focused on the main
