@@ -172,6 +172,10 @@ Stable releases are prepared from `main` with release-please.
 Prereleases are cut from `main` as needed after the same quality gates and user
 story validation pass.
 
+When maintainers intentionally rename merge-queue check contexts or add/remove
+`merge_group` workflows, update `.github/merge-queue-checks.json` and the short
+[merge queue playbook](docs/guide/merge-queue-playbook.md) in the same change.
+
 GitHub release notes are generated per release track so alpha, beta, and stable
 releases each compare against the previous tag in the same track.
 

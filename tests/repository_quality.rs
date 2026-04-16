@@ -563,6 +563,7 @@ fn repository_declares_dependency_hygiene_and_ci_caching() {
     let ci_workflow = read_file(".github/workflows/ci.yml");
     let setup_rust_action = read_file(".github/actions/setup-rust/action.yml");
     let codeql_workflow = read_file(".github/workflows/codeql.yml");
+    let merge_queue_checks = read_file(".github/merge-queue-checks.json");
     let docs_build_action = read_file(".github/actions/build-docs-site/action.yml");
     let docs_lock = read_file("website/package-lock.json");
     let release_artifacts = read_file(".github/workflows/release-artifacts.yml");
@@ -578,6 +579,7 @@ fn repository_declares_dependency_hygiene_and_ci_caching() {
     assert!(ci_workflow.contains("tool: cargo-llvm-cov"));
     assert!(ci_workflow.contains("tool: cargo-audit"));
     assert!(ci_workflow.contains("merge_group:"));
+    assert!(ci_workflow.contains("check-msrv:"));
     assert!(ci_workflow.contains("Set up Python with pip cache"));
     assert!(ci_workflow.contains("cache: pip"));
     assert!(ci_workflow.contains("cache-dependency-path: .pre-commit-config.yaml"));
@@ -599,6 +601,14 @@ fn repository_declares_dependency_hygiene_and_ci_caching() {
     assert!(codeql_workflow.contains("github/codeql-action/init@v4"));
     assert!(codeql_workflow.contains("github/codeql-action/autobuild@v4"));
     assert!(codeql_workflow.contains("github/codeql-action/analyze@v4"));
+    assert!(merge_queue_checks.contains("\"version\": 1"));
+    assert!(merge_queue_checks.contains("\"workflow\": \"ci\""));
+    assert!(merge_queue_checks.contains("\"workflow\": \"codeql\""));
+    assert!(merge_queue_checks.contains("\"context\": \"precommit\""));
+    assert!(merge_queue_checks.contains("\"context\": \"MSRV check (1.88)\""));
+    assert!(merge_queue_checks.contains("\"context\": \"Analyze (rust)\""));
+    assert!(merge_queue_checks.contains("\"job_id\": \"check-msrv\""));
+    assert!(merge_queue_checks.contains("\"job_id\": \"analyze\""));
 
     assert!(release_artifacts.contains("Restore Rust cache"));
     assert!(release_artifacts.contains("Swatinem/rust-cache@v2"));
