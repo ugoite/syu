@@ -514,7 +514,7 @@ The repository ships working example projects:
 Each one is validated in the automated test suite.
 
 Need help choosing between a starter template and a full reference workspace?
-See the [examples-versus-templates guide](docs/guide/examples-and-templates.md).
+See the [examples and templates guide](docs/guide/examples-and-templates.md).
 
 ## Contributing and local development
 

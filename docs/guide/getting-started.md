@@ -171,7 +171,7 @@ Starter requirements and features begin as `status: planned`. Keep them planned
 until you are ready to declare real tests and implementation traces.
 
 Not sure whether you should scaffold a template or study a working repository
-first? Use the [examples-versus-templates guide](./examples-and-templates.md) to
+first? Use the [examples and templates guide](./examples-and-templates.md) to
 choose the shorter path.
 
 ## 2. Add and refine spec items
@@ -381,7 +381,7 @@ shape.
 
 For a side-by-side decision table that explains which paths are template-backed,
 example-backed, or both, see the
-[examples-versus-templates guide](./examples-and-templates.md).
+[examples and templates guide](./examples-and-templates.md).
 
 ## Keep exploring
 
