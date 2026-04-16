@@ -3860,9 +3860,9 @@ mod tests {
             root,
             &SyuConfig::default(),
             "REQ-1",
-            "go",
+            "java",
             &TraceReference {
-                file: PathBuf::from("trace.go"),
+                file: PathBuf::from("Trace.java"),
                 symbols: vec!["expected".to_string()],
                 doc_contains: vec!["Explain expected".to_string()],
             },
