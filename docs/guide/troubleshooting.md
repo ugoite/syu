@@ -244,24 +244,6 @@ or vice versa.
 
 ---
 
-### `SYU-trace-id-001` — trace ID comment missing in source
-
-**What it means:** The traced source file does not contain a comment with the
-owning spec ID (e.g. `# FEAT-AUTH-001`).
-
-**Fix:** Add a brief comment to the function or module:
-
-```rust
-// FEAT-AUTH-001
-pub fn authenticate_user(...) { ... }
-```
-
-> **Autofix available:** `syu validate . --fix` can insert the owning spec ID
-> comment and any missing `doc_contains` snippets using language-appropriate
-> comment or doc-comment syntax when the symbol already exists.
-
----
-
 ### `SYU-trace-doc-001` — required doc snippet missing
 
 **What it means:** A trace with `doc_contains:` asserts that a specific string
@@ -305,7 +287,8 @@ symbol non-public if it is not part of the intended API.
 
 ### `SYU-coverage-test-001` — test has no owning requirement
 
-**What it means:** A test function is not referenced by any requirement trace.
+**What it means:** A test function or method is not referenced by any
+requirement trace.
 
 **Fix:** Add the test to a requirement's trace block, or rename/remove the test
 if it is obsolete.
@@ -318,7 +301,7 @@ if it is obsolete.
 
 | What `--fix` does | Safe? |
 |---|---|
-| Inserts spec ID comments and required `doc_contains` snippets using language-appropriate comment or doc-comment syntax | ✅ Yes |
+| Inserts required `doc_contains` snippets using language-appropriate comment or doc-comment syntax | ✅ Yes |
 | Rewrites or deletes symbols | ❌ No — `--fix` never does this |
 | Adds missing `linked_*` graph links | ❌ No — only you know the correct links |
 | Creates new spec entries | ❌ No |
@@ -329,8 +312,10 @@ Run `git diff` after `--fix` to review every change before committing.
 
 ## "Validation passes but traces feel wrong"
 
-Passing `syu validate .` does not mean the spec perfectly reflects intent.
-Watch out for these false-confidence patterns:
+Passing `syu validate .` does not mean the spec perfectly reflects intent. For
+common four-layer design smells that are still technically valid, read the
+[spec anti-patterns guide](./spec-antipatterns.md) after you clear the blocking
+errors below. Watch out for these false-confidence patterns:
 
 - **Over-broad wildcards:** An empty `symbols:` list does not validate
   (`SYU-trace-symbol-001`). If you intentionally mean "this spec item owns the
@@ -351,6 +336,8 @@ Watch out for these false-confidence patterns:
   when you want to rebuild a clean mental model before debugging
 - [End-to-end tutorial](./tutorial.md) — follow a full working example when you
   want to compare your workspace against a realistic repository story
+- [Spec anti-patterns](./spec-antipatterns.md) — use this when validation passes
+  but the four-layer design still feels unstable, repetitive, or too broad
 - Full rule catalog: [`docs/syu/features/validation/validation.yaml`](../syu/features/validation/validation.yaml)
 - Filter by genre: `syu validate . --genre graph`
 - Filter by severity: `syu validate . --severity error`
