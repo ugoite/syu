@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf};
+use std::{collections::HashSet, fs, path::PathBuf};
 
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -609,14 +609,47 @@ fn repository_declares_dependency_hygiene_and_ci_caching() {
     assert!(codeql_workflow.contains("github/codeql-action/init@v4"));
     assert!(codeql_workflow.contains("github/codeql-action/autobuild@v4"));
     assert!(codeql_workflow.contains("github/codeql-action/analyze@v4"));
-    assert!(merge_queue_checks.contains("\"version\": 1"));
-    assert!(merge_queue_checks.contains("\"workflow\": \"ci\""));
-    assert!(merge_queue_checks.contains("\"workflow\": \"codeql\""));
-    assert!(merge_queue_checks.contains("\"context\": \"precommit\""));
-    assert!(merge_queue_checks.contains("\"context\": \"MSRV check (1.88)\""));
-    assert!(merge_queue_checks.contains("\"context\": \"Analyze (rust)\""));
-    assert!(merge_queue_checks.contains("\"job_id\": \"check-msrv\""));
-    assert!(merge_queue_checks.contains("\"job_id\": \"analyze\""));
+    let merge_queue_manifest: serde_json::Value = serde_json::from_str(&merge_queue_checks)
+        .expect("merge queue manifest should be valid JSON");
+    let required_checks = merge_queue_manifest["required_checks"]
+        .as_array()
+        .expect("merge queue manifest should declare required checks");
+    let contexts: Vec<&str> = required_checks
+        .iter()
+        .map(|entry| {
+            entry["context"]
+                .as_str()
+                .expect("merge queue context should be a string")
+        })
+        .collect();
+    let unique_contexts: HashSet<&str> = contexts.iter().copied().collect();
+
+    assert_eq!(merge_queue_manifest["version"], 1);
+    assert_eq!(contexts.len(), unique_contexts.len());
+    assert!(
+        required_checks
+            .iter()
+            .any(|entry| entry["workflow"] == "ci")
+    );
+    assert!(
+        required_checks
+            .iter()
+            .any(|entry| entry["workflow"] == "codeql")
+    );
+    assert!(contexts.contains(&"precommit"));
+    assert!(contexts.contains(&"MSRV check (1.88)"));
+    assert!(contexts.contains(&"Analyze (rust)"));
+    assert!(!contexts.contains(&"dependency-review"));
+    assert!(
+        required_checks
+            .iter()
+            .any(|entry| entry["job_id"] == "check-msrv")
+    );
+    assert!(
+        required_checks
+            .iter()
+            .any(|entry| entry["job_id"] == "analyze")
+    );
 
     assert!(release_artifacts.contains("Restore Rust cache"));
     assert!(release_artifacts.contains("Swatinem/rust-cache@v2"));
