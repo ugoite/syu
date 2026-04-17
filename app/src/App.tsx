@@ -628,6 +628,11 @@ function App() {
                 note="validated / declared"
                 tone="sky"
                 ratio={requirementTraceRatio}
+                hint={{
+                  label: "Requirement traces",
+                  description:
+                    "Declared traces are the requirement test references written in the spec. Validated traces are the declared references that syu could confirm in the current workspace. A gap means some declared requirement traces are stale or unresolved.",
+                }}
               />
               <CompactMetric
                 label="feature traces"
@@ -635,6 +640,11 @@ function App() {
                 note="validated / declared"
                 tone="violet"
                 ratio={featureTraceRatio}
+                hint={{
+                  label: "Feature traces",
+                  description:
+                    "Declared traces are the feature implementation references written in the spec. Validated traces are the declared references that syu could confirm in the current workspace. A gap means some declared feature traces are stale or unresolved.",
+                }}
               />
             </div>
           </section>
@@ -661,7 +671,7 @@ function App() {
               <input
                 id="spec-search"
                 type="search"
-                aria-describedby="spec-search-shortcuts"
+                aria-describedby="spec-search-shortcuts-description"
                 placeholder="Search items by ID or keyword…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -697,8 +707,12 @@ function App() {
                 className="w-full rounded-2xl border border-white/10 bg-slate-900/60 py-2 pl-9 pr-4 text-sm text-slate-100 placeholder-slate-500 focus:border-sky-400/60 focus:outline-none focus:ring-1 focus:ring-sky-400/40"
               />
             </div>
+            <p id="spec-search-shortcuts-description" className="sr-only">
+              Keyboard shortcuts: ArrowDown and ArrowUp move through results, Enter opens the
+              highlighted or only match, and Escape clears the search.
+            </p>
             <div
-              id="spec-search-shortcuts"
+              id="spec-search-shortcuts-panel"
               role="note"
               className="mt-3 rounded-2xl border border-sky-400/20 bg-sky-400/10 px-3 py-3 text-sm text-sky-50"
             >
@@ -1251,12 +1265,17 @@ function CompactMetric({
   note,
   tone = "sky",
   ratio,
+  hint,
 }: {
   label: string;
   value: string;
   note: string;
   tone?: "sky" | "violet";
   ratio?: number;
+  hint?: {
+    label: string;
+    description: string;
+  };
 }) {
   const barClass = tone === "violet" ? "bg-violet-300" : "bg-sky-300";
 
@@ -1264,7 +1283,10 @@ function CompactMetric({
     <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3">
       <p className="text-[11px] uppercase tracking-[0.25em] text-slate-500">{label}</p>
       <p className="mt-2 text-lg font-semibold text-white">{value}</p>
-      <p className="mt-1 text-xs text-slate-400">{note}</p>
+      <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-400">
+        <p>{note}</p>
+        {hint ? <InfoHint label={hint.label} description={hint.description} /> : null}
+      </div>
       {typeof ratio === "number" ? (
         <div className="mt-3 h-2 rounded-full bg-white/5">
           <div className={`h-full rounded-full ${barClass}`} style={{ width: `${ratio * 100}%` }} />
