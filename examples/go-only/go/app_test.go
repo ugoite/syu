@@ -1,11 +1,9 @@
-package trace
+package main
 
 import "testing"
 
-// REQ-GO-001
-// go requirement doc
 func TestGoRequirement(t *testing.T) {
-	if GoFeatureImpl() == "" {
-		t.Fatal("expected traced implementation output")
+	if GoFeatureImpl() != "ok" {
+		t.Fatalf("expected ok")
 	}
 }

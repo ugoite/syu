@@ -368,14 +368,17 @@ syu report . --output reports/syu.md
 The repository includes complete examples:
 
 - `examples/rust-only`
-- `examples/go-only`
 - `examples/python-only`
+- `examples/go-only`
 - `examples/polyglot`
 
 If one of those examples is already close to your repository, use the matching
 `syu init --template ...` option when one exists so the starter scaffold begins
-nearer to that shape. `examples/go-only` is currently a checked-in example
-workspace rather than an `init` template.
+nearer to that shape.
+
+Use `examples/go-only` when your repository is Go-first today: it keeps the
+real `.go` files in the example, but validates the trace anchors from
+`README.md` until `syu` ships a native Go adapter.
 
 ## Keep exploring
 

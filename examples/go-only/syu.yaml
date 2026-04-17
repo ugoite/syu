@@ -5,3 +5,8 @@ validate:
   default_fix: false
   allow_planned: true
   require_symbol_trace_coverage: false
+runtimes:
+  python:
+    command: auto
+  node:
+    command: auto
