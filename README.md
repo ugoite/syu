@@ -43,6 +43,9 @@ Pick the newcomer path that matches what you need next:
 - **Troubleshooting**: jump to
   [`docs/guide/troubleshooting.md`](docs/guide/troubleshooting.md) when validation
   or traceability errors are already blocking you.
+- **Spec anti-patterns**: read
+  [`docs/guide/spec-antipatterns.md`](docs/guide/spec-antipatterns.md) when the
+  workspace validates but the layer boundaries still feel messy.
 
 Keep the detailed guides close:
 
@@ -52,6 +55,7 @@ Keep the detailed guides close:
 - [`docs/guide/tutorial.md`](docs/guide/tutorial.md)
 - [`docs/guide/configuration.md`](docs/guide/configuration.md)
 - [`docs/guide/troubleshooting.md`](docs/guide/troubleshooting.md)
+- [`docs/guide/spec-antipatterns.md`](docs/guide/spec-antipatterns.md)
 - [`CONTRIBUTING.md`](CONTRIBUTING.md)
 
 ## Is syu right for this repository?
@@ -343,6 +347,13 @@ template name, whether it is starter-only or backed by both a template and a
 checked-in example, the related example path when one exists, and a short
 description of the starter shape.
 
+Working in Go, Java, C#, or another unsupported implementation language? Start
+with the spec layers first and add code-level traces once adapter support
+lands. For supported lightweight adapters such as `shell`, `yaml`, `json`,
+`markdown`, and `gitignore`, keep traces to file or symbol ownership without
+`doc_contains`. The newcomer path and roadmap links live in
+[`docs/guide/getting-started.md`](docs/guide/getting-started.md#unsupported-implementation-languages-can-still-adopt-the-spec-layers-first).
+
 ### `syu add`
 
 Scaffold a new YAML stub after the initial workspace exists:
@@ -568,9 +579,10 @@ missing files.
 
 The repository ships working example projects:
 
-- [`examples/rust-only`](examples/rust-only)
-- [`examples/python-only`](examples/python-only)
-- [`examples/polyglot`](examples/polyglot)
+- [`examples/rust-only`](examples/rust-only) — minimal single-language Rust starter
+- [`examples/python-only`](examples/python-only) — minimal Python-first starter
+- [`examples/polyglot`](examples/polyglot) — one requirement and feature traced across Rust, Python, and TypeScript
+- [`examples/team-scale`](examples/team-scale) — a larger Rust workspace that shows phased adoption, nested documents, and recovery drills
 
 Each one is validated in the automated test suite.
 

@@ -58,25 +58,25 @@ fn template_catalog_entry(template: StarterTemplate) -> TemplateCatalogEntry {
     match template {
         StarterTemplate::Generic => TemplateCatalogEntry {
             name: "generic",
-            description: "Minimal four-layer starter with neutral IDs and core file names.",
+            description: "Starter with minimal four-layer files, neutral IDs, and core file names.",
             relationship: TemplateRelationship::StarterOnly,
             related_example: None,
         },
         StarterTemplate::RustOnly => TemplateCatalogEntry {
             name: "rust-only",
-            description: "Rust-first starter with Rust-oriented IDs plus requirement and feature files.",
+            description: "Starter for Rust-first repos with Rust-oriented IDs plus requirement and feature files.",
             relationship: TemplateRelationship::TemplateAndExample,
             related_example: Some("examples/rust-only"),
         },
         StarterTemplate::PythonOnly => TemplateCatalogEntry {
             name: "python-only",
-            description: "Python-first starter with Python-oriented IDs plus requirement and feature files.",
+            description: "Starter for Python-first repos with Python-oriented IDs plus requirement and feature files.",
             relationship: TemplateRelationship::TemplateAndExample,
             related_example: Some("examples/python-only"),
         },
         StarterTemplate::Polyglot => TemplateCatalogEntry {
             name: "polyglot",
-            description: "Mixed-language starter that keeps the same four layers while naming the first spec around a polyglot repository.",
+            description: "Starter for mixed-language repos with the same four layers and a polyglot first spec.",
             relationship: TemplateRelationship::TemplateAndExample,
             related_example: Some("examples/polyglot"),
         },
@@ -84,6 +84,7 @@ fn template_catalog_entry(template: StarterTemplate) -> TemplateCatalogEntry {
 }
 
 fn print_text_catalog(templates: &[TemplateCatalogEntry]) {
+    println!("name\trelationship\trelated_example\tdescription");
     for template in templates {
         match template.related_example {
             Some(example) => println!(
