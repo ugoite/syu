@@ -87,7 +87,8 @@ fn repository_declares_coverage_gate_at_one_hundred_percent() {
 
     assert!(spec_summary_script.contains("FEAT-QUALITY-001"));
     assert!(spec_summary_script.contains("Coverage by requirement and feature"));
-    assert!(spec_summary_script.contains("cargo\", \"run\", \"--quiet\", \"--\""));
+    assert!(spec_summary_script.contains("list\", \"--with-path\", \"--format\", \"json\""));
+    assert!(spec_summary_script.contains("yaml.safe_load"));
     assert!(spec_summary_script.contains("Rust implementation coverage"));
 
     assert!(ci_workflow.contains("coverage:"));
@@ -548,7 +549,7 @@ fn repository_declares_contribution_workflow_assets() {
     assert!(contributing.contains("scripts/ci/quality-gates.sh"));
     assert!(contributing.contains("scripts/ci/check-generated-docs-freshness.sh"));
     assert!(contributing.contains("docs/generated/"));
-    assert!(contributing.contains("scripts/ci/check-app-dist-freshness.sh"));
+    assert!(contributing.contains("scripts/ci/check-browser-app-freshness.sh"));
     assert!(contributing.contains("requirement/feature coverage summary"));
     assert!(contributing.contains("app/dist"));
     assert!(contributing.contains("npm run build:wasm"));
