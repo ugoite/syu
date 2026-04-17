@@ -38,6 +38,10 @@ Pick the newcomer path that matches what you need next:
   [`docs/guide/existing-repository.md`](docs/guide/existing-repository.md) when
   the repository already has code and history and you want an incremental
   adoption path instead of starting with `syu init`.
+- **Upgrade or migration**: start with
+  [`docs/guide/migration.md`](docs/guide/migration.md) when you are updating an
+  existing `syu` workspace between alpha releases and need the release-specific
+  upgrade steps first.
 - **Tutorial**: follow [`docs/guide/tutorial.md`](docs/guide/tutorial.md) when you
   want a realistic end-to-end repository story instead of a short scaffold flow.
 - **Trace adapter matrix**: open
@@ -55,6 +59,7 @@ Keep the detailed guides close:
 
 - [`docs/guide/concepts.md`](docs/guide/concepts.md)
 - [`docs/guide/getting-started.md`](docs/guide/getting-started.md)
+- [`docs/guide/migration.md`](docs/guide/migration.md)
 - [`docs/guide/trace-adapter-support.md`](docs/guide/trace-adapter-support.md)
 - [`docs/guide/existing-repository.md`](docs/guide/existing-repository.md)
 - [`docs/guide/tutorial.md`](docs/guide/tutorial.md)
