@@ -13,6 +13,9 @@ Need a different level of guidance?
   [README quick start on GitHub](https://github.com/ugoite/syu/blob/main/README.md#quick-start)
   when you want the shortest install-to-validate path and are happy with a
   compact command card.
+- Follow [existing repository adoption](./existing-repository.md) when the
+  repository already has code and history and you want to add `syu` without
+  treating it like a blank workspace.
 - Stay on this page when you want the first workspace setup explained step by
   step, including why the manual YAML edits matter before validation.
 - Follow the [end-to-end tutorial](./tutorial.md) when you want a realistic,
@@ -24,6 +27,18 @@ This guide assumes `syu` is already installed. Unlike the README quick start,
 it slows down at the first manual editing step so you can see where the
 scaffolded files live, how reciprocal links fit together, and what to fix
 before the first `syu validate .` run.
+
+## Is syu right for this repository?
+
+Use the canonical fit check in the
+[README](https://github.com/ugoite/syu/blob/main/README.md#is-syu-right-for-this-repository)
+to decide whether `syu` is the right level of structure for this repository.
+That section stays the source of truth for who benefits most, when `syu` is too
+heavy, and what trade-offs it adds to the contributor loop.
+
+If the README fit check sounds right and you want the first-run setup narrated
+step by step, continue below. If not, stay with a lighter docs-only workflow
+until the repository needs stronger traceability guarantees.
 
 ## Before you begin
 
@@ -118,6 +133,10 @@ syu --version
 
 ## 1. Create a workspace
 
+If the repository already exists and you do not want to start with `syu init`,
+use [existing repository adoption](./existing-repository.md) instead. The steps
+below assume a new workspace or a deliberate scaffold flow.
+
 Bootstrap a new project:
 
 ```bash
@@ -147,8 +166,12 @@ Need a closer starting point for a repository that is already Rust-first,
 Python-first, or polyglot?
 
 ```bash
+syu templates
 syu init . --template rust-only
 ```
+
+Run `syu templates` first if you want the starter names, one-line descriptions,
+and matching checked-in example paths before choosing a scaffold.
 
 You can also combine both flags:
 
@@ -167,22 +190,61 @@ and `FEAT-STORE-001` instead of the generic defaults. When one layer needs a
 different prefix, use `--philosophy-prefix`, `--policy-prefix`,
 `--requirement-prefix`, or `--feature-prefix`.
 
+For a genuinely mixed-language repository, keep the first adoption step small:
+
+- start with `validate.require_symbol_trace_coverage: false`
+- keep tracing every area you touch, but use file-level or wildcard ownership
+  only in supported lightweight adapters that `syu` cannot inspect deeply yet
+- keep unsupported implementation-language areas connected through the spec
+  layers until adapter support lands
+- turn stricter symbol coverage on later for the Rust, Python, and
+  TypeScript/JavaScript areas once those traces are stable
+
+That keeps the repository connected to the spec from day one without forcing a
+polyglot team to fake symbol-level coverage before the current adapters are
+ready.
+
 Starter requirements and features begin as `status: planned`. Keep them planned
 until you are ready to declare real tests and implementation traces.
 
 ### Unsupported implementation languages can still adopt the spec layers first
 
-Rich source inspection is currently limited to Rust, Python, and
-TypeScript/JavaScript. Repositories that are mostly Go, Java, C#, shell, or
-another unsupported language can still adopt `syu` today, but they should treat
-code-level trace mappings for those languages as future work instead of a
-working first-run path.
+`syu` can validate code-level traces today in Rust, Python, and
+TypeScript/JavaScript, plus lighter file/symbol ownership in `shell`, `yaml`,
+`json`, `markdown`, and `gitignore`. Repositories that are mostly Go, Java,
+C#, or another unsupported implementation language can still adopt `syu` today,
+but they should treat code-level mappings for those files as future work.
 
 Today you can still:
 
-- document philosophy, policy, requirements, and features for unsupported-language areas
-- keep those areas in the same repository while `validate.require_symbol_trace_coverage` stays `false`
-- use examples, templates, and higher-layer links to explain intent before source adapters land
+- document philosophy, policy, requirements, and features for
+  unsupported-language areas
+- keep those areas in the same repository while
+  `validate.require_symbol_trace_coverage` stays `false`
+- trace supported lightweight files such as shell scripts or YAML configs with
+  file paths, explicit symbols, or wildcard ownership as long as you omit
+  `doc_contains`
+
+A minimal trace mapping without `doc_contains` looks like this:
+
+```yaml
+implementations:
+  shell:
+    - file: scripts/install-syu.sh
+      symbols:
+        - install_syu
+```
+
+When one feature intentionally owns the whole file, wildcard ownership still
+works too:
+
+```yaml
+implementations:
+  shell:
+    - file: scripts/install-syu.sh
+      symbols:
+        - "*"
+```
 
 What you should avoid for unsupported-language files today is adding
 language-specific `tests:` or `implementations:` entries such as `go:`,
@@ -195,11 +257,20 @@ Keep this adoption path in mind for mixed-language repositories too: start with
 declared traces, keep `validate.require_symbol_trace_coverage: false`, then turn
 strict coverage on later for the languages `syu` can already scan deeply.
 
+When `SYU-trace-docsupport-001` fires, read it as “this mapping can stay, but
+without `doc_contains`, only if the language adapter already exists.” That
+works for `shell`, `yaml`, `json`, `markdown`, and `gitignore`; it does not
+bypass `SYU-trace-language-001` for Go, Java, or C#.
+
 Language-support roadmap:
 
 - [Go trace validation and symbol ownership (#280)](https://github.com/ugoite/syu/issues/280)
 - [Java trace validation and symbol ownership (#282)](https://github.com/ugoite/syu/issues/282)
 - [C# trace validation and symbol ownership (#314)](https://github.com/ugoite/syu/issues/314)
+
+Not sure whether you should scaffold a template or study a working repository
+first? Use the [examples and templates guide](./examples-and-templates.md) to
+choose the shorter path.
 
 ## 2. Add and refine spec items
 
@@ -280,22 +351,26 @@ codebase. Each trace entry has two key fields:
 - **`symbols`** — The names of the functions, methods, or classes in the
   referenced file that implement or test this spec item (e.g., a test
   function called `test_store_upload`).
-- **`doc_contains`** — One or more strings that must appear verbatim in the
-  documentation comment of each listed symbol. This proves the linkage is
-  intentional: the developer explicitly wrote the spec ID in the comment.
+- **`doc_contains`** — Optional strings that must appear verbatim in the
+  documentation comment of each listed symbol. Use this when you want the code
+  itself to carry extra review breadcrumbs beyond the checked-in file/symbol
+  mapping.
 
 For example, a Rust test function that satisfies
-`doc_contains: ["FEAT-STORE-001"]` looks like this:
+`doc_contains: ["integrity-checked write"]` looks like this:
 
 ```rust
-/// Verifies file upload round-trip — covers FEAT-STORE-001.
+/// Verifies the integrity-checked write path.
 #[test]
 fn test_store_upload() { /* … */ }
 ```
 
-`syu validate` reads the doc comment and checks that `"FEAT-STORE-001"`
+`syu validate` reads the doc comment and checks that `"integrity-checked write"`
 appears in it. If the string is missing, the rule `SYU-trace-doc-001`
 fires with a suggestion to add the snippet (or run `syu validate --fix`).
+If checked-in YAML plus the symbol name already gives you enough traceability,
+you can omit `doc_contains` entirely and keep source files free of spec-ID
+bookkeeping.
 
 Requirements should declare tests:
 
@@ -307,7 +382,7 @@ tests:
       symbols:
         - requirement_test   # name of the test function
       doc_contains:
-        - REQ-CORE-001       # this string must appear in the function's doc comment
+        - checksum mismatch is rejected
 ```
 
 Features should declare implementations:
@@ -320,7 +395,7 @@ implementations:
       symbols:
         - feature_impl       # name of the implementing function or class
       doc_contains:
-        - FEAT-STORE-001     # this string must appear in the function's doc comment
+        - integrity-checked write
 ```
 
 ## 4. Validate the workspace
@@ -404,7 +479,13 @@ The repository includes complete examples:
 
 If one of those examples is already close to your repository, use the matching
 `syu init --template ...` option so the starter scaffold begins nearer to that
-shape.
+shape. `syu templates` prints the same mapping directly in the CLI, including
+which starter is template-only (`generic`) versus backed by a checked-in
+example.
+
+For a side-by-side decision table that explains which paths are template-backed,
+example-backed, or both, see the
+[examples and templates guide](./examples-and-templates.md).
 
 ## Keep exploring
 
