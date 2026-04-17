@@ -36,14 +36,14 @@ fn install_precommit_reports_lookup_paths_when_hook_bootstrap_fails() {
     write_executable(
         &bin_dir.join("python3"),
         &format!(
-            "#!/usr/bin/env bash\nset -euo pipefail\nif [ \"$#\" -ge 2 ] && [ \"$1\" = \"-m\" ] && [ \"$2\" = \"pip\" ]; then\n  exit 0\nfi\nif [ \"$#\" -eq 3 ] && [ \"$1\" = \"-m\" ] && [ \"$2\" = \"site\" ] && [ \"$3\" = \"--user-base\" ]; then\n  printf '%s\\n' '{}'\n  exit 0\nfi\nif [ \"$#\" -ge 3 ] && [ \"$1\" = \"-m\" ] && [ \"$2\" = \"pre_commit\" ] && [ \"$3\" = \"install\" ]; then\n  echo 'mock pre_commit install failed' >&2\n  exit 23\nfi\necho \"unexpected python args: $*\" >&2\nexit 99\n",
+            "#!/usr/bin/env bash\nset -euo pipefail\nif [ \"$#\" -ge 2 ] && [ \"$1\" = \"-m\" ] && [ \"$2\" = \"pip\" ]; then\n  exit 0\nfi\nif [ \"$#\" -eq 3 ] && [ \"$1\" = \"-m\" ] && [ \"$2\" = \"site\" ] && [ \"$3\" = \"--user-base\" ]; then\n  echo 'mock python warning' >&2\n  printf '%s\\n' '{}'\n  exit 0\nfi\nif [ \"$#\" -ge 3 ] && [ \"$1\" = \"-m\" ] && [ \"$2\" = \"pre_commit\" ] && [ \"$3\" = \"install\" ]; then\n  echo 'mock pre_commit install failed' >&2\n  exit 23\nfi\necho \"unexpected python args: $*\" >&2\nexit 99\n",
             user_base.display()
         ),
     );
     write_executable(
         &bin_dir.join("pipx"),
         &format!(
-            "#!/usr/bin/env bash\nset -euo pipefail\nif [ \"$#\" -ge 3 ] && [ \"$1\" = \"install\" ] && [ \"$2\" = \"--force\" ] && [ \"$3\" = \"pre-commit\" ]; then\n  exit 0\nfi\nif [ \"$#\" -eq 3 ] && [ \"$1\" = \"environment\" ] && [ \"$2\" = \"--value\" ] && [ \"$3\" = \"PIPX_BIN_DIR\" ]; then\n  printf '%s\\n' '{}'\n  exit 0\nfi\necho \"unexpected pipx args: $*\" >&2\nexit 99\n",
+            "#!/usr/bin/env bash\nset -euo pipefail\nif [ \"$#\" -ge 3 ] && [ \"$1\" = \"install\" ] && [ \"$2\" = \"--force\" ] && [ \"$3\" = \"pre-commit\" ]; then\n  exit 0\nfi\nif [ \"$#\" -eq 3 ] && [ \"$1\" = \"environment\" ] && [ \"$2\" = \"--value\" ] && [ \"$3\" = \"PIPX_BIN_DIR\" ]; then\n  echo 'mock pipx warning' >&2\n  printf '%s\\n' '{}'\n  exit 0\nfi\necho \"unexpected pipx args: $*\" >&2\nexit 99\n",
             pipx_bin.display()
         ),
     );
@@ -78,8 +78,13 @@ fn install_precommit_reports_lookup_paths_when_hook_bootstrap_fails() {
     assert!(stderr.contains("Fallback hook installation via"));
     assert!(stderr.contains("mock pre_commit install failed"));
     assert!(stderr.contains(&format!(
-        "Troubleshooting: compare '{}/python3 -m site --user-base' and 'pipx environment --value PIPX_BIN_DIR' with your PATH",
+        "Troubleshooting: compare '{}/python3 -m site --user-base' with your PATH",
         bin_dir.display()
     )));
+    assert!(stderr.contains(
+        "If you installed pre-commit with pipx, also compare 'pipx environment --value PIPX_BIN_DIR' with your PATH."
+    ));
     assert!(stderr.contains("See CONTRIBUTING.md#local-checks"));
+    assert!(!stderr.contains("mock python warning"));
+    assert!(!stderr.contains("mock pipx warning"));
 }
