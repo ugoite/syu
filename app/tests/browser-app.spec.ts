@@ -141,6 +141,10 @@ test("loads deep links and supports keyboard search navigation", async ({ page }
     "aria-describedby",
     "spec-search-shortcuts-description",
   );
+  await expect(searchInput).toHaveAttribute(
+    "placeholder",
+    "Search items by ID or keyword (up to 20 matches)…",
+  );
   const shortcutDescription = page.locator("#spec-search-shortcuts-description");
   await expect(shortcutDescription).toHaveText(
     "Keyboard shortcuts: ArrowDown and ArrowUp move through results, Enter opens the highlighted or only match, and Escape clears the search.",
@@ -155,6 +159,23 @@ test("loads deep links and supports keyboard search navigation", async ({ page }
   await expect(shortcutPanel).toContainText("ArrowUp");
   await expect(shortcutPanel).toContainText("Enter");
   await expect(shortcutPanel).toContainText("Escape");
+  await expect(
+    page.getByText(
+      "Search shows up to 20 matches at a time, so refine broad queries for a narrower result list.",
+    ),
+  ).toBeVisible();
+  await searchInput.fill("core");
+  await expect(
+    page.getByText("Showing the first 20 matches — refine your query for fewer results."),
+  ).toHaveCount(0);
+  await searchInput.press("Escape");
+  await expect(searchInput).toHaveValue("");
+  await searchInput.fill("spec");
+  await expect(
+    page.getByText("Showing the first 20 matches — refine your query for fewer results."),
+  ).toBeVisible();
+  await searchInput.press("Escape");
+  await expect(searchInput).toHaveValue("");
   await searchInput.fill("FEAT-CHECK-001");
   await searchInput.press("ArrowDown");
   await searchInput.press("ArrowUp");
