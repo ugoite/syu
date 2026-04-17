@@ -34,6 +34,10 @@ Pick the newcomer path that matches what you need next:
 - **Quick start**: stay in this README when you want the shortest path from install
   to `syu validate .` and only need a short layer refresher before the first
   commands.
+- **Existing repository adoption**: follow
+  [`docs/guide/existing-repository.md`](docs/guide/existing-repository.md) when
+  the repository already has code and history and you want an incremental
+  adoption path instead of starting with `syu init`.
 - **Tutorial**: follow [`docs/guide/tutorial.md`](docs/guide/tutorial.md) when you
   want a realistic end-to-end repository story instead of a short scaffold flow.
 - **Troubleshooting**: jump to
@@ -44,10 +48,43 @@ Keep the detailed guides close:
 
 - [`docs/guide/concepts.md`](docs/guide/concepts.md)
 - [`docs/guide/getting-started.md`](docs/guide/getting-started.md)
+- [`docs/guide/existing-repository.md`](docs/guide/existing-repository.md)
 - [`docs/guide/tutorial.md`](docs/guide/tutorial.md)
 - [`docs/guide/configuration.md`](docs/guide/configuration.md)
 - [`docs/guide/troubleshooting.md`](docs/guide/troubleshooting.md)
 - [`CONTRIBUTING.md`](CONTRIBUTING.md)
+
+## Is syu right for this repository?
+
+`syu` is a good fit when the repository needs checked-in, reviewable traceability
+between intent, rules, requirements, implementation, and tests.
+
+Adoption usually pays off when you want to:
+
+- keep repository expectations explicit instead of scattered across ADRs, wikis,
+  or review folklore
+- make requirement-to-code and requirement-to-test links visible in pull requests
+- keep a shared model that still works across Rust-only, Python-only, or
+  polyglot repositories
+- preserve project intent for a long-lived codebase with multiple contributors
+
+`syu` is probably too heavy when the repository is still a short-lived prototype,
+a very small solo project, or a codebase where informal docs and code review are
+already enough because nobody needs machine-readable traceability.
+
+Compared with docs-only workflows, `syu` asks teams to keep structured YAML,
+reciprocal links, and validation in the normal contributor loop. That is extra
+authoring overhead, but in return the repository gets searchable, enforceable,
+repository-native traceability instead of documentation that can drift away from
+tests and implementation.
+
+Repositories that benefit most are the ones where change review needs more than
+good intentions: long-lived products, shared platforms, compliance-sensitive
+systems, and multi-team or multi-language repositories where contributors need a
+clear checked-in record of why behavior exists and how it is proven.
+
+If that sounds like your repository, continue with the install flow below. If
+not, a lighter docs-only workflow may be the better starting point for now.
 
 ## Install from published releases
 
@@ -176,7 +213,11 @@ adjacent policy and feature YAML so they add the reciprocal
 Read [`docs/guide/concepts.md`](docs/guide/concepts.md) first if you want the
 fuller rationale and authoring guidance before continuing.
 
-Step 0: required — run `syu init .` before any of the other commands in a new repository.
+Step 0: required — run `syu init .` before any of the other commands in a new
+repository. If the repository already exists and you do not want an in-place
+scaffold flow, follow
+[`docs/guide/existing-repository.md`](docs/guide/existing-repository.md)
+instead.
 
 ```bash
 syu init .                           # 1. Create spec scaffold

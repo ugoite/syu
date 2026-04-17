@@ -13,6 +13,9 @@ Need a different level of guidance?
   [README quick start on GitHub](https://github.com/ugoite/syu/blob/main/README.md#quick-start)
   when you want the shortest install-to-validate path and are happy with a
   compact command card.
+- Follow [existing repository adoption](./existing-repository.md) when the
+  repository already has code and history and you want to add `syu` without
+  treating it like a blank workspace.
 - Stay on this page when you want the first workspace setup explained step by
   step, including why the manual YAML edits matter before validation.
 - Follow the [end-to-end tutorial](./tutorial.md) when you want a realistic,
@@ -24,6 +27,18 @@ This guide assumes `syu` is already installed. Unlike the README quick start,
 it slows down at the first manual editing step so you can see where the
 scaffolded files live, how reciprocal links fit together, and what to fix
 before the first `syu validate .` run.
+
+## Is syu right for this repository?
+
+Use the canonical fit check in the
+[README](https://github.com/ugoite/syu/blob/main/README.md#is-syu-right-for-this-repository)
+to decide whether `syu` is the right level of structure for this repository.
+That section stays the source of truth for who benefits most, when `syu` is too
+heavy, and what trade-offs it adds to the contributor loop.
+
+If the README fit check sounds right and you want the first-run setup narrated
+step by step, continue below. If not, stay with a lighter docs-only workflow
+until the repository needs stronger traceability guarantees.
 
 ## Before you begin
 
@@ -118,6 +133,10 @@ syu --version
 
 ## 1. Create a workspace
 
+If the repository already exists and you do not want to start with `syu init`,
+use [existing repository adoption](./existing-repository.md) instead. The steps
+below assume a new workspace or a deliberate scaffold flow.
+
 Bootstrap a new project:
 
 ```bash
@@ -170,6 +189,18 @@ the scaffold begins with `PHIL-STORE-001`, `POL-STORE-001`, `REQ-STORE-001`,
 and `FEAT-STORE-001` instead of the generic defaults. When one layer needs a
 different prefix, use `--philosophy-prefix`, `--policy-prefix`,
 `--requirement-prefix`, or `--feature-prefix`.
+
+For a genuinely mixed-language repository, keep the first adoption step small:
+
+- start with `validate.require_symbol_trace_coverage: false`
+- keep tracing every area you touch, but use file-level or wildcard ownership
+  in languages that `syu` cannot inspect deeply yet
+- turn stricter symbol coverage on later for the Rust, Python, and
+  TypeScript/JavaScript areas once those traces are stable
+
+That keeps the repository connected to the spec from day one without forcing a
+polyglot team to fake symbol-level coverage before the current adapters are
+ready.
 
 Starter requirements and features begin as `status: planned`. Keep them planned
 until you are ready to declare real tests and implementation traces.
