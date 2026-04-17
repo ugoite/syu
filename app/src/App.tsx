@@ -37,6 +37,7 @@ const SECTION_COPY: Record<SectionKind, string> = {
 };
 
 const ONBOARDING_STORAGE_KEY = "syu-onboarding-dismissed";
+const SEARCH_RESULT_LIMIT = 20;
 const SEARCH_SHORTCUT_KEY_CLASS_NAME =
   "inline-flex items-center rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-slate-300";
 
@@ -324,10 +325,13 @@ function App() {
     return Math.max(1, ...sectionSummaries.map((summary) => summary.itemCount));
   }, [sectionSummaries]);
 
-  const searchResults = useMemo(() => {
+  const searchState = useMemo(() => {
     const trimmed = searchQuery.trim().toLowerCase();
     if (!workspace || trimmed.length === 0) {
-      return [];
+      return {
+        results: [] as Array<{ id: string; title: string; kind: SectionKind }>,
+        hasMore: false,
+      };
     }
     const results: Array<{ id: string; title: string; kind: SectionKind }> = [];
     for (const section of workspace.sections) {
@@ -344,8 +348,12 @@ function App() {
         }
       }
     }
-    return results.slice(0, 20);
+    return {
+      results: results.slice(0, SEARCH_RESULT_LIMIT),
+      hasMore: results.length > SEARCH_RESULT_LIMIT,
+    };
   }, [workspace, searchQuery]);
+  const searchResults = searchState.results;
 
   useEffect(() => {
     if (loading || !workspace) {
@@ -628,6 +636,11 @@ function App() {
                 note="validated / declared"
                 tone="sky"
                 ratio={requirementTraceRatio}
+                hint={{
+                  label: "Requirement traces",
+                  description:
+                    "Declared traces are the requirement test references written in the spec. Validated traces are the declared references that syu could confirm in the current workspace. A gap means some declared requirement traces are stale or unresolved.",
+                }}
               />
               <CompactMetric
                 label="feature traces"
@@ -635,6 +648,11 @@ function App() {
                 note="validated / declared"
                 tone="violet"
                 ratio={featureTraceRatio}
+                hint={{
+                  label: "Feature traces",
+                  description:
+                    "Declared traces are the feature implementation references written in the spec. Validated traces are the declared references that syu could confirm in the current workspace. A gap means some declared feature traces are stale or unresolved.",
+                }}
               />
             </div>
           </section>
@@ -661,8 +679,8 @@ function App() {
               <input
                 id="spec-search"
                 type="search"
-                aria-describedby="spec-search-shortcuts"
-                placeholder="Search items by ID or keyword…"
+                aria-describedby="spec-search-shortcuts-description"
+                placeholder={`Search items by ID or keyword (up to ${SEARCH_RESULT_LIMIT} matches)…`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => {
@@ -697,19 +715,35 @@ function App() {
                 className="w-full rounded-2xl border border-white/10 bg-slate-900/60 py-2 pl-9 pr-4 text-sm text-slate-100 placeholder-slate-500 focus:border-sky-400/60 focus:outline-none focus:ring-1 focus:ring-sky-400/40"
               />
             </div>
-            <p
-              id="spec-search-shortcuts"
-              className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-slate-400"
+            <p id="spec-search-shortcuts-description" className="sr-only">
+              Keyboard shortcuts: ArrowDown and ArrowUp move through results, Enter opens the
+              highlighted or only match, and Escape clears the search.
+            </p>
+            <div
+              id="spec-search-shortcuts-panel"
+              role="note"
+              className="mt-3 rounded-2xl border border-sky-400/20 bg-sky-400/10 px-3 py-3 text-sm text-sky-50"
             >
-              <span className="mr-1">Shortcuts:</span>
-              <kbd className={SEARCH_SHORTCUT_KEY_CLASS_NAME}>ArrowDown</kbd>
-              <span>next result</span>
-              <kbd className={SEARCH_SHORTCUT_KEY_CLASS_NAME}>ArrowUp</kbd>
-              <span>previous result</span>
-              <kbd className={SEARCH_SHORTCUT_KEY_CLASS_NAME}>Enter</kbd>
-              <span>open the highlighted or only match</span>
-              <kbd className={SEARCH_SHORTCUT_KEY_CLASS_NAME}>Escape</kbd>
-              <span>clear the search</span>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-200">
+                Search shortcuts
+              </p>
+              <p className="mt-1 text-sm text-sky-100">
+                Keep focus in the search box and use the keyboard to move through results.
+              </p>
+              <p className="mt-2 flex flex-wrap items-center gap-1.5 text-sm text-sky-100">
+                <kbd className={SEARCH_SHORTCUT_KEY_CLASS_NAME}>ArrowDown</kbd>
+                <span>next result</span>
+                <kbd className={SEARCH_SHORTCUT_KEY_CLASS_NAME}>ArrowUp</kbd>
+                <span>previous result</span>
+                <kbd className={SEARCH_SHORTCUT_KEY_CLASS_NAME}>Enter</kbd>
+                <span>open the highlighted or only match</span>
+                <kbd className={SEARCH_SHORTCUT_KEY_CLASS_NAME}>Escape</kbd>
+                <span>clear the search</span>
+              </p>
+            </div>
+            <p className="mt-2 text-xs text-slate-400">
+              Search shows up to {SEARCH_RESULT_LIMIT} matches at a time, so refine broad queries
+              for a narrower result list.
             </p>
             {searchQuery.trim().length > 0 && (
               <div id="search-results-list" className="mt-3 space-y-1">
@@ -741,9 +775,10 @@ function App() {
                     </button>
                   ))
                 )}
-                {searchResults.length === 20 && (
+                {searchState.hasMore && (
                   <p className="px-2 py-1 text-[11px] text-slate-500">
-                    Showing first 20 results — refine your query for fewer matches.
+                    Showing the first {SEARCH_RESULT_LIMIT} matches — refine your query for fewer
+                    results.
                   </p>
                 )}
               </div>
@@ -904,6 +939,9 @@ function App() {
               <div className="mt-5 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-4 text-sm text-amber-100">
                 <p className="font-medium">
                   This document could not be parsed into the expected layer model.
+                </p>
+                <p className="mt-2 break-all font-mono text-xs text-amber-50/90">
+                  File: {currentDocument.path}
                 </p>
                 <p className="mt-2 text-xs leading-6 text-amber-50/80">
                   {currentDocument.parse_error}
@@ -1243,12 +1281,17 @@ function CompactMetric({
   note,
   tone = "sky",
   ratio,
+  hint,
 }: {
   label: string;
   value: string;
   note: string;
   tone?: "sky" | "violet";
   ratio?: number;
+  hint?: {
+    label: string;
+    description: string;
+  };
 }) {
   const barClass = tone === "violet" ? "bg-violet-300" : "bg-sky-300";
 
@@ -1256,7 +1299,10 @@ function CompactMetric({
     <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3">
       <p className="text-[11px] uppercase tracking-[0.25em] text-slate-500">{label}</p>
       <p className="mt-2 text-lg font-semibold text-white">{value}</p>
-      <p className="mt-1 text-xs text-slate-400">{note}</p>
+      <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-400">
+        <p>{note}</p>
+        {hint ? <InfoHint label={hint.label} description={hint.description} /> : null}
+      </div>
       {typeof ratio === "number" ? (
         <div className="mt-3 h-2 rounded-full bg-white/5">
           <div className={`h-full rounded-full ${barClass}`} style={{ width: `${ratio * 100}%` }} />
