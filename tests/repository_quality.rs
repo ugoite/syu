@@ -236,6 +236,7 @@ fn repository_declares_documentation_guides() {
     let concepts = read_file("docs/guide/concepts.md");
     let app_guide = read_file("docs/guide/app.md");
     let examples_and_templates = read_file("docs/guide/examples-and-templates.md");
+    let merge_queue_playbook = read_file("docs/guide/merge-queue-playbook.md");
     let getting_started = read_file("docs/guide/getting-started.md");
     let configuration = read_file("docs/guide/configuration.md");
     let config_overview = read_file("docs/syu/config/overview.yaml");
@@ -388,6 +389,10 @@ fn repository_declares_documentation_guides() {
     assert!(examples_and_templates.contains("checked-in examples"));
     assert!(examples_and_templates.contains("`syu init . --template rust-only`"));
     assert!(examples_and_templates.contains("examples/polyglot"));
+    assert!(merge_queue_playbook.contains("merge_group"));
+    assert!(merge_queue_playbook.contains("gh api graphql"));
+    assert!(merge_queue_playbook.contains("AWAITING_CHECKS"));
+    assert!(merge_queue_playbook.contains("gh-readonly-queue/main/pr-123-<sha>"));
     assert!(configuration.contains("validate.default_fix"));
     assert!(configuration.contains("validate.allow_planned"));
     assert!(configuration.contains("Rust, Python, and TypeScript/JavaScript"));
@@ -543,6 +548,7 @@ fn repository_declares_contribution_workflow_assets() {
     assert!(contributing.contains("does **not** install `website/` docs-site dependencies"));
     assert!(contributing.contains("GitHub Pages"));
     assert!(contributing.contains("release track"));
+    assert!(contributing.contains("merge queue playbook"));
 
     assert!(pr_template.contains("FEAT-CONTRIB-002"));
     assert!(pr_template.contains("scripts/ci/quality-gates.sh"));
