@@ -205,6 +205,10 @@ ready.
 Starter requirements and features begin as `status: planned`. Keep them planned
 until you are ready to declare real tests and implementation traces.
 
+Not sure whether you should scaffold a template or study a working repository
+first? Use the [examples and templates guide](./examples-and-templates.md) to
+choose the shorter path.
+
 ## 2. Add and refine spec items
 
 Start with the generated files under your configured `spec.root`
@@ -415,6 +419,10 @@ If one of those examples is already close to your repository, use the matching
 shape. `syu templates` prints the same mapping directly in the CLI, including
 which starter is template-only (`generic`) versus backed by a checked-in
 example.
+
+For a side-by-side decision table that explains which paths are template-backed,
+example-backed, or both, see the
+[examples and templates guide](./examples-and-templates.md).
 
 ## Keep exploring
 
