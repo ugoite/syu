@@ -32,6 +32,11 @@ fn repository_declares_precommit_and_quality_gates() {
     assert!(quality_script.contains("cargo run -- validate ."));
     assert!(quality_script.contains("check-generated-docs-freshness.sh"));
     assert!(install_precommit.contains("site --user-base"));
+    assert!(install_precommit.contains("pipx environment --value PIPX_BIN_DIR"));
+    assert!(install_precommit.contains("Troubleshooting: compare"));
+    assert!(install_precommit.contains("If you installed pre-commit with pipx"));
+    assert!(install_precommit.contains("Checked Python user-base path:"));
+    assert!(install_precommit.contains("Checked pipx bin path:"));
     assert!(install_precommit.contains("pre_commit install"));
 
     assert!(ci_workflow.contains("FEAT-QUALITY-001"));
@@ -60,6 +65,9 @@ fn repository_declares_precommit_and_quality_gates() {
     assert!(contributing.contains("Contributors do **not** need to run manual audits"));
     assert!(contributing.contains("check-generated-docs-freshness.sh"));
     assert!(contributing.contains("docs/generated/"));
+    assert!(contributing.contains("python3 -m site --user-base"));
+    assert!(contributing.contains("If you installed `pre-commit` with"));
+    assert!(contributing.contains("pipx environment --value PIPX_BIN_DIR"));
 
     assert!(repo_config.contains("FEAT-CHECK-001"));
     assert!(repo_config.contains("FEAT-REPORT-001"));
@@ -73,6 +81,7 @@ fn repository_declares_precommit_and_quality_gates() {
 // REQ-CORE-006
 fn repository_declares_coverage_gate_at_one_hundred_percent() {
     let coverage_script = read_file("scripts/ci/coverage.sh");
+    let spec_summary_script = read_file("scripts/ci/write-spec-coverage-summary.py");
     let ci_workflow = read_file(".github/workflows/ci.yml");
 
     assert!(coverage_script.contains("FEAT-QUALITY-001"));
@@ -80,10 +89,20 @@ fn repository_declares_coverage_gate_at_one_hundred_percent() {
     assert!(coverage_script.contains("LINE_THRESHOLD=100"));
     assert!(coverage_script.contains("--fail-under-lines 100"));
     assert!(coverage_script.contains("cargo llvm-cov"));
+    assert!(coverage_script.contains("generate_spec_coverage_summary"));
+    assert!(coverage_script.contains("target/coverage/spec-coverage-summary.md"));
+    assert!(coverage_script.contains("GITHUB_STEP_SUMMARY"));
+
+    assert!(spec_summary_script.contains("FEAT-QUALITY-001"));
+    assert!(spec_summary_script.contains("Coverage by requirement and feature"));
+    assert!(spec_summary_script.contains("list\", \"--with-path\", \"--format\", \"json\""));
+    assert!(spec_summary_script.contains("yaml.safe_load"));
+    assert!(spec_summary_script.contains("Rust implementation coverage"));
 
     assert!(ci_workflow.contains("coverage:"));
     assert!(ci_workflow.contains("scripts/ci/coverage.sh lcov"));
     assert!(ci_workflow.contains("cargo-llvm-cov"));
+    assert!(ci_workflow.contains("target/coverage/spec-coverage-summary.md"));
 }
 
 #[test]
@@ -539,7 +558,7 @@ fn repository_declares_contribution_workflow_assets() {
     assert!(contributing.contains("scripts/ci/check-generated-docs-freshness.sh"));
     assert!(contributing.contains("docs/generated/"));
     assert!(contributing.contains("scripts/ci/check-browser-app-freshness.sh"));
-    assert!(contributing.contains("app/src/wasm"));
+    assert!(contributing.contains("requirement/feature coverage summary"));
     assert!(contributing.contains("app/dist"));
     assert!(contributing.contains("npm run build:wasm"));
     assert!(contributing.contains("npm run check"));
