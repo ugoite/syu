@@ -153,6 +153,18 @@ test("loads deep links and supports keyboard search navigation", async ({ page }
       "Search shows up to 20 matches at a time, so refine broad queries for a narrower result list.",
     ),
   ).toBeVisible();
+  await searchInput.fill("core");
+  await expect(
+    page.getByText("Showing the first 20 matches — refine your query for fewer results."),
+  ).toHaveCount(0);
+  await searchInput.press("Escape");
+  await expect(searchInput).toHaveValue("");
+  await searchInput.fill("spec");
+  await expect(
+    page.getByText("Showing the first 20 matches — refine your query for fewer results."),
+  ).toBeVisible();
+  await searchInput.press("Escape");
+  await expect(searchInput).toHaveValue("");
   await searchInput.fill("FEAT-CHECK-001");
   await searchInput.press("ArrowDown");
   await searchInput.press("ArrowUp");

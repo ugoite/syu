@@ -37,6 +37,7 @@ const SECTION_COPY: Record<SectionKind, string> = {
 };
 
 const ONBOARDING_STORAGE_KEY = "syu-onboarding-dismissed";
+const SEARCH_RESULT_LIMIT = 20;
 const SEARCH_SHORTCUT_KEY_CLASS_NAME =
   "inline-flex items-center rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-slate-300";
 
@@ -348,8 +349,8 @@ function App() {
       }
     }
     return {
-      results: results.slice(0, 20),
-      hasMore: results.length > 20,
+      results: results.slice(0, SEARCH_RESULT_LIMIT),
+      hasMore: results.length > SEARCH_RESULT_LIMIT,
     };
   }, [workspace, searchQuery]);
   const searchResults = searchState.results;
@@ -669,7 +670,7 @@ function App() {
                 id="spec-search"
                 type="search"
                 aria-describedby="spec-search-shortcuts"
-                placeholder="Search items by ID or keyword (up to 20 matches)…"
+                placeholder={`Search items by ID or keyword (up to ${SEARCH_RESULT_LIMIT} matches)…`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => {
@@ -719,8 +720,8 @@ function App() {
               <span>clear the search</span>
             </p>
             <p className="mt-2 text-xs text-slate-400">
-              Search shows up to 20 matches at a time, so refine broad queries for a narrower result
-              list.
+              Search shows up to {SEARCH_RESULT_LIMIT} matches at a time, so refine broad queries
+              for a narrower result list.
             </p>
             {searchQuery.trim().length > 0 && (
               <div id="search-results-list" className="mt-3 space-y-1">
@@ -754,7 +755,8 @@ function App() {
                 )}
                 {searchState.hasMore && (
                   <p className="px-2 py-1 text-[11px] text-slate-500">
-                    Showing the first 20 matches — refine your query for fewer results.
+                    Showing the first {SEARCH_RESULT_LIMIT} matches — refine your query for fewer
+                    results.
                   </p>
                 )}
               </div>
