@@ -10,9 +10,9 @@ capabilities matter most:
 - **strict `validate.require_symbol_trace_coverage` inventory** — whether `syu`
   can scan the repository for unowned public APIs and tests in that language
 
-This page summarizes the built-in trace adapters shipped on `origin/main`
-_today_. Use it before you turn on `doc_contains` checks widely or enable strict
-coverage in a mixed-language repository.
+This page summarizes the built-in trace adapters that ship with this checked-in
+version of `syu`. Use it before you turn on `doc_contains` checks widely or
+enable strict coverage in a mixed-language repository.
 
 ## Built-in adapter matrix
 
@@ -27,7 +27,7 @@ coverage in a mixed-language repository.
 | Markdown | `markdown`, `md` / `.md` | ✅ Pattern-based symbol matching | ❌ | ❌ |
 | Gitignore | `gitignore`, `ignore` / `.gitignore` | ✅ Filename-aware, pattern-based matching | ❌ | ❌ |
 
-## What the strict inventory scans today
+## What the strict inventory scans
 
 When `validate.require_symbol_trace_coverage: true` is enabled, `syu` currently
 builds ownership inventories for these languages only:
@@ -57,7 +57,7 @@ because `symbols: ["*"]` does not point to one inspectable symbol.
 
 ## What about Go?
 
-`lang: go` is **not** a built-in trace adapter on `origin/main` today, so
+`lang: go` is **not** a built-in trace adapter in this checked-in version, so
 `syu validate` reports `SYU-trace-language-001` instead of treating Go as a
 supported symbol-validation target. Re-check the implementation before relying
-on Go-specific `doc_contains` or strict coverage behavior in future branches.
+on Go-specific `doc_contains` or strict coverage behavior in a later release.

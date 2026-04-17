@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf};
+use std::{collections::HashSet, fs, path::PathBuf};
 
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -32,6 +32,11 @@ fn repository_declares_precommit_and_quality_gates() {
     assert!(quality_script.contains("cargo run -- validate ."));
     assert!(quality_script.contains("check-generated-docs-freshness.sh"));
     assert!(install_precommit.contains("site --user-base"));
+    assert!(install_precommit.contains("pipx environment --value PIPX_BIN_DIR"));
+    assert!(install_precommit.contains("Troubleshooting: compare"));
+    assert!(install_precommit.contains("If you installed pre-commit with pipx"));
+    assert!(install_precommit.contains("Checked Python user-base path:"));
+    assert!(install_precommit.contains("Checked pipx bin path:"));
     assert!(install_precommit.contains("pre_commit install"));
 
     assert!(ci_workflow.contains("FEAT-QUALITY-001"));
@@ -60,6 +65,9 @@ fn repository_declares_precommit_and_quality_gates() {
     assert!(contributing.contains("Contributors do **not** need to run manual audits"));
     assert!(contributing.contains("check-generated-docs-freshness.sh"));
     assert!(contributing.contains("docs/generated/"));
+    assert!(contributing.contains("python3 -m site --user-base"));
+    assert!(contributing.contains("If you installed `pre-commit` with"));
+    assert!(contributing.contains("pipx environment --value PIPX_BIN_DIR"));
 
     assert!(repo_config.contains("FEAT-CHECK-001"));
     assert!(repo_config.contains("FEAT-REPORT-001"));
@@ -73,6 +81,7 @@ fn repository_declares_precommit_and_quality_gates() {
 // REQ-CORE-006
 fn repository_declares_coverage_gate_at_one_hundred_percent() {
     let coverage_script = read_file("scripts/ci/coverage.sh");
+    let spec_summary_script = read_file("scripts/ci/write-spec-coverage-summary.py");
     let ci_workflow = read_file(".github/workflows/ci.yml");
 
     assert!(coverage_script.contains("FEAT-QUALITY-001"));
@@ -80,10 +89,20 @@ fn repository_declares_coverage_gate_at_one_hundred_percent() {
     assert!(coverage_script.contains("LINE_THRESHOLD=100"));
     assert!(coverage_script.contains("--fail-under-lines 100"));
     assert!(coverage_script.contains("cargo llvm-cov"));
+    assert!(coverage_script.contains("generate_spec_coverage_summary"));
+    assert!(coverage_script.contains("target/coverage/spec-coverage-summary.md"));
+    assert!(coverage_script.contains("GITHUB_STEP_SUMMARY"));
+
+    assert!(spec_summary_script.contains("FEAT-QUALITY-001"));
+    assert!(spec_summary_script.contains("Coverage by requirement and feature"));
+    assert!(spec_summary_script.contains("list\", \"--with-path\", \"--format\", \"json\""));
+    assert!(spec_summary_script.contains("yaml.safe_load"));
+    assert!(spec_summary_script.contains("Rust implementation coverage"));
 
     assert!(ci_workflow.contains("coverage:"));
     assert!(ci_workflow.contains("scripts/ci/coverage.sh lcov"));
     assert!(ci_workflow.contains("cargo-llvm-cov"));
+    assert!(ci_workflow.contains("target/coverage/spec-coverage-summary.md"));
 }
 
 #[test]
@@ -234,7 +253,10 @@ fn repository_declares_documentation_guides() {
     let current_version = env!("CARGO_PKG_VERSION");
     let readme = read_file("README.md");
     let concepts = read_file("docs/guide/concepts.md");
+    let anti_patterns = read_file("docs/guide/spec-antipatterns.md");
     let app_guide = read_file("docs/guide/app.md");
+    let examples_and_templates = read_file("docs/guide/examples-and-templates.md");
+    let merge_queue_playbook = read_file("docs/guide/merge-queue-playbook.md");
     let getting_started = read_file("docs/guide/getting-started.md");
     let trace_adapter_support = read_file("docs/guide/trace-adapter-support.md");
     let configuration = read_file("docs/guide/configuration.md");
@@ -266,6 +288,7 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("Trace adapter matrix"));
     assert!(readme.contains("docs/guide/tutorial.md"));
     assert!(readme.contains("docs/guide/troubleshooting.md"));
+    assert!(readme.contains("docs/guide/spec-antipatterns.md"));
     assert!(readme.contains("shortest install-to-validate path"));
     assert!(readme.contains("[Why four layers?](#why-four-layers)"));
     assert!(readme.contains("Step 0: required"));
@@ -279,6 +302,8 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("syu add"));
     assert!(readme.contains("--id-prefix"));
     assert!(readme.contains("--template rust-only"));
+    assert!(readme.contains("syu templates"));
+    assert!(readme.contains("starter-only"));
     assert!(readme.contains("syu validate"));
     assert!(readme.contains("syu browse"));
     assert!(readme.contains("syu list"));
@@ -290,6 +315,7 @@ fn repository_declares_documentation_guides() {
     assert!(!readme.contains("syu show REQ-CORE-015"));
     assert!(readme.contains("syu app"));
     assert!(readme.contains("examples/polyglot"));
+    assert!(readme.contains("examples-and-templates.md"));
     assert!(readme.contains("CONTRIBUTING.md"));
     assert!(readme.contains("Contributing and local development"));
     assert!(readme.contains("Documentation site"));
@@ -307,7 +333,13 @@ fn repository_declares_documentation_guides() {
     assert!(concepts.contains("planned"));
     assert!(concepts.contains("implemented"));
     assert!(concepts.contains("Continue with these pages"));
+    assert!(concepts.contains("spec anti-patterns guide"));
     assert!(concepts.contains("Specification Reference"));
+    assert!(anti_patterns.contains("bad-but-valid"));
+    assert!(anti_patterns.contains("Philosophy that changes every sprint"));
+    assert!(anti_patterns.contains("Policy that only repeats another layer"));
+    assert!(anti_patterns.contains("When to merge, split, or rename spec items"));
+    assert!(anti_patterns.contains("green-but-messy spec"));
     assert!(app_guide.contains("Status badge"));
     assert!(app_guide.contains("## Search shortcuts"));
     assert!(app_guide.contains("ArrowDown"));
@@ -344,6 +376,7 @@ fn repository_declares_documentation_guides() {
     assert!(getting_started.contains("current checked-in release"));
     assert!(getting_started.contains("latest published alpha"));
     assert!(getting_started.contains("--template rust-only"));
+    assert!(getting_started.contains("syu templates"));
     assert!(getting_started.contains("--id-prefix"));
     assert!(getting_started.contains("syu validate . --fix"));
     assert!(getting_started.contains("syu browse ."));
@@ -372,6 +405,9 @@ fn repository_declares_documentation_guides() {
     assert!(getting_started.contains("examples/python-only"));
     assert!(getting_started.contains("examples/polyglot"));
     assert!(
+        getting_started.contains("[examples and templates guide](./examples-and-templates.md)")
+    );
+    assert!(
         getting_started
             .matches("Follow the [end-to-end tutorial](./tutorial.md)")
             .count()
@@ -390,6 +426,14 @@ fn repository_declares_documentation_guides() {
     assert!(trace_adapter_support.contains("TypeScript / JavaScript"));
     assert!(trace_adapter_support.contains("Gitignore"));
     assert!(trace_adapter_support.contains("lang: go"));
+    assert!(examples_and_templates.contains("starter templates"));
+    assert!(examples_and_templates.contains("checked-in examples"));
+    assert!(examples_and_templates.contains("`syu init . --template rust-only`"));
+    assert!(examples_and_templates.contains("examples/polyglot"));
+    assert!(merge_queue_playbook.contains("merge_group"));
+    assert!(merge_queue_playbook.contains("gh api graphql"));
+    assert!(merge_queue_playbook.contains("AWAITING_CHECKS"));
+    assert!(merge_queue_playbook.contains("gh-readonly-queue/main/pr-123-<sha>"));
     assert!(configuration.contains("validate.default_fix"));
     assert!(configuration.contains("trace-adapter-support.md"));
     assert!(configuration.contains("validate.allow_planned"));
@@ -459,6 +503,7 @@ fn repository_declares_documentation_guides() {
     assert!(
         troubleshooting.contains("[trace adapter capability matrix](./trace-adapter-support.md)")
     );
+    assert!(troubleshooting.contains("[spec anti-patterns guide](./spec-antipatterns.md)"));
 }
 
 #[test]
@@ -528,7 +573,7 @@ fn repository_declares_contribution_workflow_assets() {
     assert!(contributing.contains("scripts/ci/check-generated-docs-freshness.sh"));
     assert!(contributing.contains("docs/generated/"));
     assert!(contributing.contains("scripts/ci/check-browser-app-freshness.sh"));
-    assert!(contributing.contains("app/src/wasm"));
+    assert!(contributing.contains("requirement/feature coverage summary"));
     assert!(contributing.contains("app/dist"));
     assert!(contributing.contains("npm run build:wasm"));
     assert!(contributing.contains("npm run check"));
@@ -549,6 +594,7 @@ fn repository_declares_contribution_workflow_assets() {
     assert!(contributing.contains("does **not** install `website/` docs-site dependencies"));
     assert!(contributing.contains("GitHub Pages"));
     assert!(contributing.contains("release track"));
+    assert!(contributing.contains("merge queue playbook"));
 
     assert!(pr_template.contains("FEAT-CONTRIB-002"));
     assert!(pr_template.contains("scripts/ci/quality-gates.sh"));
@@ -579,6 +625,7 @@ fn repository_declares_dependency_hygiene_and_ci_caching() {
     let ci_workflow = read_file(".github/workflows/ci.yml");
     let setup_rust_action = read_file(".github/actions/setup-rust/action.yml");
     let codeql_workflow = read_file(".github/workflows/codeql.yml");
+    let merge_queue_checks = read_file(".github/merge-queue-checks.json");
     let docs_build_action = read_file(".github/actions/build-docs-site/action.yml");
     let docs_lock = read_file("website/package-lock.json");
     let release_artifacts = read_file(".github/workflows/release-artifacts.yml");
@@ -599,6 +646,7 @@ fn repository_declares_dependency_hygiene_and_ci_caching() {
     assert!(ci_workflow.contains("tool: cargo-audit"));
     assert!(ci_workflow.contains("tool: wasm-pack"));
     assert!(ci_workflow.contains("merge_group:"));
+    assert!(ci_workflow.contains("check-msrv:"));
     assert!(ci_workflow.contains("Set up Python with pip cache"));
     assert!(ci_workflow.contains("cache: pip"));
     assert!(ci_workflow.contains("cache-dependency-path: .pre-commit-config.yaml"));
@@ -622,6 +670,47 @@ fn repository_declares_dependency_hygiene_and_ci_caching() {
     assert!(codeql_workflow.contains("github/codeql-action/init@v4"));
     assert!(codeql_workflow.contains("github/codeql-action/autobuild@v4"));
     assert!(codeql_workflow.contains("github/codeql-action/analyze@v4"));
+    let merge_queue_manifest: serde_json::Value = serde_json::from_str(&merge_queue_checks)
+        .expect("merge queue manifest should be valid JSON");
+    let required_checks = merge_queue_manifest["required_checks"]
+        .as_array()
+        .expect("merge queue manifest should declare required checks");
+    let contexts: Vec<&str> = required_checks
+        .iter()
+        .map(|entry| {
+            entry["context"]
+                .as_str()
+                .expect("merge queue context should be a string")
+        })
+        .collect();
+    let unique_contexts: HashSet<&str> = contexts.iter().copied().collect();
+
+    assert_eq!(merge_queue_manifest["version"], 1);
+    assert_eq!(contexts.len(), unique_contexts.len());
+    assert!(
+        required_checks
+            .iter()
+            .any(|entry| entry["workflow"] == "ci")
+    );
+    assert!(
+        required_checks
+            .iter()
+            .any(|entry| entry["workflow"] == "codeql")
+    );
+    assert!(contexts.contains(&"precommit"));
+    assert!(contexts.contains(&"MSRV check (1.88)"));
+    assert!(contexts.contains(&"Analyze (rust)"));
+    assert!(!contexts.contains(&"dependency-review"));
+    assert!(
+        required_checks
+            .iter()
+            .any(|entry| entry["job_id"] == "check-msrv")
+    );
+    assert!(
+        required_checks
+            .iter()
+            .any(|entry| entry["job_id"] == "analyze")
+    );
 
     assert!(release_artifacts.contains("Restore Rust cache"));
     assert!(release_artifacts.contains("Swatinem/rust-cache@v2"));
@@ -660,7 +749,11 @@ fn repository_ships_browser_app() {
     assert!(ci_workflow.contains("Build browser app bundle"));
     assert!(ci_workflow.contains("scripts/ci/check-browser-app-freshness.sh"));
     assert!(ci_workflow.contains("if: success()"));
-    assert!(ci_workflow.contains("name: browser-app-dist"));
+    assert!(
+        ci_workflow.contains(
+            "browser-app-dist-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}"
+        )
+    );
     assert!(build_script.contains("syu-app-dist"));
     assert!(build_script.contains("npm ci"));
     assert!(build_script.contains("build:wasm"));

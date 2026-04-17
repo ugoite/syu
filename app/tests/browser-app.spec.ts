@@ -7,6 +7,11 @@ const usesFailingWorkspace =
   process.env.SYU_APP_E2E_WORKSPACE?.includes("tests/fixtures/workspaces/failing") ?? false;
 
 type AppDataPayload = {
+  source_documents: Array<{
+    section: "philosophy" | "policies" | "features" | "requirements";
+    path: string;
+    content: string;
+  }>;
   validation: {
     issues: Array<{
       code: string;
@@ -18,6 +23,67 @@ type AppDataPayload = {
     }>;
   };
 };
+
+function injectParseError(payload: AppDataPayload): { payload: AppDataPayload; path: string } {
+  const target = payload.source_documents.find((document) => document.section === "philosophy");
+
+  if (!target) {
+    throw new Error("Expected a philosophy source document in the app payload.");
+  }
+
+  return {
+    path: target.path,
+    payload: {
+      ...payload,
+      source_documents: payload.source_documents.map((document) =>
+        document.path === target.path
+          ? { ...document, content: "category: Philosophy\nphilosophies: [" }
+          : document,
+      ),
+    },
+  };
+}
+
+type ValidationIssue = AppDataPayload["validation"]["issues"][number];
+
+function requireFailingWorkspaceIssue(
+  payload: AppDataPayload,
+  expected: Pick<ValidationIssue, "location" | "message">,
+): ValidationIssue {
+  const issue = payload.validation.issues.find(
+    (candidate) =>
+      candidate.location === expected.location && candidate.message === expected.message,
+  );
+
+  if (!issue) {
+    throw new Error(
+      `Expected failing workspace issue for ${expected.location ?? "<no location>"}: ${
+        expected.message
+      }`,
+    );
+  }
+
+  return issue;
+}
+
+function duplicateIssueCodeForFailingWorkspace(payload: AppDataPayload): string {
+  const frontendIssue = requireFailingWorkspaceIssue(payload, {
+    location: "typescript:frontend/broken-feature.ts",
+    message: "Declared symbol `missingTsSymbol` was not found in `frontend/broken-feature.ts`.",
+  });
+  const rustIssue = requireFailingWorkspaceIssue(payload, {
+    location: "rust:src/broken_tests.rs",
+    message: "Declared symbol `missing_rust_symbol` was not found in `src/broken_tests.rs`.",
+  });
+
+  if (frontendIssue.code !== rustIssue.code) {
+    throw new Error(
+      `Expected duplicate failing-workspace issues to share a code, got ${frontendIssue.code} and ${rustIssue.code}.`,
+    );
+  }
+
+  return frontendIssue.code;
+}
 
 function swapDuplicateIssues(payload: AppDataPayload, code: string): AppDataPayload {
   const duplicateIndexes = payload.validation.issues
@@ -41,6 +107,30 @@ function swapDuplicateIssues(payload: AppDataPayload, code: string): AppDataPayl
     },
   };
 }
+
+test("repeats the YAML path inside parse-error banners", async ({ page }) => {
+  let mutatedPath = "";
+
+  await page.route("**/api/app-data.json", async (route) => {
+    const response = await route.fetch();
+    const payload = (await response.json()) as AppDataPayload;
+    const mutated = injectParseError(payload);
+    mutatedPath = mutated.path;
+    await route.fulfill({
+      response,
+      body: JSON.stringify(mutated.payload),
+    });
+  });
+
+  await page.goto("/");
+
+  const banner = page
+    .getByText("This document could not be parsed into the expected layer model.")
+    .locator("..");
+  await expect(banner).toBeVisible();
+  await expect(banner).toContainText(`File: ${mutatedPath}`);
+  await expect(banner).toContainText("did not find expected node content");
+});
 
 test("renders top tabs and linked spec content", async ({ page }) => {
   await page.goto("/");
@@ -96,13 +186,45 @@ test("loads deep links and supports keyboard search navigation", async ({ page }
   await expect(page).toHaveURL(/#requirements\/REQ-CORE-001$/);
 
   const searchInput = page.getByRole("searchbox", { name: "Search spec items" });
-  await expect(searchInput).toHaveAttribute("aria-describedby", "spec-search-shortcuts");
-  const shortcutHint = page.locator("#spec-search-shortcuts");
-  await expect(shortcutHint).toBeVisible();
-  await expect(shortcutHint).toContainText("ArrowDown");
-  await expect(shortcutHint).toContainText("ArrowUp");
-  await expect(shortcutHint).toContainText("Enter");
-  await expect(shortcutHint).toContainText("Escape");
+  await expect(searchInput).toHaveAttribute(
+    "aria-describedby",
+    "spec-search-shortcuts-description",
+  );
+  await expect(searchInput).toHaveAttribute(
+    "placeholder",
+    "Search items by ID or keyword (up to 20 matches)…",
+  );
+  const shortcutDescription = page.locator("#spec-search-shortcuts-description");
+  await expect(shortcutDescription).toHaveText(
+    "Keyboard shortcuts: ArrowDown and ArrowUp move through results, Enter opens the highlighted or only match, and Escape clears the search.",
+  );
+  const shortcutPanel = page.locator("#spec-search-shortcuts-panel");
+  await expect(shortcutPanel).toBeVisible();
+  await expect(shortcutPanel).toContainText("Search shortcuts");
+  await expect(shortcutPanel).toContainText(
+    "Keep focus in the search box and use the keyboard to move through results.",
+  );
+  await expect(shortcutPanel).toContainText("ArrowDown");
+  await expect(shortcutPanel).toContainText("ArrowUp");
+  await expect(shortcutPanel).toContainText("Enter");
+  await expect(shortcutPanel).toContainText("Escape");
+  await expect(
+    page.getByText(
+      "Search shows up to 20 matches at a time, so refine broad queries for a narrower result list.",
+    ),
+  ).toBeVisible();
+  await searchInput.fill("core");
+  await expect(
+    page.getByText("Showing the first 20 matches — refine your query for fewer results."),
+  ).toHaveCount(0);
+  await searchInput.press("Escape");
+  await expect(searchInput).toHaveValue("");
+  await searchInput.fill("spec");
+  await expect(
+    page.getByText("Showing the first 20 matches — refine your query for fewer results."),
+  ).toBeVisible();
+  await searchInput.press("Escape");
+  await expect(searchInput).toHaveValue("");
   await searchInput.fill("FEAT-CHECK-001");
   await searchInput.press("ArrowDown");
   await searchInput.press("ArrowUp");
@@ -127,21 +249,43 @@ test("loads deep links and supports keyboard search navigation", async ({ page }
   ).toBeVisible();
 });
 
-test("keeps duplicate validation issues independently selectable", async ({ page }) => {
+test("explains requirement and feature trace metrics", async ({ page }) => {
+  await page.goto("/");
+
+  await expect(
+    page.getByRole("button", {
+      name: /Requirement traces: Declared traces are the requirement test references written in the spec\./i,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: /Feature traces: Declared traces are the feature implementation references written in the spec\./i,
+    }),
+  ).toBeVisible();
+});
+
+test("keeps duplicate validation issues independently selectable", async ({ page, request }) => {
   test.skip(!usesFailingWorkspace, "requires the failing fixture workspace");
 
   await page.goto("/");
 
-  const duplicateIssueRows = page.getByRole("button", { name: /SYU-trace-id-001/i });
+  const payloadResponse = await request.get("/api/app-data.json");
+  expect(payloadResponse.ok()).toBeTruthy();
+
+  const payload = (await payloadResponse.json()) as AppDataPayload;
+  const duplicateIssueCode = duplicateIssueCodeForFailingWorkspace(payload);
+  const duplicateIssueRows = page.getByRole("button", {
+    name: new RegExp(duplicateIssueCode, "i"),
+  });
   await expect(duplicateIssueRows).toHaveCount(2);
   const selectedIssue = page
-    .getByRole("heading", { level: 3, name: "SYU-trace-id-001" })
+    .getByRole("heading", { level: 3, name: duplicateIssueCode })
     .locator("..");
 
   await duplicateIssueRows.nth(0).click();
   await expect(
     selectedIssue.getByText(
-      "Declared implementation file `frontend/broken-feature.ts` does not mention `FEAT-FAIL-001`.",
+      "Declared symbol `missingTsSymbol` was not found in `frontend/broken-feature.ts`.",
     ),
   ).toBeVisible();
   await expect(selectedIssue.getByText("typescript:frontend/broken-feature.ts")).toBeVisible();
@@ -149,7 +293,7 @@ test("keeps duplicate validation issues independently selectable", async ({ page
   await duplicateIssueRows.nth(1).click();
   await expect(
     selectedIssue.getByText(
-      "Declared test file `src/broken_tests.rs` does not mention `REQ-FAIL-001`.",
+      "Declared symbol `missing_rust_symbol` was not found in `src/broken_tests.rs`.",
     ),
   ).toBeVisible();
   await expect(selectedIssue.getByText("rust:src/broken_tests.rs")).toBeVisible();
@@ -167,19 +311,22 @@ test("keeps the selected validation issue stable across refresh reordering", asy
   expect(payloadResponse.ok()).toBeTruthy();
 
   const payload = (await payloadResponse.json()) as AppDataPayload;
-  const reorderedPayload = swapDuplicateIssues(payload, "SYU-trace-id-001");
+  const duplicateIssueCode = duplicateIssueCodeForFailingWorkspace(payload);
+  const reorderedPayload = swapDuplicateIssues(payload, duplicateIssueCode);
 
-  const duplicateIssueRows = page.getByRole("button", { name: /SYU-trace-id-001/i });
+  const duplicateIssueRows = page.getByRole("button", {
+    name: new RegExp(duplicateIssueCode, "i"),
+  });
   await expect(duplicateIssueRows).toHaveCount(2);
 
   const selectedIssue = page
-    .getByRole("heading", { level: 3, name: "SYU-trace-id-001" })
+    .getByRole("heading", { level: 3, name: duplicateIssueCode })
     .locator("..");
 
   await duplicateIssueRows.nth(1).click();
   await expect(
     selectedIssue.getByText(
-      "Declared test file `src/broken_tests.rs` does not mention `REQ-FAIL-001`.",
+      "Declared symbol `missing_rust_symbol` was not found in `src/broken_tests.rs`.",
     ),
   ).toBeVisible();
 
@@ -206,12 +353,12 @@ test("keeps the selected validation issue stable across refresh reordering", asy
   await expect.poll(() => refreshLoads, { timeout: 10000 }).toBeGreaterThan(0);
   await expect(
     selectedIssue.getByText(
-      "Declared test file `src/broken_tests.rs` does not mention `REQ-FAIL-001`.",
+      "Declared symbol `missing_rust_symbol` was not found in `src/broken_tests.rs`.",
     ),
   ).toBeVisible();
   await expect(
     selectedIssue.getByText(
-      "Declared implementation file `frontend/broken-feature.ts` does not mention `FEAT-FAIL-001`.",
+      "Declared symbol `missingTsSymbol` was not found in `frontend/broken-feature.ts`.",
     ),
   ).toHaveCount(0);
 });

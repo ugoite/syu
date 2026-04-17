@@ -57,8 +57,11 @@ match your change:
    scripts/ci/coverage.sh summary
    ```
 
-3. **Browser app, WASM, or browser build inputs** (`app/src`, `app/src/wasm`,
-   `app/wasm`, browser build config, or browser build scripts)
+   That command also emits a requirement/feature coverage summary so reviewers
+   can inspect the current Rust line coverage in spec terms.
+
+3. **Browser app, WASM, or checked-in `app/dist` bundle** (`app/src`,
+   `app/wasm`, browser build config, or generated browser assets)
 
    Install the browser app dependencies first:
 
@@ -136,6 +139,15 @@ If you use the hooks, install them once:
 scripts/install-precommit.sh
 ```
 
+If bootstrap fails or the script cannot find the final `pre-commit` binary, run
+the same interpreter check that the script selected:
+`python3 -m site --user-base` (or `python -m site --user-base` when the script
+detected `python` instead of `python3`). If you installed `pre-commit` with
+`pipx`, also run `pipx environment --value PIPX_BIN_DIR` to see where the
+binary should live. Compare the reported paths with your `PATH`, then rerun
+`scripts/install-precommit.sh`. The script prints the same checks when setup
+fails.
+
 The devcontainer/Codespaces post-create step runs
 `.devcontainer/post-create.sh` automatically so the setup explains itself while
 it provisions. That script:
@@ -173,6 +185,14 @@ reported via the default GitHub Actions failure notification for maintainers.
 Stable releases are prepared from `main` with release-please.
 Prereleases are cut from `main` as needed after the same quality gates and user
 story validation pass.
+
+Maintainers triaging stuck merge-queue entries should use the
+[merge queue playbook](docs/guide/merge-queue-playbook.md) to inspect
+`merge_group` runs, queue state, and required workflow coverage.
+
+When maintainers intentionally rename merge-queue check contexts or add/remove
+`merge_group` workflows, update `.github/merge-queue-checks.json` and the
+repository-quality assertions in the same change.
 
 GitHub release notes are generated per release track so alpha, beta, and stable
 releases each compare against the previous tag in the same track.
