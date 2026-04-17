@@ -19,21 +19,45 @@ type AppDataPayload = {
   };
 };
 
-function duplicateIssueCodeForMessages(payload: AppDataPayload, messages: string[]): string {
-  const matchingCodes = payload.validation.issues
-    .filter((issue) => messages.includes(issue.message))
-    .map((issue) => issue.code);
+type ValidationIssue = AppDataPayload["validation"]["issues"][number];
 
-  if (matchingCodes.length !== messages.length) {
-    throw new Error(`Expected ${messages.length} matching issues in the app payload.`);
+function requireFailingWorkspaceIssue(
+  payload: AppDataPayload,
+  expected: Pick<ValidationIssue, "location" | "message">,
+): ValidationIssue {
+  const issue = payload.validation.issues.find(
+    (candidate) =>
+      candidate.location === expected.location && candidate.message === expected.message,
+  );
+
+  if (!issue) {
+    throw new Error(
+      `Expected failing workspace issue for ${expected.location ?? "<no location>"}: ${
+        expected.message
+      }`,
+    );
   }
 
-  const [firstCode, ...rest] = matchingCodes;
-  if (!firstCode || rest.some((code) => code !== firstCode)) {
-    throw new Error("Expected the selected duplicate issues to share the same code.");
+  return issue;
+}
+
+function duplicateIssueCodeForFailingWorkspace(payload: AppDataPayload): string {
+  const frontendIssue = requireFailingWorkspaceIssue(payload, {
+    location: "typescript:frontend/broken-feature.ts",
+    message: "Declared symbol `missingTsSymbol` was not found in `frontend/broken-feature.ts`.",
+  });
+  const rustIssue = requireFailingWorkspaceIssue(payload, {
+    location: "rust:src/broken_tests.rs",
+    message: "Declared symbol `missing_rust_symbol` was not found in `src/broken_tests.rs`.",
+  });
+
+  if (frontendIssue.code !== rustIssue.code) {
+    throw new Error(
+      `Expected duplicate failing-workspace issues to share a code, got ${frontendIssue.code} and ${rustIssue.code}.`,
+    );
   }
 
-  return firstCode;
+  return frontendIssue.code;
 }
 
 function swapDuplicateIssues(payload: AppDataPayload, code: string): AppDataPayload {
@@ -144,19 +168,16 @@ test("loads deep links and supports keyboard search navigation", async ({ page }
   ).toBeVisible();
 });
 
-test("keeps duplicate validation issues independently selectable", async ({ page }) => {
+test("keeps duplicate validation issues independently selectable", async ({ page, request }) => {
   test.skip(!usesFailingWorkspace, "requires the failing fixture workspace");
 
   await page.goto("/");
 
-  const payloadResponse = await page.request.get("/api/app-data.json");
+  const payloadResponse = await request.get("/api/app-data.json");
   expect(payloadResponse.ok()).toBeTruthy();
 
-  const duplicateIssueCode = duplicateIssueCodeForMessages(await payloadResponse.json(), [
-    "Declared implementation file `frontend/broken-feature.ts` does not mention `FEAT-FAIL-001`.",
-    "Declared test file `src/broken_tests.rs` does not mention `REQ-FAIL-001`.",
-  ]);
-
+  const payload = (await payloadResponse.json()) as AppDataPayload;
+  const duplicateIssueCode = duplicateIssueCodeForFailingWorkspace(payload);
   const duplicateIssueRows = page.getByRole("button", {
     name: new RegExp(duplicateIssueCode, "i"),
   });
@@ -168,7 +189,7 @@ test("keeps duplicate validation issues independently selectable", async ({ page
   await duplicateIssueRows.nth(0).click();
   await expect(
     selectedIssue.getByText(
-      "Declared implementation file `frontend/broken-feature.ts` does not mention `FEAT-FAIL-001`.",
+      "Declared symbol `missingTsSymbol` was not found in `frontend/broken-feature.ts`.",
     ),
   ).toBeVisible();
   await expect(selectedIssue.getByText("typescript:frontend/broken-feature.ts")).toBeVisible();
@@ -176,7 +197,7 @@ test("keeps duplicate validation issues independently selectable", async ({ page
   await duplicateIssueRows.nth(1).click();
   await expect(
     selectedIssue.getByText(
-      "Declared test file `src/broken_tests.rs` does not mention `REQ-FAIL-001`.",
+      "Declared symbol `missing_rust_symbol` was not found in `src/broken_tests.rs`.",
     ),
   ).toBeVisible();
   await expect(selectedIssue.getByText("rust:src/broken_tests.rs")).toBeVisible();
@@ -194,10 +215,7 @@ test("keeps the selected validation issue stable across refresh reordering", asy
   expect(payloadResponse.ok()).toBeTruthy();
 
   const payload = (await payloadResponse.json()) as AppDataPayload;
-  const duplicateIssueCode = duplicateIssueCodeForMessages(payload, [
-    "Declared implementation file `frontend/broken-feature.ts` does not mention `FEAT-FAIL-001`.",
-    "Declared test file `src/broken_tests.rs` does not mention `REQ-FAIL-001`.",
-  ]);
+  const duplicateIssueCode = duplicateIssueCodeForFailingWorkspace(payload);
   const reorderedPayload = swapDuplicateIssues(payload, duplicateIssueCode);
 
   const duplicateIssueRows = page.getByRole("button", {
@@ -212,7 +230,7 @@ test("keeps the selected validation issue stable across refresh reordering", asy
   await duplicateIssueRows.nth(1).click();
   await expect(
     selectedIssue.getByText(
-      "Declared test file `src/broken_tests.rs` does not mention `REQ-FAIL-001`.",
+      "Declared symbol `missing_rust_symbol` was not found in `src/broken_tests.rs`.",
     ),
   ).toBeVisible();
 
@@ -239,12 +257,12 @@ test("keeps the selected validation issue stable across refresh reordering", asy
   await expect.poll(() => refreshLoads, { timeout: 10000 }).toBeGreaterThan(0);
   await expect(
     selectedIssue.getByText(
-      "Declared test file `src/broken_tests.rs` does not mention `REQ-FAIL-001`.",
+      "Declared symbol `missing_rust_symbol` was not found in `src/broken_tests.rs`.",
     ),
   ).toBeVisible();
   await expect(
     selectedIssue.getByText(
-      "Declared implementation file `frontend/broken-feature.ts` does not mention `FEAT-FAIL-001`.",
+      "Declared symbol `missingTsSymbol` was not found in `frontend/broken-feature.ts`.",
     ),
   ).toHaveCount(0);
 });
