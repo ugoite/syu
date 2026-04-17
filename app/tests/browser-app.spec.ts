@@ -19,6 +19,47 @@ type AppDataPayload = {
   };
 };
 
+type ValidationIssue = AppDataPayload["validation"]["issues"][number];
+
+function requireFailingWorkspaceIssue(
+  payload: AppDataPayload,
+  expected: Pick<ValidationIssue, "location" | "message">,
+): ValidationIssue {
+  const issue = payload.validation.issues.find(
+    (candidate) =>
+      candidate.location === expected.location && candidate.message === expected.message,
+  );
+
+  if (!issue) {
+    throw new Error(
+      `Expected failing workspace issue for ${expected.location ?? "<no location>"}: ${
+        expected.message
+      }`,
+    );
+  }
+
+  return issue;
+}
+
+function duplicateIssueCodeForFailingWorkspace(payload: AppDataPayload): string {
+  const frontendIssue = requireFailingWorkspaceIssue(payload, {
+    location: "typescript:frontend/broken-feature.ts",
+    message: "Declared symbol `missingTsSymbol` was not found in `frontend/broken-feature.ts`.",
+  });
+  const rustIssue = requireFailingWorkspaceIssue(payload, {
+    location: "rust:src/broken_tests.rs",
+    message: "Declared symbol `missing_rust_symbol` was not found in `src/broken_tests.rs`.",
+  });
+
+  if (frontendIssue.code !== rustIssue.code) {
+    throw new Error(
+      `Expected duplicate failing-workspace issues to share a code, got ${frontendIssue.code} and ${rustIssue.code}.`,
+    );
+  }
+
+  return frontendIssue.code;
+}
+
 function swapDuplicateIssues(payload: AppDataPayload, code: string): AppDataPayload {
   const duplicateIndexes = payload.validation.issues
     .map((issue, index) => ({ issue, index }))
@@ -47,8 +88,8 @@ test("renders top tabs and linked spec content", async ({ page }) => {
 
   const topLevelSections = page.getByRole("navigation", { name: "Top level sections" });
 
-  await expect(page.getByRole("heading", { name: /^syu/i })).toBeVisible();
-  await expect(page.getByRole("button", { name: /^syu\b/i })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /^syu\b/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: "syu — go to first item" })).toBeVisible();
   await expect(topLevelSections.getByRole("button", { name: /^philosophy\b/i })).toBeVisible();
   await expect(topLevelSections.getByRole("button", { name: /^policies\b/i })).toBeVisible();
   await expect(topLevelSections.getByRole("button", { name: /^features\b/i })).toBeVisible();
@@ -136,21 +177,28 @@ test("loads deep links and supports keyboard search navigation", async ({ page }
   ).toBeVisible();
 });
 
-test("keeps duplicate validation issues independently selectable", async ({ page }) => {
+test("keeps duplicate validation issues independently selectable", async ({ page, request }) => {
   test.skip(!usesFailingWorkspace, "requires the failing fixture workspace");
 
   await page.goto("/");
 
-  const duplicateIssueRows = page.getByRole("button", { name: /SYU-trace-id-001/i });
+  const payloadResponse = await request.get("/api/app-data.json");
+  expect(payloadResponse.ok()).toBeTruthy();
+
+  const payload = (await payloadResponse.json()) as AppDataPayload;
+  const duplicateIssueCode = duplicateIssueCodeForFailingWorkspace(payload);
+  const duplicateIssueRows = page.getByRole("button", {
+    name: new RegExp(duplicateIssueCode, "i"),
+  });
   await expect(duplicateIssueRows).toHaveCount(2);
   const selectedIssue = page
-    .getByRole("heading", { level: 3, name: "SYU-trace-id-001" })
+    .getByRole("heading", { level: 3, name: duplicateIssueCode })
     .locator("..");
 
   await duplicateIssueRows.nth(0).click();
   await expect(
     selectedIssue.getByText(
-      "Declared implementation file `frontend/broken-feature.ts` does not mention `FEAT-FAIL-001`.",
+      "Declared symbol `missingTsSymbol` was not found in `frontend/broken-feature.ts`.",
     ),
   ).toBeVisible();
   await expect(selectedIssue.getByText("typescript:frontend/broken-feature.ts")).toBeVisible();
@@ -158,7 +206,7 @@ test("keeps duplicate validation issues independently selectable", async ({ page
   await duplicateIssueRows.nth(1).click();
   await expect(
     selectedIssue.getByText(
-      "Declared test file `src/broken_tests.rs` does not mention `REQ-FAIL-001`.",
+      "Declared symbol `missing_rust_symbol` was not found in `src/broken_tests.rs`.",
     ),
   ).toBeVisible();
   await expect(selectedIssue.getByText("rust:src/broken_tests.rs")).toBeVisible();
@@ -176,19 +224,22 @@ test("keeps the selected validation issue stable across refresh reordering", asy
   expect(payloadResponse.ok()).toBeTruthy();
 
   const payload = (await payloadResponse.json()) as AppDataPayload;
-  const reorderedPayload = swapDuplicateIssues(payload, "SYU-trace-id-001");
+  const duplicateIssueCode = duplicateIssueCodeForFailingWorkspace(payload);
+  const reorderedPayload = swapDuplicateIssues(payload, duplicateIssueCode);
 
-  const duplicateIssueRows = page.getByRole("button", { name: /SYU-trace-id-001/i });
+  const duplicateIssueRows = page.getByRole("button", {
+    name: new RegExp(duplicateIssueCode, "i"),
+  });
   await expect(duplicateIssueRows).toHaveCount(2);
 
   const selectedIssue = page
-    .getByRole("heading", { level: 3, name: "SYU-trace-id-001" })
+    .getByRole("heading", { level: 3, name: duplicateIssueCode })
     .locator("..");
 
   await duplicateIssueRows.nth(1).click();
   await expect(
     selectedIssue.getByText(
-      "Declared test file `src/broken_tests.rs` does not mention `REQ-FAIL-001`.",
+      "Declared symbol `missing_rust_symbol` was not found in `src/broken_tests.rs`.",
     ),
   ).toBeVisible();
 
@@ -215,12 +266,12 @@ test("keeps the selected validation issue stable across refresh reordering", asy
   await expect.poll(() => refreshLoads, { timeout: 10000 }).toBeGreaterThan(0);
   await expect(
     selectedIssue.getByText(
-      "Declared test file `src/broken_tests.rs` does not mention `REQ-FAIL-001`.",
+      "Declared symbol `missing_rust_symbol` was not found in `src/broken_tests.rs`.",
     ),
   ).toBeVisible();
   await expect(
     selectedIssue.getByText(
-      "Declared implementation file `frontend/broken-feature.ts` does not mention `FEAT-FAIL-001`.",
+      "Declared symbol `missingTsSymbol` was not found in `frontend/broken-feature.ts`.",
     ),
   ).toHaveCount(0);
 });
@@ -229,7 +280,7 @@ test("shows a visible banner when version polling fails after the initial load",
   page,
 }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: /^syu\b/i })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /^syu\b/i })).toBeVisible();
 
   let pollAttempts = 0;
   await page.route("**/api/version", async (route) => {
@@ -249,7 +300,7 @@ test("shows a visible banner when version polling fails after the initial load",
   await expect(alert).toContainText(
     "Could not check for workspace updates: Failed to poll app version: 500 Internal Server Error",
   );
-  await expect(page.getByRole("heading", { name: /^syu\b/i })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /^syu\b/i })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Workspace could not load" })).toHaveCount(0);
 });
 
@@ -257,7 +308,7 @@ test("shows a visible banner when a workspace refresh reload fails after the ini
   page,
 }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: /^syu\b/i })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /^syu\b/i })).toBeVisible();
 
   let refreshLoads = 0;
   await page.route("**/api/version", async (route) => {
@@ -283,6 +334,6 @@ test("shows a visible banner when a workspace refresh reload fails after the ini
   await expect(alert).toContainText(
     "Could not reload the workspace snapshot: Failed to load app data: 500 Internal Server Error",
   );
-  await expect(page.getByRole("heading", { name: /^syu\b/i })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /^syu\b/i })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Workspace could not load" })).toHaveCount(0);
 });
