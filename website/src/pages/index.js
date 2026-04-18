@@ -28,10 +28,15 @@ const layers = [
 
 const journeys = [
   {
+    title: 'Decide repository fit',
+    description: 'Read the repository-fit guide before installing when you are still deciding whether syu is the right adoption step.',
+    to: '/docs/guide/getting-started#is-syu-right-for-this-repository'
+  },
+  {
     title: 'Avoid spec anti-patterns',
     description:
       'Learn the common bad-but-valid four-layer shapes before a green spec turns into a painful rewrite.',
-    to: '/docs/guide/anti-patterns'
+    to: '/docs/guide/spec-antipatterns'
   },
   {
     title: 'Start a workspace',
@@ -76,8 +81,9 @@ export default function Home() {
           <p className="siteHeroEyebrow">Specification-driven development for real repositories</p>
           <h1 className="siteHeroTitle">Keep the spec close to the repository</h1>
           <p className="siteHeroLead">
-            Browse the four specification layers, follow common contributor journeys,
-            and inspect the self-hosted specification and validation report in one place.
+            Decide whether repository-native traceability fits your repo, then browse
+            the four specification layers, common contributor journeys, and self-hosted
+            validation output in one place.
           </p>
           <div className="siteHeroActions">
             <Link className="button button--secondary button--lg" to="/docs/guide/getting-started">
