@@ -1436,6 +1436,42 @@ mod tests {
     }
 
     #[test]
+    fn discover_java_targets_skips_unreadable_java_files() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let tempdir = tempdir().expect("tempdir");
+        let src_dir = tempdir.path().join("src");
+        fs::create_dir_all(&src_dir).expect("src dir");
+        let readable = src_dir.join("Owned.java");
+        let unreadable = src_dir.join("Hidden.java");
+        fs::write(&readable, "public class Owned {}\n").expect("readable java file");
+        fs::write(&unreadable, "public class Hidden {}\n").expect("unreadable java file");
+
+        let mut perm = fs::metadata(&unreadable).expect("meta").permissions();
+        let mode = perm.mode();
+        perm.set_mode(0o000);
+        fs::set_permissions(&unreadable, perm).expect("set unreadable");
+
+        let targets =
+            discover_java_targets(&SyuConfig::default(), tempdir.path()).expect("targets");
+
+        let mut restore = fs::metadata(&unreadable).expect("meta").permissions();
+        restore.set_mode(mode);
+        fs::set_permissions(&unreadable, restore).expect("restore");
+
+        assert!(targets.iter().any(|target| {
+            target.file == Path::new("src/Owned.java")
+                && target.symbol == "Owned"
+                && target.kind == CoverageTargetKind::PublicSymbol
+        }));
+        assert!(
+            !targets
+                .iter()
+                .any(|target| { target.file == Path::new("src/Hidden.java") })
+        );
+    }
+
+    #[test]
     fn collect_java_public_symbols_covers_interface_members_without_public_modifiers() {
         let symbols = collect_java_public_symbols(
             "public interface FeatureTrace {\n    void featureTraceJava();\n    String EXPORTED_NAME = \"ok\";\n    default void defaultHelper() {\n        if (true) {\n            featureTraceJava();\n        }\n    }\n    private void hiddenHelper() {}\n}\n",
@@ -1450,6 +1486,15 @@ mod tests {
                 "featureTraceJava"
             ]
         );
+    }
+
+    #[test]
+    fn collect_java_public_symbols_covers_constructors_and_fields() {
+        let symbols = collect_java_public_symbols(
+            "public class FeatureTrace {\n    public static final String TRACE_LABEL = \"ok\";\n    public FeatureTrace() {}\n}\n",
+        );
+
+        assert_eq!(symbols, vec!["FeatureTrace", "TRACE_LABEL"]);
     }
 
     #[test]
@@ -1729,6 +1774,15 @@ mod tests {
         let result =
             discover_go_targets(&SyuConfig::default(), tempdir.path()).expect("should succeed");
         assert!(result.is_empty());
+    }
+
+    #[test]
+    fn java_files_under_errors_on_file_path() {
+        let tempdir = tempdir().expect("tempdir");
+        let src = tempdir.path().join("src");
+        fs::write(&src, "not a directory").expect("write blocking file");
+        let result = java_files_under(tempdir.path(), &src, &BTreeSet::new());
+        assert!(result.is_err());
     }
 
     #[test]
