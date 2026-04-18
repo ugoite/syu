@@ -10,7 +10,7 @@ layers before you start editing YAML.
 Need a different level of guidance?
 
 - Jump back to the
-  [README quick start on GitHub](https://github.com/ugoite/syu/blob/main/README.md#quick-start)
+  [README quick start on GitHub](https://github.com/ugoite/syu/blob/main/README.md#choose-your-path)
   when you want the shortest install-to-validate path and are happy with a
   compact command card.
 - Follow [existing repository adoption](./existing-repository.md) when the
@@ -27,7 +27,7 @@ Need a different level of guidance?
   already failing and you need to unblock a workspace.
 
 If you are still deciding whether to adopt `syu`, start with the
-[repository-fit guide in the README](https://github.com/ugoite/syu/blob/main/README.md#before-you-install-check-whether-syu-fits-this-repository)
+[repository-fit guide in the README](https://github.com/ugoite/syu/blob/main/README.md#is-syu-right-for-this-repository)
 before installing anything.
 
 ## Is syu right for this repository?
