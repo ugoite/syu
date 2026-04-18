@@ -1067,7 +1067,14 @@ function App() {
 }
 
 function firstPopulatedSection(workspace: BrowserWorkspace): SectionKind | null {
-  return workspace.sections.find((section) => section.documents.length > 0)?.kind ?? null;
+  for (const kind of SECTION_ORDER) {
+    const section = workspace.sections.find((candidate) => candidate.kind === kind);
+    if (section && section.documents.length > 0) {
+      return kind;
+    }
+  }
+
+  return null;
 }
 
 function isSectionKind(value: string): value is SectionKind {
