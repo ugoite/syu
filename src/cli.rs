@@ -473,6 +473,10 @@ pub struct ValidateArgs {
     )]
     pub require_symbol_trace_coverage: Option<bool>,
 
+    #[arg(help = "Use this exit code when validation has warnings but no errors")]
+    #[arg(long, value_name = "CODE")]
+    pub warning_exit_code: Option<u8>,
+
     #[arg(help = "Suppress next-step guidance in successful text output")]
     #[arg(short, long, action = ArgAction::SetTrue)]
     pub quiet: bool,
