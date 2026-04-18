@@ -746,11 +746,19 @@ fn apply_autofix_for_reference(
     }
 
     if changed {
-        summary.updated_files.insert(path);
+        record_updated_file(summary, root, &path);
         summary.symbol_updates += updated_symbols;
     }
 
     Ok(())
+}
+
+fn record_updated_file(summary: &mut AutofixSummary, root: &Path, path: &Path) {
+    summary.updated_files.insert(
+        path.strip_prefix(root)
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|_| path.to_path_buf()),
+    );
 }
 
 fn render_text_report(
@@ -1474,12 +1482,7 @@ fn ensure_sidecar_ownership_manifest(
 
     let raw = serde_yaml::to_string(&manifest)?;
     fs::write(&manifest_path, raw)?;
-    summary.updated_files.insert(
-        manifest_path
-            .strip_prefix(root)
-            .map(Path::to_path_buf)
-            .unwrap_or(manifest_path),
-    );
+    record_updated_file(summary, root, &manifest_path);
     summary.symbol_updates += 1;
     Ok(())
 }
@@ -4668,6 +4671,8 @@ mod tests {
 
         assert_eq!(summary.symbol_updates, 2);
         assert_eq!(summary.updated_files.len(), 2);
+        assert!(summary.updated_files.contains(Path::new("requirement.rs")));
+        assert!(summary.updated_files.contains(Path::new("feature.rs")));
         let requirement_contents =
             fs::read_to_string(root.join("requirement.rs")).expect("requirement contents");
         assert!(requirement_contents.contains("REQ-1"));
