@@ -255,10 +255,26 @@ fn app_command_warns_on_non_loopback_binds() {
     wait_for_server(port);
 
     let output = shutdown_child_with_output(child);
+    let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("warning: syu app is bound to 0.0.0.0"));
-    assert!(stderr.contains("workspace data and source documents may be reachable"));
-    assert!(stderr.contains("use --bind 127.0.0.1 to keep the browser UI local"));
+    let warning = "warning: syu app is bound to 0.0.0.0";
+    let listening = format!("syu app listening on http://0.0.0.0:{port}");
+    let warning_index = stdout
+        .find(warning)
+        .expect("stdout should include the public bind warning");
+    let listening_index = stdout
+        .find(&listening)
+        .expect("stdout should include the listening url");
+    assert!(stdout.contains(&format!("syu app listening on http://0.0.0.0:{port}")));
+    assert!(stdout.contains(&format!("syu app ready: http://0.0.0.0:{port}")));
+    assert!(stdout.contains(&format!("Open http://0.0.0.0:{port} in your browser.")));
+    assert!(warning_index < listening_index);
+    assert!(stdout.contains("workspace data and source documents may be reachable"));
+    assert!(stdout.contains("use --bind 127.0.0.1 to keep the browser UI local"));
+    assert!(
+        stderr.trim().is_empty(),
+        "startup warnings should stay on stdout"
+    );
 }
 
 #[test]
@@ -313,6 +329,36 @@ fn app_command_rejects_invalid_bind_addresses_from_config() {
 
     assert!(!output.status.success(), "invalid config bind should fail");
     assert!(String::from_utf8_lossy(&output.stderr).contains("invalid bind address"));
+}
+
+#[test]
+fn app_command_explains_how_to_recover_from_port_binding_failures() {
+    let occupied = TcpListener::bind(("127.0.0.1", 0)).expect("occupied listener should bind");
+    let port = occupied
+        .local_addr()
+        .expect("occupied listener address should resolve")
+        .port();
+
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .arg("app")
+        .arg(fixture_path("passing"))
+        .arg("--bind")
+        .arg("127.0.0.1")
+        .arg("--port")
+        .arg(port.to_string())
+        .output()
+        .expect("command should run");
+
+    assert!(!output.status.success(), "bind conflict should fail");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains(&format!("failed to bind `127.0.0.1:{port}`")));
+    assert!(stderr.contains("selected port is likely already in use"));
+    assert!(stderr.contains(&format!(
+        "syu app {} --port <free-port>",
+        fixture_path("passing").display()
+    )));
+    assert!(stderr.contains("app.port"));
 }
 
 #[test]

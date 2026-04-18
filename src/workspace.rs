@@ -36,6 +36,9 @@ pub fn resolve_workspace_root(root: &Path) -> Result<PathBuf> {
     let resolved = root
         .canonicalize()
         .with_context(|| format!("failed to resolve workspace root `{}`", root.display()))?;
+    if resolved.is_dir() && looks_like_workspace_root(&resolved) {
+        return Ok(resolved);
+    }
     let search_root = if resolved.is_dir() {
         resolved.clone()
     } else {
@@ -43,14 +46,21 @@ pub fn resolve_workspace_root(root: &Path) -> Result<PathBuf> {
     };
 
     for candidate in search_root.ancestors() {
-        if candidate.join(CONFIG_FILE_NAME).is_file()
-            || resolve_spec_root(candidate, &SyuConfig::default()).is_dir()
-        {
+        if candidate.join(CONFIG_FILE_NAME).is_file() {
             return Ok(candidate.to_path_buf());
         }
     }
 
     Ok(search_root)
+}
+
+fn looks_like_workspace_root(root: &Path) -> bool {
+    let spec_root = resolve_spec_root(root, &SyuConfig::default());
+    spec_root.join("philosophy").is_dir()
+        && spec_root.join("policies").is_dir()
+        && spec_root.join("requirements").is_dir()
+        && spec_root.join("features").is_dir()
+        && spec_root.join("features/features.yaml").is_file()
 }
 
 // FEAT-CHECK-001
@@ -415,20 +425,20 @@ mod tests {
     }
 
     #[test]
-    fn resolve_workspace_root_discovers_parent_default_spec_root_without_config() {
+    fn resolve_workspace_root_ignores_ancestor_default_spec_root_without_config() {
         let tempdir = tempdir().expect("tempdir should exist");
-        let workspace_root = tempdir.path().join("workspace");
-        let nested = workspace_root.join("frontend");
-        fs::create_dir_all(workspace_root.join("docs/syu/features")).expect("spec dir");
+        let parent = tempdir.path().join("parent");
+        let nested = parent.join("child/frontend");
+        fs::create_dir_all(parent.join("docs/syu/features")).expect("spec dir");
         fs::create_dir_all(&nested).expect("nested dir");
 
         let resolved =
-            resolve_workspace_root(&nested).expect("parent workspace root should resolve");
+            resolve_workspace_root(&nested).expect("workspace root should resolve safely");
         assert_eq!(
             resolved,
-            workspace_root
+            nested
                 .canonicalize()
-                .expect("workspace root should canonicalize")
+                .expect("nested path should canonicalize")
         );
     }
 

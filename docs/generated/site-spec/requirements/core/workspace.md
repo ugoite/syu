@@ -26,16 +26,21 @@ description: "Generated reference for docs/syu/requirements/core/workspace.yaml"
       requirements and features begin as `planned` so users can begin from a
       working structure instead of manually creating directories and
       placeholder YAML files. By default the tree lives under `docs/syu/`.
-      `syu init --spec-root` MUST support scaffolding the same layout into
-      another repository-relative specification root while writing the matching
-      `spec.root` value into `syu.yaml`, and `syu init --template` MUST support
-      small `rust-only`, `python-only`, and `polyglot` starter layouts so
-      adopters can begin closer to their repository style without copying
-      example files by hand. `syu init --id-prefix` MUST support seeding a
-      shared project-specific stem into the starter philosophy, policy,
-      requirement, and feature IDs, and the per-layer `--philosophy-prefix`,
-      `--policy-prefix`, `--requirement-prefix`, and `--feature-prefix` flags
-      MUST allow narrower overrides when one shared stem is not enough.
+       `syu init --spec-root` MUST support scaffolding the same layout into
+       another repository-relative specification root while writing the matching
+       `spec.root` value into `syu.yaml`, and `syu init --template` MUST support
+       small `rust-only`, `python-only`, and `polyglot` starter layouts so
+       adopters can begin closer to their repository style without copying
+       example files by hand. The CLI MUST also provide `syu templates` so users
+       can discover the available starter layouts, short descriptions, and any
+       matching checked-in examples before they scaffold, and the root help plus
+       closely related `syu init` guidance MUST surface that discovery command
+       alongside `syu init` without sending newcomers to docs first.
+       `syu init --id-prefix` MUST support seeding a
+       shared project-specific stem into the starter philosophy, policy,
+       requirement, and feature IDs, and the per-layer `--philosophy-prefix`,
+       `--policy-prefix`, `--requirement-prefix`, and `--feature-prefix` flags
+       MUST allow narrower overrides when one shared stem is not enough.
   - **priority**: high
   - **status**: implemented
   - **linked_policies**:
@@ -47,6 +52,7 @@ description: "Generated reference for docs/syu/requirements/core/workspace.yaml"
     - FEAT-INIT-003
     - FEAT-INIT-004
     - FEAT-INIT-005
+    - FEAT-INIT-006
   - **tests**:
     - **rust**:
       - **file**: tests/init_command.rs
@@ -55,12 +61,21 @@ description: "Generated reference for docs/syu/requirements/core/workspace.yaml"
       - **file**: src/command/init.rs
         - **symbols**:
           - *
+      - **file**: src/command/templates.rs
+        - **symbols**:
+          - *
       - **file**: src/command/mod.rs
         - **symbols**:
           - *
       - **file**: src/config.rs
         - **symbols**:
           - *
+      - **file**: tests/templates_command.rs
+        - **symbols**:
+          - *
+      - **file**: tests/help_command.rs
+        - **symbols**:
+          - templates_help_mentions_json_and_init_follow_up
 - **id**: REQ-CORE-015
   - **title**: Provide a resilient interactive browse CLI
   - **description**:
@@ -93,6 +108,7 @@ description: "Generated reference for docs/syu/requirements/core/workspace.yaml"
       - **file**: src/lib.rs
         - **symbols**:
           - dispatches_interactive_bare_invocations_to_browse_defaults
+          - print_help_dispatch_renders_successfully
       - **file**: src/command/browse.rs
         - **symbols**:
           - *
@@ -282,16 +298,21 @@ requirements:
       requirements and features begin as `planned` so users can begin from a
       working structure instead of manually creating directories and
       placeholder YAML files. By default the tree lives under `docs/syu/`.
-      `syu init --spec-root` MUST support scaffolding the same layout into
-      another repository-relative specification root while writing the matching
-      `spec.root` value into `syu.yaml`, and `syu init --template` MUST support
-      small `rust-only`, `python-only`, and `polyglot` starter layouts so
-      adopters can begin closer to their repository style without copying
-      example files by hand. `syu init --id-prefix` MUST support seeding a
-      shared project-specific stem into the starter philosophy, policy,
-      requirement, and feature IDs, and the per-layer `--philosophy-prefix`,
-      `--policy-prefix`, `--requirement-prefix`, and `--feature-prefix` flags
-      MUST allow narrower overrides when one shared stem is not enough.
+       `syu init --spec-root` MUST support scaffolding the same layout into
+       another repository-relative specification root while writing the matching
+       `spec.root` value into `syu.yaml`, and `syu init --template` MUST support
+       small `rust-only`, `python-only`, and `polyglot` starter layouts so
+       adopters can begin closer to their repository style without copying
+       example files by hand. The CLI MUST also provide `syu templates` so users
+       can discover the available starter layouts, short descriptions, and any
+       matching checked-in examples before they scaffold, and the root help plus
+       closely related `syu init` guidance MUST surface that discovery command
+       alongside `syu init` without sending newcomers to docs first.
+       `syu init --id-prefix` MUST support seeding a
+       shared project-specific stem into the starter philosophy, policy,
+       requirement, and feature IDs, and the per-layer `--philosophy-prefix`,
+       `--policy-prefix`, `--requirement-prefix`, and `--feature-prefix` flags
+       MUST allow narrower overrides when one shared stem is not enough.
     priority: high
     status: implemented
     linked_policies:
@@ -303,6 +324,7 @@ requirements:
       - FEAT-INIT-003
       - FEAT-INIT-004
       - FEAT-INIT-005
+      - FEAT-INIT-006
     tests:
       rust:
         - file: tests/init_command.rs
@@ -311,12 +333,21 @@ requirements:
         - file: src/command/init.rs
           symbols:
             - '*'
+        - file: src/command/templates.rs
+          symbols:
+            - '*'
         - file: src/command/mod.rs
           symbols:
             - '*'
         - file: src/config.rs
           symbols:
             - '*'
+        - file: tests/templates_command.rs
+          symbols:
+            - '*'
+        - file: tests/help_command.rs
+          symbols:
+            - templates_help_mentions_json_and_init_follow_up
   - id: REQ-CORE-015
     title: Provide a resilient interactive browse CLI
     description: |
@@ -348,6 +379,7 @@ requirements:
         - file: src/lib.rs
           symbols:
             - dispatches_interactive_bare_invocations_to_browse_defaults
+            - print_help_dispatch_renders_successfully
         - file: src/command/browse.rs
           symbols:
             - '*'

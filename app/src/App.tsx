@@ -27,7 +27,14 @@ type SectionSummary = {
   itemCount: number;
 };
 
-const SECTION_ORDER: SectionKind[] = ["philosophy", "policies", "features", "requirements"];
+type SearchResult = {
+  id: string;
+  title: string;
+  kind: SectionKind;
+};
+
+const SECTION_ORDER: SectionKind[] = ["philosophy", "policies", "requirements", "features"];
+const SEARCH_RESULTS_LIST_ID = "spec-search-results-list";
 
 const SECTION_COPY: Record<SectionKind, string> = {
   philosophy: "Project intent and enduring values.",
@@ -37,8 +44,13 @@ const SECTION_COPY: Record<SectionKind, string> = {
 };
 
 const ONBOARDING_STORAGE_KEY = "syu-onboarding-dismissed";
+const SEARCH_RESULT_LIMIT = 20;
 const SEARCH_SHORTCUT_KEY_CLASS_NAME =
   "inline-flex items-center rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-slate-300";
+
+function searchResultOptionId(id: string, index: number) {
+  return `spec-search-result-${index}-${id.toLowerCase().replace(/[^a-z0-9_-]/g, "-")}`;
+}
 
 function App() {
   const [workspace, setWorkspace] = useState<BrowserWorkspace | null>(null);
@@ -324,12 +336,15 @@ function App() {
     return Math.max(1, ...sectionSummaries.map((summary) => summary.itemCount));
   }, [sectionSummaries]);
 
-  const searchResults = useMemo(() => {
+  const searchState = useMemo(() => {
     const trimmed = searchQuery.trim().toLowerCase();
     if (!workspace || trimmed.length === 0) {
-      return [];
+      return {
+        results: [] as SearchResult[],
+        hasMore: false,
+      };
     }
-    const results: Array<{ id: string; title: string; kind: SectionKind }> = [];
+    const results: SearchResult[] = [];
     for (const section of workspace.sections) {
       for (const document of section.documents) {
         for (const item of document.items) {
@@ -344,8 +359,20 @@ function App() {
         }
       }
     }
-    return results.slice(0, 20);
+    return {
+      results: results.slice(0, SEARCH_RESULT_LIMIT),
+      hasMore: results.length > SEARCH_RESULT_LIMIT,
+    };
   }, [workspace, searchQuery]);
+  const searchResults = searchState.results;
+  const activeSearchResultId = useMemo(() => {
+    if (focusedResultIndex < 0 || focusedResultIndex >= searchResults.length) {
+      return undefined;
+    }
+
+    return searchResultOptionId(searchResults[focusedResultIndex].id, focusedResultIndex);
+  }, [focusedResultIndex, searchResults]);
+  const hasSearchResultsList = searchQuery.trim().length > 0 && searchResults.length > 0;
 
   useEffect(() => {
     if (loading || !workspace) {
@@ -628,6 +655,11 @@ function App() {
                 note="validated / declared"
                 tone="sky"
                 ratio={requirementTraceRatio}
+                hint={{
+                  label: "Requirement traces",
+                  description:
+                    "Declared traces are the requirement test references written in the spec. Validated traces are the declared references that syu could confirm in the current workspace. A gap means some declared requirement traces are stale or unresolved.",
+                }}
               />
               <CompactMetric
                 label="feature traces"
@@ -635,6 +667,11 @@ function App() {
                 note="validated / declared"
                 tone="violet"
                 ratio={featureTraceRatio}
+                hint={{
+                  label: "Feature traces",
+                  description:
+                    "Declared traces are the feature implementation references written in the spec. Validated traces are the declared references that syu could confirm in the current workspace. A gap means some declared feature traces are stale or unresolved.",
+                }}
               />
             </div>
           </section>
@@ -661,10 +698,18 @@ function App() {
               <input
                 id="spec-search"
                 type="search"
-                aria-describedby="spec-search-shortcuts"
-                placeholder="Search items by ID or keyword…"
+                role="combobox"
+                aria-autocomplete="list"
+                aria-describedby="spec-search-shortcuts-description"
+                aria-controls={hasSearchResultsList ? SEARCH_RESULTS_LIST_ID : undefined}
+                aria-expanded={hasSearchResultsList}
+                aria-activedescendant={hasSearchResultsList ? activeSearchResultId : undefined}
+                placeholder={`Search items by ID or keyword (up to ${SEARCH_RESULT_LIMIT} matches)…`}
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setFocusedResultIndex(-1);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "ArrowDown") {
                     if (searchResults.length === 0) {
@@ -697,53 +742,82 @@ function App() {
                 className="w-full rounded-2xl border border-white/10 bg-slate-900/60 py-2 pl-9 pr-4 text-sm text-slate-100 placeholder-slate-500 focus:border-sky-400/60 focus:outline-none focus:ring-1 focus:ring-sky-400/40"
               />
             </div>
-            <p
-              id="spec-search-shortcuts"
-              className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-slate-400"
+            <p id="spec-search-shortcuts-description" className="sr-only">
+              Keyboard shortcuts: ArrowDown and ArrowUp move through results, Enter opens the
+              highlighted or only match, and Escape clears the search.
+            </p>
+            <div
+              id="spec-search-shortcuts-panel"
+              role="note"
+              className="mt-3 rounded-2xl border border-sky-400/20 bg-sky-400/10 px-3 py-3 text-sm text-sky-50"
             >
-              <span className="mr-1">Shortcuts:</span>
-              <kbd className={SEARCH_SHORTCUT_KEY_CLASS_NAME}>ArrowDown</kbd>
-              <span>next result</span>
-              <kbd className={SEARCH_SHORTCUT_KEY_CLASS_NAME}>ArrowUp</kbd>
-              <span>previous result</span>
-              <kbd className={SEARCH_SHORTCUT_KEY_CLASS_NAME}>Enter</kbd>
-              <span>open the highlighted or only match</span>
-              <kbd className={SEARCH_SHORTCUT_KEY_CLASS_NAME}>Escape</kbd>
-              <span>clear the search</span>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-200">
+                Search shortcuts
+              </p>
+              <p className="mt-1 text-sm text-sky-100">
+                Keep focus in the search box and use the keyboard to move through results.
+              </p>
+              <p className="mt-2 flex flex-wrap items-center gap-1.5 text-sm text-sky-100">
+                <kbd className={SEARCH_SHORTCUT_KEY_CLASS_NAME}>ArrowDown</kbd>
+                <span>next result</span>
+                <kbd className={SEARCH_SHORTCUT_KEY_CLASS_NAME}>ArrowUp</kbd>
+                <span>previous result</span>
+                <kbd className={SEARCH_SHORTCUT_KEY_CLASS_NAME}>Enter</kbd>
+                <span>open the highlighted or only match</span>
+                <kbd className={SEARCH_SHORTCUT_KEY_CLASS_NAME}>Escape</kbd>
+                <span>clear the search</span>
+              </p>
+            </div>
+            <p className="mt-2 text-xs text-slate-400">
+              Search shows up to {SEARCH_RESULT_LIMIT} matches at a time, so refine broad queries
+              for a narrower result list.
             </p>
             {searchQuery.trim().length > 0 && (
-              <div id="search-results-list" className="mt-3 space-y-1">
+              <div className="mt-3 space-y-1">
                 {searchResults.length === 0 ? (
-                  <p className="px-2 py-2 text-xs text-slate-500">No items match.</p>
+                  <p className="px-2 py-2 text-xs text-slate-500" role="status">
+                    No items match.
+                  </p>
                 ) : (
-                  searchResults.map((result, index) => (
-                    <button
-                      key={result.id}
-                      type="button"
-                      onClick={() => handleSearchSelect(result.id)}
-                      className={`flex w-full items-start gap-2 rounded-xl border px-3 py-2 text-left transition hover:border-sky-400/40 hover:bg-sky-400/10 ${
-                        index === focusedResultIndex
-                          ? "border-sky-400/60 bg-white/5 ring-2 ring-sky-400"
-                          : "border-white/5 bg-white/5"
-                      }`}
-                    >
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-xs font-semibold text-sky-300">
-                          {result.id}
+                  <div
+                    id={SEARCH_RESULTS_LIST_ID}
+                    role="listbox"
+                    aria-label="Search results"
+                    className="space-y-1"
+                  >
+                    {searchResults.map((result, index) => (
+                      <div
+                        key={result.id}
+                        id={searchResultOptionId(result.id, index)}
+                        role="option"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onMouseEnter={() => setFocusedResultIndex(index)}
+                        onClick={() => handleSearchSelect(result.id)}
+                        className={`flex cursor-pointer items-start gap-2 rounded-xl border px-3 py-2 text-left transition hover:border-sky-400/40 hover:bg-sky-400/10 ${
+                          index === focusedResultIndex
+                            ? "border-sky-400/60 bg-white/5 ring-2 ring-sky-400"
+                            : "border-white/5 bg-white/5"
+                        }`}
+                      >
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-xs font-semibold text-sky-300">
+                            {result.id}
+                          </span>
+                          <span className="block truncate text-xs text-slate-400">
+                            {result.title}
+                          </span>
                         </span>
-                        <span className="block truncate text-xs text-slate-400">
-                          {result.title}
+                        <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] capitalize text-slate-500">
+                          {result.kind}
                         </span>
-                      </span>
-                      <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] capitalize text-slate-500">
-                        {result.kind}
-                      </span>
-                    </button>
-                  ))
+                      </div>
+                    ))}
+                  </div>
                 )}
-                {searchResults.length === 20 && (
+                {searchState.hasMore && (
                   <p className="px-2 py-1 text-[11px] text-slate-500">
-                    Showing first 20 results — refine your query for fewer matches.
+                    Showing the first {SEARCH_RESULT_LIMIT} matches — refine your query for fewer
+                    results.
                   </p>
                 )}
               </div>
@@ -904,6 +978,9 @@ function App() {
               <div className="mt-5 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-4 text-sm text-amber-100">
                 <p className="font-medium">
                   This document could not be parsed into the expected layer model.
+                </p>
+                <p className="mt-2 break-all font-mono text-xs text-amber-50/90">
+                  File: {currentDocument.path}
                 </p>
                 <p className="mt-2 text-xs leading-6 text-amber-50/80">
                   {currentDocument.parse_error}
@@ -1067,7 +1144,14 @@ function App() {
 }
 
 function firstPopulatedSection(workspace: BrowserWorkspace): SectionKind | null {
-  return workspace.sections.find((section) => section.documents.length > 0)?.kind ?? null;
+  for (const kind of SECTION_ORDER) {
+    const section = workspace.sections.find((candidate) => candidate.kind === kind);
+    if (section && section.documents.length > 0) {
+      return kind;
+    }
+  }
+
+  return null;
 }
 
 function isSectionKind(value: string): value is SectionKind {
@@ -1243,12 +1327,17 @@ function CompactMetric({
   note,
   tone = "sky",
   ratio,
+  hint,
 }: {
   label: string;
   value: string;
   note: string;
   tone?: "sky" | "violet";
   ratio?: number;
+  hint?: {
+    label: string;
+    description: string;
+  };
 }) {
   const barClass = tone === "violet" ? "bg-violet-300" : "bg-sky-300";
 
@@ -1256,7 +1345,10 @@ function CompactMetric({
     <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3">
       <p className="text-[11px] uppercase tracking-[0.25em] text-slate-500">{label}</p>
       <p className="mt-2 text-lg font-semibold text-white">{value}</p>
-      <p className="mt-1 text-xs text-slate-400">{note}</p>
+      <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-400">
+        <p>{note}</p>
+        {hint ? <InfoHint label={hint.label} description={hint.description} /> : null}
+      </div>
       {typeof ratio === "number" ? (
         <div className="mt-3 h-2 rounded-full bg-white/5">
           <div className={`h-full rounded-full ${barClass}`} style={{ width: `${ratio * 100}%` }} />
