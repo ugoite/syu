@@ -17,6 +17,7 @@ fn root_help_includes_start_here_guidance() {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("New here?"));
+    assert!(stdout.contains("syu templates"));
     assert!(stdout.contains("syu init ."));
     assert!(stdout.contains("syu validate ."));
     assert!(stdout.contains("syu browse ."));
@@ -104,6 +105,7 @@ fn init_help_lists_starter_templates() {
     assert!(output.status.success(), "init help should succeed");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("syu templates"));
     assert!(stdout.contains("--template"));
     assert!(stdout.contains("rust-only"));
     assert!(stdout.contains("python-only"));
@@ -141,6 +143,24 @@ fn init_help_mentions_id_prefix_options() {
     assert!(stdout.contains("--requirement-prefix"));
     assert!(stdout.contains("PHIL-<stem>"));
     assert!(stdout.contains("REQ-<stem>"));
+}
+
+#[test]
+// REQ-CORE-009
+fn templates_help_mentions_json_and_init_follow_up() {
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .args(["templates", "--help"])
+        .output()
+        .expect("help should render");
+
+    assert!(output.status.success(), "templates help should succeed");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("--format"));
+    assert!(stdout.contains("syu templates --format json"));
+    assert!(stdout.contains("syu init --template"));
+    assert!(stdout.contains("related checked-in examples"));
 }
 
 #[test]
