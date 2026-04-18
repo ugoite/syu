@@ -22,7 +22,7 @@ description: "Generated reference for docs/syu/features/cli/relate.yaml"
   - **summary**: Follow one ID, path, or traced source symbol through the connected specification graph, including evidence and suspicious gaps.
   - **status**: implemented
   - **linked_requirements**:
-    - REQ-CORE-022
+    - REQ-CORE-023
   - **implementations**:
     - **rust**:
       - **file**: src/command/relate.rs
@@ -54,7 +54,7 @@ features:
     summary: Follow one ID, path, or traced source symbol through the connected specification graph, including evidence and suspicious gaps.
     status: implemented
     linked_requirements:
-      - REQ-CORE-022
+      - REQ-CORE-023
     implementations:
       rust:
         - file: src/command/relate.rs

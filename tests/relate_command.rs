@@ -1,4 +1,4 @@
-// REQ-CORE-022
+// REQ-CORE-023
 
 use assert_cmd::cargo::CommandCargoExt;
 use serde_json::Value;
@@ -78,9 +78,10 @@ fn write_root_file_fixture_workspace() -> tempfile::TempDir {
     .expect("feature registry");
     fs::write(
         docs_root.join("features/root.yaml"),
-        "category: Root\nversion: 1\nfeatures:\n  - id: FEAT-ROOT-001\n    title: Root file selector\n    summary: The relate command should treat README.md as a path selector.\n    status: planned\n    linked_requirements:\n      - REQ-ROOT-001\n    implementations:\n      markdown:\n        - file: README.md\n          symbols: []\n",
+        "category: Root\nversion: 1\nfeatures:\n  - id: FEAT-ROOT-001\n    title: Root file selector\n    summary: The relate command should treat README.md and LICENSE as path selectors.\n    status: planned\n    linked_requirements:\n      - REQ-ROOT-001\n    implementations:\n      markdown:\n        - file: README.md\n          symbols: []\n        - file: LICENSE\n          symbols: []\n",
     )
     .expect("feature file");
+    fs::write(tempdir.path().join("LICENSE"), "fixture license\n").expect("license file");
 
     tempdir
 }
@@ -181,6 +182,33 @@ fn relate_command_treats_missing_root_level_files_as_path_selectors() {
     let json: Value = serde_json::from_slice(&output.stdout).expect("json output");
     assert_eq!(json["selection"]["kind"], "path");
     assert_eq!(json["selection"]["query"], "README.md");
+    assert_eq!(
+        json["direct_matches"]["traces"][0]["owner_id"],
+        "FEAT-ROOT-001"
+    );
+    assert_eq!(json["features"][0]["id"], "FEAT-ROOT-001");
+    assert_eq!(json["requirements"][0]["id"], "REQ-ROOT-001");
+}
+
+#[test]
+fn relate_command_treats_existing_extensionless_root_files_as_path_selectors() {
+    let workspace = write_root_file_fixture_workspace();
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .args([
+            "relate",
+            "LICENSE",
+            workspace.path().to_str().expect("utf8 path"),
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("command should run");
+
+    assert!(output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout).expect("json output");
+    assert_eq!(json["selection"]["kind"], "path");
+    assert_eq!(json["selection"]["query"], "LICENSE");
     assert_eq!(
         json["direct_matches"]["traces"][0]["owner_id"],
         "FEAT-ROOT-001"

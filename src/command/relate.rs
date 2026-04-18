@@ -1,5 +1,5 @@
 // FEAT-RELATE-001
-// REQ-CORE-022
+// REQ-CORE-023
 
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -151,6 +151,10 @@ fn resolve_selection(
         return Ok(resolve_definition_selection(catalog, entity));
     }
 
+    if selector_matches_existing_workspace_path(workspace.root.as_path(), selector)? {
+        return resolve_path_selection(workspace.root.as_path(), catalog, workspace, selector);
+    }
+
     if is_path_like(selector) {
         return resolve_path_selection(workspace.root.as_path(), catalog, workspace, selector);
     }
@@ -283,6 +287,11 @@ fn is_path_like(selector: &str) -> bool {
         || selector.starts_with("../")
         || path.is_absolute()
         || path.extension().is_some()
+}
+
+fn selector_matches_existing_workspace_path(workspace_root: &Path, selector: &str) -> Result<bool> {
+    let normalized = normalize_selector_path(workspace_root, selector)?;
+    Ok(workspace_root.join(normalized).exists())
 }
 
 fn normalize_selector_path(workspace_root: &Path, selector: &str) -> Result<String> {
