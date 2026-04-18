@@ -32,11 +32,12 @@ verified.
 Pick the newcomer path that matches what you need next:
 
 - **Quick start**: stay in this README when you already grasp the four-layer
-  idea, want a roughly 5-minute reference-style setup path, and are comfortable
-  making the first manual YAML edits after a short refresher.
+  idea, want the shortest roughly 5-minute path from install to `syu validate .`,
+  and are comfortable making the first manual YAML edits after a short
+  refresher.
 - **Getting started**: follow
   [`docs/guide/getting-started.md`](docs/guide/getting-started.md) when you want
-  the first setup narrated step by step before the manual editing work.
+  the first workspace setup narrated step by step before the manual YAML edits.
 - **Existing repository adoption**: follow
   [`docs/guide/existing-repository.md`](docs/guide/existing-repository.md) when
   the repository already has code and history and you want an incremental
@@ -213,8 +214,13 @@ below. The rest of this section assumes you installed the published CLI.
 
 ## Quick start
 
-Stay in this README for the shortest install-to-validate path. If you skipped
-[`docs/guide/concepts.md`](docs/guide/concepts.md), use the
+Treat this section as the compact command card. Stay in this README when you
+want the shortest install-to-validate path and are comfortable with a concise
+reference flow. If you want the first-run walkthrough explained step by step,
+switch to [`docs/guide/getting-started.md`](docs/guide/getting-started.md)
+before continuing.
+
+If you skipped [`docs/guide/concepts.md`](docs/guide/concepts.md), use the
 [Why four layers?](#why-four-layers) section above as the refresher on
 `philosophy`, `policy`, `requirements`, and `features`.
 
@@ -223,8 +229,10 @@ YAML: add `linked_policies:` and `linked_features:` there, then update the
 adjacent policy and feature YAML so they add the reciprocal
 `linked_requirements:` entry back to the new requirement.
 
-Read [`docs/guide/concepts.md`](docs/guide/concepts.md) first if you want the
-fuller rationale and authoring guidance before continuing.
+Read [`docs/guide/concepts.md`](docs/guide/concepts.md) if you want fuller
+rationale and authoring guidance, or jump to
+[`docs/guide/getting-started.md`](docs/guide/getting-started.md) if you want
+the canonical narrated first-run path.
 
 Step 0: required — run `syu init .` before any of the other commands in a new
 repository. If the repository already exists and you do not want an in-place
