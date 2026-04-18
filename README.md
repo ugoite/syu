@@ -31,27 +31,50 @@ verified.
 
 Pick the newcomer path that matches what you need next:
 
-- **Quick start**: stay in this README when you want the shortest path from install
-  to `syu validate .` and only need a short layer refresher before the first
-  commands.
+- **Quick start**: stay in this README when the in-page four-layer refresher is
+  enough, you already grasp the four-layer idea, want the shortest roughly
+  5-minute path from install to `syu validate .`, and are comfortable making
+  the first manual YAML edits after a short refresher.
+- **Getting started**: follow
+  [`docs/guide/getting-started.md`](docs/guide/getting-started.md) when you want
+  the same first workspace setup explained step by step before the manual YAML
+  edits and first validation run.
 - **Existing repository adoption**: follow
   [`docs/guide/existing-repository.md`](docs/guide/existing-repository.md) when
   the repository already has code and history and you want an incremental
   adoption path instead of starting with `syu init`.
+- **Upgrade or migration**: start with
+  [`docs/guide/migration.md`](docs/guide/migration.md) when you are updating an
+  existing `syu` workspace between alpha releases and need the release-specific
+  upgrade steps first.
+- **Visual explorer**: open [`docs/guide/app.md`](docs/guide/app.md) or run
+  `syu app .` when you want graphical spec navigation before learning the full
+  CLI workflow.
 - **Tutorial**: follow [`docs/guide/tutorial.md`](docs/guide/tutorial.md) when you
-  want a realistic end-to-end repository story instead of a short scaffold flow.
+  want a realistic end-to-end repository story instead of a short setup path.
+- **Trace adapter matrix**: open
+  [`docs/guide/trace-adapter-support.md`](docs/guide/trace-adapter-support.md)
+  when you need to know which built-in languages support symbol validation
+  only versus `doc_contains` and strict coverage.
 - **Troubleshooting**: jump to
-  [`docs/guide/troubleshooting.md`](docs/guide/troubleshooting.md) when validation
-  or traceability errors are already blocking you.
+  [`docs/guide/troubleshooting.md`](docs/guide/troubleshooting.md) when you
+  already have a workspace and validation or traceability errors are blocking
+  the next step more than onboarding is.
+- **Spec anti-patterns**: read
+  [`docs/guide/spec-antipatterns.md`](docs/guide/spec-antipatterns.md) when the
+  workspace validates but the layer boundaries still feel messy.
 
 Keep the detailed guides close:
 
 - [`docs/guide/concepts.md`](docs/guide/concepts.md)
 - [`docs/guide/getting-started.md`](docs/guide/getting-started.md)
+- [`docs/guide/migration.md`](docs/guide/migration.md)
+- [`docs/guide/trace-adapter-support.md`](docs/guide/trace-adapter-support.md)
 - [`docs/guide/existing-repository.md`](docs/guide/existing-repository.md)
 - [`docs/guide/tutorial.md`](docs/guide/tutorial.md)
 - [`docs/guide/configuration.md`](docs/guide/configuration.md)
 - [`docs/guide/troubleshooting.md`](docs/guide/troubleshooting.md)
+- [`docs/guide/spec-antipatterns.md`](docs/guide/spec-antipatterns.md)
 - [`CONTRIBUTING.md`](CONTRIBUTING.md)
 
 ## Is syu right for this repository?
@@ -200,18 +223,26 @@ below. The rest of this section assumes you installed the published CLI.
 
 ## Quick start
 
-Stay in this README for the shortest install-to-validate path. If you skipped
-[`docs/guide/concepts.md`](docs/guide/concepts.md), use the
-[Why four layers?](#why-four-layers) section above as the refresher on
-`philosophy`, `policy`, `requirements`, and `features`.
+Treat this section as the compact command card. Stay in this README when the
+in-page four-layer refresher is enough and you want the shortest install-to-validate path.
+If you want the first-run walkthrough explained step by step instead, switch to
+[`docs/guide/getting-started.md`](docs/guide/getting-started.md) before
+continuing.
+
+The only prerequisite for the commands below is the
+[Why four layers?](#why-four-layers) refresher above, which gives you the
+minimal context for `philosophy`, `policy`, `requirements`, and `features`.
 
 The first manual edit in this quick start happens in the generated requirement
 YAML: add `linked_policies:` and `linked_features:` there, then update the
 adjacent policy and feature YAML so they add the reciprocal
 `linked_requirements:` entry back to the new requirement.
 
-Read [`docs/guide/concepts.md`](docs/guide/concepts.md) first if you want the
-fuller rationale and authoring guidance before continuing.
+Read [`docs/guide/concepts.md`](docs/guide/concepts.md) before continuing only
+if you want the fuller rationale and authoring guidance instead of the shortest
+README-first path.
+If you want the canonical narrated first-run path instead, jump to
+[`docs/guide/getting-started.md`](docs/guide/getting-started.md).
 
 Step 0: required — run `syu init .` before any of the other commands in a new
 repository. If the repository already exists and you do not want an in-place
@@ -286,10 +317,14 @@ Want a closer starting point for a repository that is already clearly
 Rust-first, Python-first, or polyglot? Start with a lightweight template:
 
 ```bash
+syu templates
 syu init . --template rust-only
 syu init . --template python-only
 syu init . --template polyglot
 ```
+
+Use `syu templates` first when you want the built-in starter names, short
+descriptions, and related checked-in example paths in one command.
 
 You can combine both flags when you want a custom spec root and a closer
 starter layout:
@@ -323,6 +358,28 @@ style you already expect. Use `--id-prefix` when you want stable project-wide
 starter IDs from the first command, and the per-layer `--*-prefix` flags when a
 single shared stem is not enough. Use `--spec-root` to scaffold into a
 repository-relative spec tree without moving the generated files by hand later.
+
+### `syu templates`
+
+List starter templates and their related checked-in examples before you
+scaffold:
+
+```bash
+syu templates
+syu templates --format json
+```
+
+Use this command when you want a quick discovery view. Each row shows the
+template name, whether it is starter-only or backed by both a template and a
+checked-in example, the related example path when one exists, and a short
+description of the starter shape.
+
+Working in Go, Java, C#, or another unsupported implementation language? Start
+with the spec layers first and add code-level traces once adapter support
+lands. For supported lightweight adapters such as `shell`, `yaml`, `json`,
+`markdown`, and `gitignore`, keep traces to file or symbol ownership without
+`doc_contains`. The newcomer path and roadmap links live in
+[`docs/guide/getting-started.md`](docs/guide/getting-started.md#unsupported-implementation-languages-can-still-adopt-the-spec-layers-first).
 
 ### `syu add`
 
@@ -364,7 +421,9 @@ syu validate . --require-symbol-trace-coverage
 Use `--severity`, `--genre`, `--rule`, and `--id` to narrow the rendered issue list
 without changing the underlying validation result or exit code.
 Use the validate override flags for one-off stricter or looser runs without
-editing `syu.yaml`.
+editing `syu.yaml`. Before you rely on `doc_contains` or strict trace coverage
+in a mixed-language repository, check the [trace adapter capability
+matrix](docs/guide/trace-adapter-support.md).
 
 For a plain-English guide to common validation errors, see the
 [troubleshooting guide](docs/guide/troubleshooting.md).
@@ -501,6 +560,7 @@ Key behaviors:
 - `validate.require_non_orphaned_items` turns isolated layered definitions into validation errors
 - `validate.require_reciprocal_links` keeps adjacent-layer backlinks mandatory by default while still allowing phased migration when disabled
 - `validate.require_symbol_trace_coverage` opt-in checks that public Rust, Python, and TypeScript/JavaScript symbols belong to features and tests belong to requirements
+- the [trace adapter capability matrix](docs/guide/trace-adapter-support.md) shows which built-in languages stop at symbol validation versus also supporting `doc_contains` and strict ownership inventory
 - `report.output` sets the default `syu report` destination while `--output` still takes precedence
 - `app.bind` and `app.port` define the default local browser-app address and port unless `--bind` / `--port` override them
 - `report.output` sets the default `syu report` destination while `--output` still takes precedence
@@ -549,9 +609,10 @@ missing files.
 
 The repository ships working example projects:
 
-- [`examples/rust-only`](examples/rust-only)
-- [`examples/python-only`](examples/python-only)
-- [`examples/polyglot`](examples/polyglot)
+- [`examples/rust-only`](examples/rust-only) — minimal single-language Rust starter, and the checked-in match for `syu init . --template rust-only`
+- [`examples/python-only`](examples/python-only) — minimal Python-first starter, and the checked-in match for `syu init . --template python-only`
+- [`examples/polyglot`](examples/polyglot) — one requirement and feature traced across Rust, Python, and TypeScript, and the checked-in match for `syu init . --template polyglot`
+- [`examples/team-scale`](examples/team-scale) — a larger Rust workspace that shows phased adoption, nested documents, and recovery drills; reference-only, not a starter template
 
 Each one is validated in the automated test suite.
 
@@ -660,7 +721,7 @@ nested YAML document under `features/`.
 
 ## Built-in language adapters
 
-`syu` validates the languages used in `ugoite` today:
+`syu` validates these built-in implementation languages in this checked-in version:
 
 - Rust
 - Python

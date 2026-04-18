@@ -7,6 +7,11 @@ const usesFailingWorkspace =
   process.env.SYU_APP_E2E_WORKSPACE?.includes("tests/fixtures/workspaces/failing") ?? false;
 
 type AppDataPayload = {
+  source_documents: Array<{
+    section: "philosophy" | "policies" | "features" | "requirements";
+    path: string;
+    content: string;
+  }>;
   validation: {
     issues: Array<{
       code: string;
@@ -18,6 +23,26 @@ type AppDataPayload = {
     }>;
   };
 };
+
+function injectParseError(payload: AppDataPayload): { payload: AppDataPayload; path: string } {
+  const target = payload.source_documents.find((document) => document.section === "philosophy");
+
+  if (!target) {
+    throw new Error("Expected a philosophy source document in the app payload.");
+  }
+
+  return {
+    path: target.path,
+    payload: {
+      ...payload,
+      source_documents: payload.source_documents.map((document) =>
+        document.path === target.path
+          ? { ...document, content: "category: Philosophy\nphilosophies: [" }
+          : document,
+      ),
+    },
+  };
+}
 
 type ValidationIssue = AppDataPayload["validation"]["issues"][number];
 
@@ -83,6 +108,30 @@ function swapDuplicateIssues(payload: AppDataPayload, code: string): AppDataPayl
   };
 }
 
+test("repeats the YAML path inside parse-error banners", async ({ page }) => {
+  let mutatedPath = "";
+
+  await page.route("**/api/app-data.json", async (route) => {
+    const response = await route.fetch();
+    const payload = (await response.json()) as AppDataPayload;
+    const mutated = injectParseError(payload);
+    mutatedPath = mutated.path;
+    await route.fulfill({
+      response,
+      body: JSON.stringify(mutated.payload),
+    });
+  });
+
+  await page.goto("/");
+
+  const banner = page
+    .getByText("This document could not be parsed into the expected layer model.")
+    .locator("..");
+  await expect(banner).toBeVisible();
+  await expect(banner).toContainText(`File: ${mutatedPath}`);
+  await expect(banner).toContainText("did not find expected node content");
+});
+
 test("renders top tabs and linked spec content", async ({ page }) => {
   await page.goto("/");
 
@@ -136,16 +185,61 @@ test("loads deep links and supports keyboard search navigation", async ({ page }
   ).toBeVisible();
   await expect(page).toHaveURL(/#requirements\/REQ-CORE-001$/);
 
-  const searchInput = page.getByRole("searchbox", { name: "Search spec items" });
-  await expect(searchInput).toHaveAttribute("aria-describedby", "spec-search-shortcuts");
-  const shortcutHint = page.locator("#spec-search-shortcuts");
-  await expect(shortcutHint).toBeVisible();
-  await expect(shortcutHint).toContainText("ArrowDown");
-  await expect(shortcutHint).toContainText("ArrowUp");
-  await expect(shortcutHint).toContainText("Enter");
-  await expect(shortcutHint).toContainText("Escape");
+  const searchInput = page.getByRole("combobox", { name: "Search spec items" });
+  await expect(searchInput).toHaveAttribute(
+    "aria-describedby",
+    "spec-search-shortcuts-description",
+  );
+  await expect(searchInput).toHaveAttribute("aria-autocomplete", "list");
+  await expect(searchInput).toHaveAttribute("aria-expanded", "false");
+  await expect(searchInput).not.toHaveAttribute("aria-controls", "spec-search-results-list");
+  await expect(searchInput).toHaveAttribute(
+    "placeholder",
+    "Search items by ID or keyword (up to 20 matches)…",
+  );
+  const shortcutDescription = page.locator("#spec-search-shortcuts-description");
+  await expect(shortcutDescription).toHaveText(
+    "Keyboard shortcuts: ArrowDown and ArrowUp move through results, Enter opens the highlighted or only match, and Escape clears the search.",
+  );
+  const shortcutPanel = page.locator("#spec-search-shortcuts-panel");
+  await expect(shortcutPanel).toBeVisible();
+  await expect(shortcutPanel).toContainText("Search shortcuts");
+  await expect(shortcutPanel).toContainText(
+    "Keep focus in the search box and use the keyboard to move through results.",
+  );
+  await expect(shortcutPanel).toContainText("ArrowDown");
+  await expect(shortcutPanel).toContainText("ArrowUp");
+  await expect(shortcutPanel).toContainText("Enter");
+  await expect(shortcutPanel).toContainText("Escape");
+  await expect(
+    page.getByText(
+      "Search shows up to 20 matches at a time, so refine broad queries for a narrower result list.",
+    ),
+  ).toBeVisible();
+  await searchInput.fill("core");
+  await expect(
+    page.getByText("Showing the first 20 matches — refine your query for fewer results."),
+  ).toHaveCount(0);
+  await searchInput.press("Escape");
+  await expect(searchInput).toHaveValue("");
+  await searchInput.fill("spec");
+  await expect(
+    page.getByText("Showing the first 20 matches — refine your query for fewer results."),
+  ).toBeVisible();
+  await searchInput.press("Escape");
+  await expect(searchInput).toHaveValue("");
   await searchInput.fill("FEAT-CHECK-001");
+  await expect(searchInput).toHaveAttribute("aria-expanded", "true");
+  await expect(searchInput).toHaveAttribute("aria-controls", "spec-search-results-list");
+  const searchResults = page.getByRole("listbox", { name: "Search results" });
+  const firstSearchResult = searchResults.getByRole("option").first();
+  await expect(firstSearchResult).toContainText("FEAT-CHECK-001");
   await searchInput.press("ArrowDown");
+  const activeResultId = await searchInput.getAttribute("aria-activedescendant");
+  expect(activeResultId).toBeTruthy();
+  const activeResult = page.locator(`#${activeResultId!}`);
+  await expect(activeResult).toContainText("FEAT-CHECK-001");
+  await expect(activeResult).not.toHaveAttribute("aria-selected", "true");
   await searchInput.press("ArrowUp");
   await searchInput.press("ArrowDown");
   await searchInput.press("Enter");
@@ -156,15 +250,33 @@ test("loads deep links and supports keyboard search navigation", async ({ page }
   await expect(page).toHaveURL(/#features\/FEAT-CHECK-001$/);
 
   await searchInput.fill("no-such-result");
+  await expect(searchInput).toHaveAttribute("aria-expanded", "false");
+  await expect(searchInput).not.toHaveAttribute("aria-controls", "spec-search-results-list");
   await searchInput.press("ArrowUp");
   await searchInput.press("Enter");
 
   await expect(page.getByText("No items match.")).toBeVisible();
   await searchInput.press("Escape");
   await expect(searchInput).toHaveValue("");
-  await expect(page.locator("#search-results-list")).toHaveCount(0);
+  await expect(searchInput).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByRole("listbox", { name: "Search results" })).toHaveCount(0);
   await expect(
     page.getByRole("heading", { name: /FEAT-CHECK-001 .* Unified validation command/i }),
+  ).toBeVisible();
+});
+
+test("explains requirement and feature trace metrics", async ({ page }) => {
+  await page.goto("/");
+
+  await expect(
+    page.getByRole("button", {
+      name: /Requirement traces: Declared traces are the requirement test references written in the spec\./i,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: /Feature traces: Declared traces are the feature implementation references written in the spec\./i,
+    }),
   ).toBeVisible();
 });
 
