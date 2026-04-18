@@ -450,6 +450,7 @@ fn repository_declares_documentation_guides() {
     assert!(trace_adapter_support.contains("| Go | `go`, `golang`, `gotest` / `.go` |"));
     assert!(examples_and_templates.contains("starter templates"));
     assert!(examples_and_templates.contains("checked-in examples"));
+    assert!(examples_and_templates.contains("examples/docs-first"));
     assert!(examples_and_templates.contains("`syu init . --template rust-only`"));
     assert!(examples_and_templates.contains("examples/polyglot"));
     assert!(merge_queue_playbook.contains("merge_group"));
