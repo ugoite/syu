@@ -294,16 +294,22 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("docs/guide/trace-adapter-support.md"));
     assert!(readme.contains("Trace adapter matrix"));
     assert!(readme.contains("docs/guide/tutorial.md"));
+    assert!(readme.contains("docs/guide/migration.md"));
+    assert!(readme.contains("docs/guide/app.md"));
     assert!(readme.contains("docs/guide/troubleshooting.md"));
     assert!(readme.contains("docs/guide/spec-antipatterns.md"));
     assert!(readme.contains("docs/guide/vscode-extension.md"));
     assert!(readme.contains("shortest install-to-validate path"));
-    assert!(readme.contains("the in-page four-layer refresher is"));
+    assert!(readme.contains("do **not** already know the four-layer model"));
     assert!(readme.contains("**Getting started**"));
-    assert!(readme.contains("using `syu` for the first time"));
+    assert!(readme.contains("**Migration / upgrade**"));
+    assert!(readme.contains("**Visual explorer**"));
+    assert!(readme.contains("new to `syu`"));
     assert!(readme.contains("already have a workspace"));
-    assert!(readme.contains("first workspace setup"));
-    assert!(readme.contains("explained step by step"));
+    assert!(readme.contains("10-15 minutes"));
+    assert!(readme.contains("about 5 minutes"));
+    assert!(readme.contains("longer walkthrough"));
+    assert!(readme.contains("unblocking an existing workspace"));
     assert!(readme.contains("[Why four layers?](#why-four-layers)"));
     assert!(readme.contains("Step 0: required"));
     assert!(readme.contains("Generate a requirement stub"));
@@ -357,6 +363,7 @@ fn repository_declares_documentation_guides() {
     assert!(anti_patterns.contains("When to merge, split, or rename spec items"));
     assert!(anti_patterns.contains("green-but-messy spec"));
     assert!(app_guide.contains("Status badge"));
+    assert!(app_guide.contains("README chooser on GitHub"));
     assert!(app_guide.contains("## Search shortcuts"));
     assert!(app_guide.contains("ArrowDown"));
     assert!(app_guide.contains("Escape"));
@@ -369,8 +376,12 @@ fn repository_declares_documentation_guides() {
         getting_started.contains("[trace adapter capability matrix](./trace-adapter-support.md)")
     );
     assert!(
-        getting_started.contains("https://github.com/ugoite/syu/blob/main/README.md#quick-start")
+        getting_started
+            .contains("https://github.com/ugoite/syu/blob/main/README.md#choose-your-path")
     );
+    assert!(getting_started.contains(
+        "https://github.com/ugoite/syu/blob/main/README.md#is-syu-right-for-this-repository"
+    ));
     assert!(getting_started.contains("narrated first-run path"));
     assert!(getting_started.contains("first workspace setup explained step by"));
     assert!(getting_started.contains("first manual editing step"));
@@ -451,8 +462,11 @@ fn repository_declares_documentation_guides() {
     assert!(trace_adapter_support.contains("| Go | `go`, `golang`, `gotest` / `.go` |"));
     assert!(examples_and_templates.contains("starter templates"));
     assert!(examples_and_templates.contains("checked-in examples"));
+    assert!(examples_and_templates.contains("examples/docs-first"));
     assert!(examples_and_templates.contains("`syu init . --template rust-only`"));
+    assert!(examples_and_templates.contains("examples/go-only"));
     assert!(examples_and_templates.contains("examples/polyglot"));
+    assert!(examples_and_templates.contains("examples/team-scale"));
     assert!(merge_queue_playbook.contains("merge_group"));
     assert!(merge_queue_playbook.contains("gh api graphql"));
     assert!(merge_queue_playbook.contains("AWAITING_CHECKS"));
@@ -597,6 +611,8 @@ fn repository_ships_example_workspaces() {
     let rust_example_config = read_file("examples/rust-only/syu.yaml");
     let python_example_requirement =
         read_file("examples/python-only/docs/syu/requirements/core/python.yaml");
+    let docs_first_requirement =
+        read_file("examples/docs-first/docs/syu/requirements/core/docs.yaml");
     let go_example_requirement = read_file("examples/go-only/docs/syu/requirements/core/go.yaml");
     let go_example_readme = read_file("examples/go-only/README.md");
     let polyglot_feature = read_file("examples/polyglot/docs/syu/features/languages/polyglot.yaml");
@@ -605,11 +621,14 @@ fn repository_ships_example_workspaces() {
     assert!(rust_example_requirement.contains("REQ-RUST-001"));
     assert!(rust_example_config.contains(&format!("version: {current_version}")));
     assert!(python_example_requirement.contains("REQ-PY-001"));
+    assert!(docs_first_requirement.contains("REQ-DOCS-001"));
+    assert!(docs_first_requirement.contains("DocsFirstAcceptanceChecklist"));
     assert!(go_example_requirement.contains("REQ-GO-001"));
     assert!(go_example_readme.contains("TestGoRequirement"));
     assert!(go_example_readme.contains("GoFeatureImpl"));
     assert!(polyglot_feature.contains("FEAT-MIX-001"));
     assert!(polyglot_feature.contains("status: implemented"));
+    assert!(example_tests.contains("docs_first_example_validates"));
     assert!(example_tests.contains("rust_only_example_validates"));
     assert!(example_tests.contains("python_only_example_validates"));
     assert!(example_tests.contains("go_only_example_validates"));
