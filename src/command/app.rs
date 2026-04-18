@@ -157,18 +157,23 @@ struct AppServerSettings {
     port: u16,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum StartupLine {
-    Message(String),
-}
+fn bind_failure_message(
+    workspace_root: &Path,
+    bind: IpAddr,
+    port: u16,
+    error: &std::io::Error,
+) -> String {
+    let likely_cause = if error.kind() == std::io::ErrorKind::AddrInUse {
+        "The selected port is likely already in use."
+    } else {
+        "The selected address or port may be unavailable on this machine."
+    };
+    let workspace = workspace_root.display();
 
-fn print_startup_lines(lines: impl IntoIterator<Item = StartupLine>) {
-    for line in lines {
-        let StartupLine::Message(message) = line;
-        println!("{message}");
-    }
+    format!(
+        "failed to bind `{bind}:{port}`. {likely_cause} Try `syu app {workspace} --port <free-port>` to retry with a different port, or set `app.port` in syu.yaml to change the default. {error}"
+    )
 }
-
 pub fn run_app_command(args: &AppArgs) -> Result<i32> {
     let workspace_root = canonical_workspace_root(&args.workspace)?;
     let loaded = load_config(&workspace_root)?;
@@ -178,7 +183,7 @@ pub fn run_app_command(args: &AppArgs) -> Result<i32> {
         .parse::<IpAddr>()
         .with_context(|| format!("invalid bind address `{}`", settings.bind))?;
     build_app_payload_from_config(&workspace_root, &loaded.config)?;
-    let state = AppState::new(workspace_root, loaded.config);
+    let state = AppState::new(workspace_root.clone(), loaded.config);
     let _ = state.refresh_current();
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -190,7 +195,14 @@ pub fn run_app_command(args: &AppArgs) -> Result<i32> {
         let refresher = tokio::spawn(refresh_current_until_shutdown(state.clone()));
         let listener = tokio::net::TcpListener::bind((bind, settings.port))
             .await
-            .with_context(|| format!("failed to bind `{bind}:{}`", settings.port))?;
+            .map_err(|error| {
+                anyhow!(bind_failure_message(
+                    &workspace_root,
+                    bind,
+                    settings.port,
+                    &error,
+                ))
+            })?;
         let local_addr = listener
             .local_addr()
             .context("failed to inspect bind address")?;
@@ -200,18 +212,11 @@ pub fn run_app_command(args: &AppArgs) -> Result<i32> {
                 .await
                 .context("local app server exited unexpectedly")
         });
-        print_startup_lines(non_loopback_warning_lines(local_addr.ip()));
-        println!("syu app listening on http://{local_addr}");
-        std::io::stdout()
-            .flush()
-            .context("failed to flush stdout")?;
+        emit_startup_lines(non_loopback_warning_lines(local_addr.ip()))?;
         tokio::task::spawn_blocking(move || wait_for_ready(local_addr))
             .await
             .context("local app readiness probe panicked")??;
-        print_startup_lines(startup_lines(local_addr));
-        std::io::stdout()
-            .flush()
-            .context("failed to flush stdout")?;
+        emit_startup_lines(startup_lines(local_addr))?;
 
         let result = server.await.context("local app server task panicked")?;
         refresher.abort();
@@ -221,28 +226,37 @@ pub fn run_app_command(args: &AppArgs) -> Result<i32> {
     Ok(0)
 }
 
-fn startup_lines(local_addr: SocketAddr) -> Vec<StartupLine> {
+fn startup_lines(local_addr: SocketAddr) -> Vec<String> {
     vec![
-        StartupLine::Message(format!("syu app ready: http://{local_addr}")),
-        StartupLine::Message(format!("Open http://{local_addr} in your browser.")),
-        StartupLine::Message("Press Ctrl-C to stop.".to_string()),
+        format!("syu app listening on http://{local_addr}"),
+        format!("syu app ready: http://{local_addr}"),
+        format!("Open http://{local_addr} in your browser."),
+        "Press Ctrl-C to stop.".to_string(),
     ]
 }
 
-fn non_loopback_warning_lines(bind: IpAddr) -> Vec<StartupLine> {
+fn non_loopback_warning_lines(bind: IpAddr) -> Vec<String> {
     if bind.is_loopback() {
         return Vec::new();
     }
 
     vec![
-        StartupLine::Message(format!(
+        format!(
             "warning: syu app is bound to {bind}, so workspace data and source documents may be reachable from other machines on your network."
-        )),
-        StartupLine::Message(
-            "warning: use --bind 127.0.0.1 to keep the browser UI local to this machine."
-                .to_string(),
         ),
+        "warning: use --bind 127.0.0.1 to keep the browser UI local to this machine.".to_string(),
     ]
+}
+
+fn emit_startup_lines(lines: Vec<String>) -> Result<()> {
+    for message in lines {
+        println!("{message}");
+        std::io::stdout()
+            .flush()
+            .context("failed to flush stdout")?;
+    }
+
+    Ok(())
 }
 
 fn resolve_app_server_settings(args: &AppArgs, config: &SyuConfig) -> AppServerSettings {
@@ -965,8 +979,8 @@ mod tests {
 
     use super::{
         AppPayload, AppServerSettings, AppState, AppVersion, SectionKind, Severity,
-        SnapshotDependency, StartupLine, app_router, browser_root_labels, build_app_payload,
-        collect_feature_sources, collect_snapshot_files_with_extensions,
+        SnapshotDependency, app_router, bind_failure_message, browser_root_labels,
+        build_app_payload, collect_feature_sources, collect_snapshot_files_with_extensions,
         collect_yaml_sources_recursive, content_type_for_path, is_asset_like,
         load_current_snapshot, non_loopback_warning_lines, normalized_asset_path,
         normalized_trace_snapshot_path, readiness_probe_request_sent, readiness_probe_succeeds,
@@ -1196,33 +1210,58 @@ mod tests {
     }
 
     #[test]
-    fn non_loopback_warning_lines_describe_network_exposure() {
-        let lines = non_loopback_warning_lines("0.0.0.0".parse().expect("valid ip"));
+    fn startup_lines_keep_ready_messages_on_stdout() {
+        let lines = startup_lines("0.0.0.0:4123".parse().expect("valid socket"));
         assert_eq!(
             lines,
             vec![
-                StartupLine::Message(
-                    "warning: syu app is bound to 0.0.0.0, so workspace data and source documents may be reachable from other machines on your network.".to_string()
-                ),
-                StartupLine::Message(
-                    "warning: use --bind 127.0.0.1 to keep the browser UI local to this machine."
-                        .to_string()
-                ),
+                "syu app listening on http://0.0.0.0:4123".to_string(),
+                "syu app ready: http://0.0.0.0:4123".to_string(),
+                "Open http://0.0.0.0:4123 in your browser.".to_string(),
+                "Press Ctrl-C to stop.".to_string(),
             ]
         );
     }
 
     #[test]
-    fn startup_lines_only_include_ready_and_stop_guidance() {
-        let lines = startup_lines("0.0.0.0:4123".parse().expect("valid socket"));
+    fn non_loopback_warning_lines_emit_stdout_warnings_before_ready_messages() {
+        let lines = non_loopback_warning_lines("0.0.0.0".parse().expect("valid ip"));
         assert_eq!(
             lines,
             vec![
-                StartupLine::Message("syu app ready: http://0.0.0.0:4123".to_string()),
-                StartupLine::Message("Open http://0.0.0.0:4123 in your browser.".to_string()),
-                StartupLine::Message("Press Ctrl-C to stop.".to_string()),
+                "warning: syu app is bound to 0.0.0.0, so workspace data and source documents may be reachable from other machines on your network."
+                    .to_string(),
+                "warning: use --bind 127.0.0.1 to keep the browser UI local to this machine."
+                    .to_string(),
             ]
         );
+    }
+
+    #[test]
+    fn bind_failure_message_mentions_port_retries_for_addr_in_use() {
+        let message = bind_failure_message(
+            Path::new("tests/fixtures/workspaces/passing"),
+            "127.0.0.1".parse().expect("valid ip"),
+            3000,
+            &Error::from(ErrorKind::AddrInUse),
+        );
+
+        assert!(message.contains("failed to bind `127.0.0.1:3000`"));
+        assert!(message.contains("selected port is likely already in use"));
+        assert!(message.contains("syu app tests/fixtures/workspaces/passing --port <free-port>"));
+        assert!(message.contains("app.port"));
+    }
+
+    #[test]
+    fn bind_failure_message_covers_non_addr_in_use_errors() {
+        let message = bind_failure_message(
+            Path::new("tests/fixtures/workspaces/passing"),
+            "127.0.0.1".parse().expect("valid ip"),
+            3000,
+            &Error::from(ErrorKind::AddrNotAvailable),
+        );
+
+        assert!(message.contains("address or port may be unavailable on this machine"));
     }
 
     #[test]

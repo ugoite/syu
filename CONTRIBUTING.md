@@ -27,6 +27,11 @@ after-the-fact documentation.
 5. Merge with squash once CI is green and review conversations are resolved.
 6. Delete the branch after merge.
 
+If the pull request changes `docs/syu/`, fill in the PR template's
+**Linked issue or specification** section with either an issue reference (`#123`)
+or one or more spec IDs such as `REQ-CORE-001` / `FEAT-CHECK-001`. CI checks
+that self-spec changes stay anchored to explicit intent.
+
 Local helper worktrees under `.worktrees/` are treated as contributor-local
 state and ignored by the repository so `git status` stays focused on the main
 checkout.
@@ -57,8 +62,11 @@ match your change:
    scripts/ci/coverage.sh summary
    ```
 
-3. **Browser app, WASM, or browser build inputs** (`app/src`, `app/src/wasm`,
-   `app/wasm`, browser build config, or browser build scripts)
+   That command also emits a requirement/feature coverage summary so reviewers
+   can inspect the current Rust line coverage in spec terms.
+
+3. **Browser app, WASM, or checked-in `app/dist` bundle** (`app/src`,
+   `app/wasm`, browser build config, or generated browser assets)
 
    Install the browser app dependencies first:
 
@@ -120,6 +128,28 @@ match your change:
    `scripts/generate-site-docs.py` or `.github/actions/build-docs-site`, also
    run branch 4's docs-site build.
 
+### Node.js version strategy
+
+The repository intentionally uses different Node.js majors for different
+surfaces:
+
+- **Browser app and browser-adjacent CI jobs use Node 25.** That is the runtime
+  used in `ci/npm-audit` for `app/` and in the `check-msrv` job that still
+  bootstraps the browser toolchain.
+- **Docs-site automation uses Node 20.** The shared
+  `.github/actions/build-docs-site` action pins the Docusaurus build to Node 20,
+  and `ci/npm-audit` uses the same major for `website/`.
+
+When you work locally, match the Node major to the surface you are changing:
+
+- use **Node 25** for `app/`, browser-app freshness checks, Playwright, and
+  other browser-tooling work
+- use **Node 20** for `website/` and docs-site builds
+
+If you switch between both in one shell session, use a version manager such as
+`nvm`, `fnm`, or `Volta` so the browser app and docs site each run on the same
+major that CI expects.
+
 ### Rust version
 
 The minimum supported Rust version (MSRV) is **1.88**. CI verifies this with a
@@ -135,6 +165,15 @@ If you use the hooks, install them once:
 ```bash
 scripts/install-precommit.sh
 ```
+
+If bootstrap fails or the script cannot find the final `pre-commit` binary, run
+the same interpreter check that the script selected:
+`python3 -m site --user-base` (or `python -m site --user-base` when the script
+detected `python` instead of `python3`). If you installed `pre-commit` with
+`pipx`, also run `pipx environment --value PIPX_BIN_DIR` to see where the
+binary should live. Compare the reported paths with your `PATH`, then rerun
+`scripts/install-precommit.sh`. The script prints the same checks when setup
+fails.
 
 The devcontainer/Codespaces post-create step runs
 `.devcontainer/post-create.sh` automatically so the setup explains itself while
@@ -173,6 +212,14 @@ reported via the default GitHub Actions failure notification for maintainers.
 Stable releases are prepared from `main` with release-please.
 Prereleases are cut from `main` as needed after the same quality gates and user
 story validation pass.
+
+Maintainers triaging stuck merge-queue entries should use the
+[merge queue playbook](docs/guide/merge-queue-playbook.md) to inspect
+`merge_group` runs, queue state, and required workflow coverage.
+
+When maintainers intentionally rename merge-queue check contexts or add/remove
+`merge_group` workflows, update `.github/merge-queue-checks.json` and the
+repository-quality assertions in the same change.
 
 GitHub release notes are generated per release track so alpha, beta, and stable
 releases each compare against the previous tag in the same track.
