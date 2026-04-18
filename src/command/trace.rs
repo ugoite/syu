@@ -149,6 +149,16 @@ fn normalize_lookup_file(workspace: &Workspace, file: &Path) -> Result<PathBuf> 
     if normalized.as_os_str().is_empty() {
         bail!("trace file must not be empty");
     }
+    if normalized
+        .components()
+        .any(|component| matches!(component, std::path::Component::ParentDir))
+    {
+        bail!(
+            "trace file `{}` must stay under workspace `{}`",
+            file.display(),
+            workspace.root.display()
+        );
+    }
     Ok(normalized)
 }
 
@@ -639,6 +649,24 @@ mod tests {
         let error =
             normalize_lookup_file(&workspace, Path::new("")).expect_err("empty file should fail");
         assert!(error.to_string().contains("must not be empty"));
+    }
+
+    #[test]
+    fn normalize_lookup_file_rejects_relative_paths_that_escape_the_workspace() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        let workspace = Workspace {
+            root: tempdir.path().to_path_buf(),
+            spec_root: tempdir.path().join("docs/syu"),
+            config: SyuConfig::default(),
+            philosophies: Vec::new(),
+            policies: Vec::new(),
+            requirements: Vec::new(),
+            features: Vec::new(),
+        };
+
+        let error = normalize_lookup_file(&workspace, Path::new("../outside.rs"))
+            .expect_err("escaping relative paths should fail");
+        assert!(error.to_string().contains("must stay under workspace"));
     }
 
     #[test]
