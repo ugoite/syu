@@ -917,9 +917,16 @@ mod tests {
     };
     use crate::{
         config::SyuConfig,
-        model::{Feature, Requirement, TraceReference},
+        model::{Feature, Issue, Requirement, TraceReference},
         workspace::Workspace,
     };
+
+    fn no_targets(
+        _config: &SyuConfig,
+        _root: &Path,
+    ) -> Result<Vec<super::CoverageTarget>, Box<Issue>> {
+        Ok(Vec::new())
+    }
 
     #[test]
     fn discover_rust_targets_collects_public_symbols_and_tests() {
@@ -1609,7 +1616,7 @@ mod tests {
         validate_symbol_trace_coverage_with(
             &workspace,
             &mut issues,
-            |_config, _root| Ok(Vec::new()),
+            no_targets,
             |_config, _root| {
                 Err(Box::new(crate::model::Issue::error(
                     "SYU-coverage-walk-001",
@@ -1619,7 +1626,7 @@ mod tests {
                     None,
                 )))
             },
-            |_config, _root| Ok(Vec::new()),
+            no_targets,
             discover_typescript_targets,
         );
 
@@ -1646,9 +1653,9 @@ mod tests {
         validate_symbol_trace_coverage_with(
             &workspace,
             &mut issues,
-            |_config, _root| Ok(Vec::new()),
-            |_config, _root| Ok(Vec::new()),
-            |_config, _root| Ok(Vec::new()),
+            no_targets,
+            no_targets,
+            no_targets,
             |_config, _root| {
                 Err(Box::new(crate::model::Issue::error(
                     "SYU-coverage-walk-001",
@@ -1658,6 +1665,43 @@ mod tests {
                     None,
                 )))
             },
+        );
+
+        assert_eq!(issues.len(), 1);
+        assert_eq!(issues[0].code, "SYU-coverage-walk-001");
+    }
+
+    #[test]
+    fn validate_with_go_discovery_error_records_issue_and_returns() {
+        let tempdir = tempdir().expect("tempdir");
+        let mut config = SyuConfig::default();
+        config.validate.require_symbol_trace_coverage = true;
+        let workspace = Workspace {
+            root: tempdir.path().to_path_buf(),
+            spec_root: tempdir.path().join("docs/syu"),
+            config,
+            philosophies: Vec::new(),
+            policies: Vec::new(),
+            requirements: Vec::new(),
+            features: Vec::new(),
+        };
+
+        let mut issues = Vec::new();
+        validate_symbol_trace_coverage_with(
+            &workspace,
+            &mut issues,
+            no_targets,
+            no_targets,
+            |_config, _root| {
+                Err(Box::new(crate::model::Issue::error(
+                    "SYU-coverage-walk-001",
+                    "trace coverage inventory",
+                    None,
+                    "injected go discovery error".to_string(),
+                    None,
+                )))
+            },
+            no_targets,
         );
 
         assert_eq!(issues.len(), 1);
