@@ -330,3 +330,68 @@ requirements:
         - file: editors/vscode/test/model.test.js
           symbols:
             - '*'
+  - id: REQ-CORE-023
+    title: Provide a cross-layer relation inspection CLI command
+    description: |
+      The CLI MUST provide a `relate` command that accepts a philosophy, policy,
+      requirement, or feature ID, plus repository-relative paths or traced
+      source symbols, and returns the connected graph that reviewers should
+      inspect next. The command MUST walk upstream and downstream across the
+      layered links, MUST include traced files and symbols for connected
+      requirements and features, SHOULD surface sparse or suspicious gaps that
+      weaken explainability, and SHOULD emit both text and JSON output.
+    priority: medium
+    status: implemented
+    linked_policies:
+      - POL-001
+      - POL-002
+      - POL-004
+    linked_features:
+      - FEAT-RELATE-001
+    tests:
+      rust:
+        - file: tests/relate_command.rs
+          symbols:
+            - '*'
+        - file: tests/help_command.rs
+          symbols:
+            - relate_help_mentions_ids_paths_symbols_and_json_output
+        - file: src/lib.rs
+          symbols:
+            - dispatches_relate_subcommands_without_rewriting_them
+        - file: src/command/relate.rs
+          symbols:
+            - '*'
+  - id: REQ-CORE-024
+    title: Provide Git history lookup from traced requirements and features
+    description: |
+      The CLI MUST provide a `log` command that maps one requirement or feature
+      onto checked-in Git history using the current definition path and traced
+      test or implementation files from the workspace. The command MUST explain
+      why each returned commit matched, SHOULD support narrowing the lookup to
+      definition versus traced evidence and to one path subset, SHOULD offer
+      JSON output for audit or release automation, and SHOULD continue working
+      when validation issues exist so long as the workspace still loads and is
+      inside a Git repository.
+    priority: medium
+    status: implemented
+    linked_policies:
+      - POL-002
+      - POL-003
+      - POL-004
+    linked_features:
+      - FEAT-LOG-001
+    tests:
+      rust:
+        - file: tests/log_command.rs
+          symbols:
+            - '*'
+        - file: tests/help_command.rs
+          symbols:
+            - log_help_mentions_kind_path_and_json_output
+        - file: src/lib.rs
+          symbols:
+            - dispatches_log_subcommands_without_rewriting_them
+        - file: src/command/log.rs
+          symbols:
+            - '*'
