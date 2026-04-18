@@ -3,17 +3,20 @@
 <!-- FEAT-DOCS-001 -->
 
 :::tip New to `syu`?
-Read [syu concepts](./concepts.md) first when you want the fuller mental model
-before you start editing YAML. If you already understand the four layers, this
-guide is the narrated first-run path.
+If you already understand the four-layer model and only want the fastest command
+path, jump to the
+[README quick start on GitHub](https://github.com/ugoite/syu/blob/main/README.md#quick-start).
+Stay on this page when you want the same first-run flow narrated step by step.
+If you want the fuller mental model before you start editing YAML, read
+[syu concepts](./concepts.md) first.
 :::
 
 Need a different level of guidance?
 
 - Jump back to the
-  [README quick start on GitHub](https://github.com/ugoite/syu/blob/main/README.md#quick-start)
-  when you want the same install-to-validate flow collapsed into a compact
-  command card.
+  [README quick start on GitHub](https://github.com/ugoite/syu/blob/main/README.md#choose-your-path)
+  when you want the shortest install-to-validate path and are happy with a
+  compact command card.
 - Follow [existing repository adoption](./existing-repository.md) when the
   repository already has code and history and you want to add `syu` without
   treating it like a blank workspace.
@@ -29,7 +32,7 @@ Need a different level of guidance?
   already failing and you need to unblock a workspace.
 
 If you are still deciding whether to adopt `syu`, start with the
-[repository-fit guide in the README](https://github.com/ugoite/syu/blob/main/README.md#before-you-install-check-whether-syu-fits-this-repository)
+[repository-fit guide in the README](https://github.com/ugoite/syu/blob/main/README.md#is-syu-right-for-this-repository)
 before installing anything.
 
 ## Is syu right for this repository?
@@ -266,7 +269,10 @@ language-specific `tests:` or `implementations:` entries such as `csharp:`.
 Those keys still fail validation before `doc_contains` support even becomes
 relevant. If you need code-level tracing immediately with `doc_contains`, stay
 with Rust, Python, or TypeScript/JavaScript for now; otherwise, keep the spec
-layers connected and add the source mappings once adapter support lands.
+layers connected and add the source mappings once adapter support lands. The
+[`examples/go-only` workspace on GitHub](https://github.com/ugoite/syu/tree/main/examples/go-only)
+shows one checked-in version of that workaround with real Go files plus
+markdown-backed trace anchors.
 
 Keep this adoption path in mind for mixed-language repositories too: start with
 declared traces, keep `validate.require_symbol_trace_coverage: false`, then turn
@@ -446,7 +452,11 @@ Filters stay view-oriented: they narrow the visible diagnostics while preserving
 the full validation result and exit code.
 
 For CI or shell scripts that still want text output, add `--quiet` to suppress
-the next-step guidance block while keeping the validation summary and exit code.
+the success summary and next-step guidance while keeping the exit code behavior.
+
+Need warnings to stay visible in text output but still fail the job? Add
+`--warning-exit-code 3` (or another non-zero code) so warning-only runs return
+that code while error-bearing runs continue to return exit code 1.
 
 ### Understanding validation output
 
