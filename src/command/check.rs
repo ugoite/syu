@@ -1325,6 +1325,7 @@ fn evaluate_trace_ownership(
     contents: &str,
 ) -> OwnershipDeclaration {
     match config.validate.trace_ownership_mode {
+        TraceOwnershipMode::Mapping => OwnershipDeclaration::Satisfied,
         TraceOwnershipMode::Inline => {
             if contents.contains(owner_id) {
                 OwnershipDeclaration::Satisfied
@@ -2393,14 +2394,13 @@ fn verify_trace_reference(
                     display_path.display()
                 ),
                 Some(format!(
-                    "Fix `{}` or switch `validate.trace_ownership_mode` back to `inline`.",
+                    "Fix `{}` or switch `validate.trace_ownership_mode` to `mapping` or `inline`.",
                     manifest_display.display()
                 )),
             ));
             success = false;
         }
     }
-
     if reference.symbols.is_empty() {
         issues.push(Issue::error(
             "SYU-trace-symbol-001",
@@ -3591,9 +3591,9 @@ mod tests {
         let mut entry = requirement("REQ-1");
         entry.status = "proposed".to_string();
         entry.tests.insert(
-            "go".to_string(),
+            "java".to_string(),
             vec![TraceReference {
-                file: PathBuf::from("trace.go"),
+                file: PathBuf::from("Trace.java"),
                 symbols: vec!["trace".to_string()],
                 doc_contains: Vec::new(),
             }],
@@ -3781,7 +3781,7 @@ mod tests {
     #[test]
     fn verify_trace_reference_reports_unsupported_languages() {
         let reference = TraceReference {
-            file: PathBuf::from("test.go"),
+            file: PathBuf::from("Trace.java"),
             symbols: vec!["main".to_string()],
             doc_contains: Vec::new(),
         };
@@ -3791,7 +3791,7 @@ mod tests {
             &SyuConfig::default(),
             "REQ-1",
             TraceRole::RequirementTest,
-            "go",
+            "java",
             &reference,
             &mut issues,
         ));
@@ -3909,7 +3909,7 @@ mod tests {
     }
 
     #[test]
-    fn verify_trace_reference_reports_extension_id_and_blank_symbol_errors() {
+    fn verify_trace_reference_reports_extension_and_blank_symbol_errors() {
         let tempdir = tempdir().expect("tempdir should exist");
         let path = tempdir.path().join("trace.txt");
         fs::write(&path, "fn unrelated() {}\n").expect("file should exist");
@@ -3935,7 +3935,6 @@ mod tests {
                 .iter()
                 .any(|issue| issue.code == "SYU-trace-extension-001")
         );
-        assert!(issues.iter().any(|issue| issue.code == "SYU-trace-id-001"));
         assert!(
             issues
                 .iter()
@@ -3943,6 +3942,36 @@ mod tests {
                 .count()
                 >= 1
         );
+    }
+
+    #[test]
+    fn trace_role_labels_cover_both_variants() {
+        assert_eq!(TraceRole::RequirementTest.label(), "test");
+        assert_eq!(TraceRole::FeatureImplementation.label(), "implementation");
+    }
+
+    #[test]
+    fn verify_trace_reference_accepts_files_without_owner_id_mentions() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        let path = tempdir.path().join("trace.rs");
+        fs::write(&path, "fn expected_symbol() {}\n").expect("file should exist");
+
+        let reference = TraceReference {
+            file: PathBuf::from("trace.rs"),
+            symbols: vec!["expected_symbol".to_string()],
+            doc_contains: Vec::new(),
+        };
+        let mut issues = Vec::new();
+        assert!(verify_trace_reference(
+            tempdir.path(),
+            &SyuConfig::default(),
+            "REQ-1",
+            TraceRole::RequirementTest,
+            "rust",
+            &reference,
+            &mut issues,
+        ));
+        assert!(issues.is_empty(), "issues: {issues:#?}");
     }
 
     #[test]
@@ -4249,7 +4278,7 @@ mod tests {
         assert_eq!(
             issue.suggestion.as_deref(),
             Some(
-                "Fix `trace.rs.syu-ownership.yaml` or switch `validate.trace_ownership_mode` back to `inline`."
+                "Fix `trace.rs.syu-ownership.yaml` or switch `validate.trace_ownership_mode` to `mapping` or `inline`."
             )
         );
     }
@@ -4509,9 +4538,9 @@ mod tests {
             root,
             &SyuConfig::default(),
             "REQ-1",
-            "go",
+            "java",
             &TraceReference {
-                file: PathBuf::from("trace.go"),
+                file: PathBuf::from("Trace.java"),
                 symbols: vec!["expected".to_string()],
                 doc_contains: vec!["Explain expected".to_string()],
             },
@@ -4564,8 +4593,7 @@ mod tests {
         .expect("directories should be ignored");
 
         let no_update_path = root.join("trace.rs");
-        fs::write(&no_update_path, "/// REQ-1\npub fn expected() {}\n")
-            .expect("trace file should exist");
+        fs::write(&no_update_path, "pub fn expected() {}\n").expect("trace file should exist");
         apply_autofix_for_reference(
             root,
             &SyuConfig::default(),
@@ -4675,12 +4703,12 @@ mod tests {
         assert!(summary.updated_files.contains(Path::new("feature.rs")));
         let requirement_contents =
             fs::read_to_string(root.join("requirement.rs")).expect("requirement contents");
-        assert!(requirement_contents.contains("REQ-1"));
         assert!(requirement_contents.contains("Requirement docs"));
+        assert!(!requirement_contents.contains("REQ-1"));
         let feature_contents =
             fs::read_to_string(root.join("feature.rs")).expect("feature contents");
-        assert!(feature_contents.contains("FEAT-1"));
         assert!(feature_contents.contains("Feature docs"));
+        assert!(!feature_contents.contains("FEAT-1"));
     }
 
     #[test]

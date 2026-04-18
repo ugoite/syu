@@ -137,9 +137,10 @@ of editing `syu.yaml`.
 
 ### `validate.require_symbol_trace_coverage`
 
-When `true`, `syu` scans Rust, Python, and TypeScript/JavaScript source and
-test files to confirm that every public symbol belongs to some feature and
-every test belongs to some requirement.
+When `true`, `syu` scans Rust, Python, and TypeScript/JavaScript source and test
+files to confirm that every public symbol belongs to some feature and every
+test belongs to some requirement. Declared Go traces are still validated, but
+Go is not yet part of this strict undeclared-symbol inventory.
 
 - `false`: only declared traces are verified
 - `true`: undeclared public APIs and tests become validation errors
@@ -147,6 +148,59 @@ every test belongs to some requirement.
 This is useful once the repository wants maintenance work to stay fully owned by
 the specification across the supported implementation languages.
 For an experimental strict run, use `syu validate . --require-symbol-trace-coverage`.
+Before you turn it on in a mixed-language repository, review the [trace adapter
+capability matrix](./trace-adapter-support.md) so you only depend on adapters
+that currently participate in the strict inventory.
+
+For polyglot repositories, treat this as a staged switch instead of an all-or-
+nothing starting point:
+
+1. Keep `require_symbol_trace_coverage: false` while the repository is still
+   mixing supported and unsupported implementation languages or while older
+   areas have not been traced yet.
+2. Keep declaring requirement and feature traces for every area, but use the
+   trace shape the current validator can actually check. For supported
+   lightweight adapters such as `shell`, `yaml`, `json`, `markdown`, and
+   `gitignore`, that usually means file-level, explicit-symbol, or wildcard
+   ownership without `doc_contains`. For unsupported implementation languages
+   such as Go, Java, or C#, keep the spec layers linked and defer code-level
+   mappings until adapter support lands.
+3. Turn `require_symbol_trace_coverage: true` on once the supported-language
+   parts of the repository are ready to keep every public API and test owned by
+   the spec, while unsupported-language areas stay at the spec-layer guidance
+   stage or on supported lightweight adapters until richer adapters exist.
+
+The important rule is honesty: only promise symbol-level strictness where `syu`
+can verify it today, and use the looser trace forms to keep the rest of a
+polyglot repository connected to the spec without pretending the validator can
+inspect more than it really can.
+See [getting started](./getting-started.md#unsupported-implementation-languages-can-still-adopt-the-spec-layers-first)
+for the current adoption path and roadmap links.
+
+### `validate.symbol_trace_coverage_ignored_paths`
+
+Controls which repository-relative directories strict symbol coverage skips.
+
+The defaults are exact paths, not basename wildcards:
+
+```yaml
+validate:
+  symbol_trace_coverage_ignored_paths:
+    - build
+    - coverage
+    - dist
+    - target
+    - app/build
+    - app/coverage
+    - app/dist
+    - app/target
+```
+
+That keeps common generated build output out of strict ownership checks without
+hiding authored nested directories such as `src/build/` or `tests/coverage/`.
+Set the list to `[]` if you intentionally want generated artifacts to count
+toward symbol-trace coverage, or replace it with your own exact paths when your
+repository uses a different layout.
 
 ### `app.bind`
 
@@ -241,8 +295,10 @@ validate:
   trace_ownership_mode: sidecar
 ```
 
-- `inline` keeps the default behavior: the traced source or test file mentions
-  the owning ID directly.
+- `mapping` is the default: the checked-in requirement and feature trace YAML is
+  already considered enough to audit ownership.
+- `inline` opts into an extra breadcrumb by requiring the traced source or test
+  file to mention the owning ID directly.
 - `sidecar` expects a checked-in manifest next to each traced file, named
   `<file>.syu-ownership.yaml`.
 
@@ -259,10 +315,12 @@ owners:
       - req_trace
 ```
 
-Use `sidecar` when you want to keep ownership explicit in version control
-without forcing repository IDs into source comments. `syu validate --fix`
-updates the sidecar manifest instead of inserting IDs into the traced file in
-this mode.
+Use `mapping` when trace YAML alone matches your repository's explainability
+needs, `inline` when reviewers should see ownership in the traced artifact
+itself, and `sidecar` when you want to keep ownership explicit in version
+control without forcing repository IDs into source comments. `syu validate
+--fix` updates the sidecar manifest instead of inserting IDs into the traced
+file in `sidecar` mode.
 
 ## Wildcard file ownership
 
@@ -291,9 +349,14 @@ want strict ownership checks without enumerating every public symbol by hand.
 - leave `validate.require_reciprocal_links: true` unless you are phasing in
   backlinks after stabilizing the forward graph
 - turn on `validate.require_symbol_trace_coverage: true` once the repository
-  wants public APIs and tests to remain fully owned by the spec
-- keep `validate.trace_ownership_mode: inline` unless your repository has a
-  deliberate reason to store ownership in checked-in sidecar manifests
+  wants public APIs and tests to remain fully owned by the spec across the
+  currently supported languages
+- for mixed-language repositories, keep `validate.require_symbol_trace_coverage:
+  false` during adoption and use explicit file or wildcard ownership for areas
+  that the current language adapters cannot inspect yet
+- leave `validate.trace_ownership_mode: mapping` unless your repository has a
+  deliberate reason to require ownership breadcrumbs inline or in checked-in
+  sidecar manifests
 - set `report.output` when your repository checks in one stable report artifact
   path
 - set `app.bind` and `app.port` only when your team really has a stable local

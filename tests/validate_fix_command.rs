@@ -3,7 +3,7 @@ use std::{fs, path::Path, process::Command};
 use tempfile::tempdir;
 
 fn write_workspace(root: &Path, default_fix: bool) {
-    write_workspace_with_ownership_mode(root, default_fix, "inline");
+    write_workspace_with_ownership_mode(root, default_fix, "mapping");
 }
 
 fn write_workspace_with_ownership_mode(root: &Path, default_fix: bool, trace_ownership_mode: &str) {
@@ -86,10 +86,10 @@ fn validate_fix_repairs_missing_trace_docs_for_rust_sources() {
     assert!(stdout.contains("syu validate passed"));
 
     let source = fs::read_to_string(tempdir.path().join("src/trace.rs")).expect("source");
-    assert!(source.contains("/// REQ-001"));
     assert!(source.contains("/// requirement doc line"));
-    assert!(source.contains("/// FEAT-001"));
     assert!(source.contains("/// feature doc line"));
+    assert!(!source.contains("REQ-001"));
+    assert!(!source.contains("FEAT-001"));
 }
 
 #[test]
