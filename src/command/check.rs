@@ -407,7 +407,7 @@ pub fn run_check_command(args: &CheckArgs) -> Result<i32> {
             args.warning_exit_code,
         ) {
             (false, _, _) => 1,
-            (true, true, Some(code)) => i32::from(code),
+            (true, true, Some(code)) => i32::from(code.get()),
             (true, _, _) => 0,
         },
     )

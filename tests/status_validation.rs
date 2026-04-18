@@ -279,3 +279,27 @@ fn validate_keeps_error_exit_code_when_warning_exit_code_is_configured() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("SYU-delivery-implemented-001"));
 }
+
+#[test]
+// REQ-CORE-001
+fn validate_rejects_zero_warning_exit_code() {
+    let tempdir = tempdir().expect("tempdir should exist");
+    write_workspace(tempdir.path(), true, "planned", "implemented", false, true);
+
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .arg("validate")
+        .arg(tempdir.path())
+        .arg("--warning-exit-code")
+        .arg("0")
+        .output()
+        .expect("validate should run");
+
+    assert_eq!(output.status.code(), Some(2));
+    assert!(
+        String::from_utf8_lossy(&output.stderr)
+            .contains("invalid value '0' for '--warning-exit-code <CODE>'"),
+        "zero warning exit code should be rejected\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
