@@ -9,13 +9,13 @@
 
 - Philosophies: 3
 - Policies: 8
-- Requirements: 22
-- Features: 28
+- Requirements: 23
+- Features: 29
 
 ## Traceability
 
-- Requirement-to-test traceability: 89/89
-- Feature-to-implementation traceability: 101/101
+- Requirement-to-test traceability: 93/93
+- Feature-to-implementation traceability: 105/105
 
 ## Issues
 

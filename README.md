@@ -220,6 +220,9 @@ syu add feature FEAT-AUTH-LOGIN-001 --kind auth
 syu list requirement
 syu show REQ-001
 syu search traceability --kind requirement
+syu log REQ-CORE-002
+syu relate REQ-001
+syu trace src/command/check.rs --symbol run_check_command
 syu app .
 syu report . --output reports/syu.md
 ```
@@ -381,6 +384,49 @@ Search definitions by ID, title, summary, or description:
 syu search audit
 syu search traceability --kind requirement
 syu search FEAT-CHECK-001 --format json
+```
+
+### `syu log`
+
+Project one traced requirement or feature onto checked-in Git history:
+
+```bash
+syu log REQ-CORE-002
+syu log FEAT-CHECK-001 --kind implementation --path src/command
+syu log REQ-CORE-019 --format json
+```
+
+`syu log` works from the current trace graph. It looks up the checked-in
+definition path plus the traced test or implementation files for one requirement
+or feature, then shows the commits that touched those paths and why each commit
+matched. Use `--kind` when you only want definition, test, or implementation
+history, and `--path` when you want to narrow the traced paths to one
+repository-relative file or directory prefix.
+### `syu relate`
+
+Inspect the connected graph around one definition, repository path, or traced
+source symbol:
+
+```bash
+syu relate REQ-001
+syu relate src/command/search.rs
+syu relate run_search_command
+syu relate FEAT-SEARCH-001 --format json
+```
+
+`syu relate` walks upstream and downstream across philosophy, policy,
+requirement, and feature links, includes traced files and symbols for connected
+requirements and features, and calls out sparse or suspicious gaps such as
+missing adjacent links or missing evidence.
+
+### `syu trace`
+
+Start from a traced file path and optional symbol when review or refactoring
+begins in code instead of from a spec ID:
+
+```bash
+syu trace src/command/check.rs --symbol run_check_command
+syu trace tests/report_command.rs path/to/workspace --format json
 ```
 
 ### `syu app`
