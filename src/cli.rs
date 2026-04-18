@@ -473,7 +473,7 @@ pub struct ValidateArgs {
     )]
     pub require_symbol_trace_coverage: Option<bool>,
 
-    #[arg(help = "Suppress next-step guidance in successful text output")]
+    #[arg(help = "Suppress the text summary and next-step guidance in successful text output")]
     #[arg(short, long, action = ArgAction::SetTrue)]
     pub quiet: bool,
 }
