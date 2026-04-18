@@ -451,7 +451,9 @@ fn repository_declares_documentation_guides() {
     assert!(examples_and_templates.contains("starter templates"));
     assert!(examples_and_templates.contains("checked-in examples"));
     assert!(examples_and_templates.contains("`syu init . --template rust-only`"));
+    assert!(examples_and_templates.contains("examples/go-only"));
     assert!(examples_and_templates.contains("examples/polyglot"));
+    assert!(examples_and_templates.contains("examples/team-scale"));
     assert!(merge_queue_playbook.contains("merge_group"));
     assert!(merge_queue_playbook.contains("gh api graphql"));
     assert!(merge_queue_playbook.contains("AWAITING_CHECKS"));
