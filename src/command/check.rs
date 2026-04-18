@@ -3975,6 +3975,66 @@ mod tests {
     }
 
     #[test]
+    fn verify_trace_reference_reports_missing_owner_id_in_inline_mode() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        let path = tempdir.path().join("trace.rs");
+        fs::write(&path, "fn expected_symbol() {}\n").expect("file should exist");
+
+        let reference = TraceReference {
+            file: PathBuf::from("trace.rs"),
+            symbols: vec!["expected_symbol".to_string()],
+            doc_contains: Vec::new(),
+        };
+        let mut config = SyuConfig::default();
+        config.validate.trace_ownership_mode = TraceOwnershipMode::Inline;
+        let mut issues = Vec::new();
+        assert!(!verify_trace_reference(
+            tempdir.path(),
+            &config,
+            "REQ-1",
+            TraceRole::RequirementTest,
+            "rust",
+            &reference,
+            &mut issues,
+        ));
+        let issue = issues
+            .iter()
+            .find(|issue| issue.code == "SYU-trace-id-001")
+            .expect("inline ownership issue");
+        assert!(issue.message.contains("does not mention `REQ-1`"));
+        assert_eq!(
+            issue.suggestion.as_deref(),
+            Some("Add `REQ-1` to `trace.rs` so the test remains explicitly traceable.")
+        );
+    }
+
+    #[test]
+    fn verify_trace_reference_accepts_owner_id_in_inline_mode() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        let path = tempdir.path().join("trace.rs");
+        fs::write(&path, "// REQ-1\nfn expected_symbol() {}\n").expect("file should exist");
+
+        let reference = TraceReference {
+            file: PathBuf::from("trace.rs"),
+            symbols: vec!["expected_symbol".to_string()],
+            doc_contains: Vec::new(),
+        };
+        let mut config = SyuConfig::default();
+        config.validate.trace_ownership_mode = TraceOwnershipMode::Inline;
+        let mut issues = Vec::new();
+        assert!(verify_trace_reference(
+            tempdir.path(),
+            &config,
+            "REQ-1",
+            TraceRole::RequirementTest,
+            "rust",
+            &reference,
+            &mut issues,
+        ));
+        assert!(issues.is_empty(), "issues: {issues:#?}");
+    }
+
+    #[test]
     fn verify_trace_reference_reports_missing_symbol() {
         let tempdir = tempdir().expect("tempdir should exist");
         let path = tempdir.path().join("trace.rs");
@@ -4651,6 +4711,36 @@ mod tests {
                 .updated_files
                 .contains(Path::new("trace.rs.syu-ownership.yaml"))
         );
+    }
+
+    #[test]
+    fn apply_autofix_for_reference_inserts_inline_owner_id_when_configured() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        let root = tempdir.path();
+        let source_path = root.join("trace.rs");
+        fs::write(&source_path, "pub fn expected() {}\n").expect("trace file should exist");
+
+        let mut config = SyuConfig::default();
+        config.validate.trace_ownership_mode = TraceOwnershipMode::Inline;
+
+        let mut summary = super::AutofixSummary::default();
+        apply_autofix_for_reference(
+            root,
+            &config,
+            "REQ-1",
+            "rust",
+            &TraceReference {
+                file: PathBuf::from("trace.rs"),
+                symbols: vec!["expected".to_string()],
+                doc_contains: Vec::new(),
+            },
+            &mut summary,
+        )
+        .expect("inline ownership autofix should succeed");
+
+        let source_contents = fs::read_to_string(&source_path).expect("source contents");
+        assert!(source_contents.contains("REQ-1"));
+        assert_eq!(summary.symbol_updates, 1);
     }
 
     #[test]
