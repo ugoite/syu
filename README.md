@@ -31,12 +31,10 @@ verified.
 
 Pick the newcomer path that matches what you need next:
 
-- **Getting started**: if you are using `syu` for the first time and want the
-  shortest install-to-validate path, the in-page four-layer refresher is the
-  fastest path through first workspace setup explained step by step.
-- **Quick start**: stay in this README when you want the shortest path from install
-  to `syu validate .` and only need a short layer refresher before the first
-  commands.
+- **Getting started**: if you are using `syu` for the first time, the in-page four-layer refresher is the hand-off into the guided walkthrough that keeps the first workspace setup explained step by step, including why the manual YAML edits matter before validation.
+- **Quick start**: stay in this README when you want the shortest path from
+  install to `syu validate .`, prefer a compact command card, and only need a
+  short layer refresher before the first commands.
 - **Tutorial**: follow [`docs/guide/tutorial.md`](docs/guide/tutorial.md) when you
   want a realistic end-to-end repository story instead of a short scaffold flow.
 - **Trace adapter matrix**: open
@@ -178,6 +176,9 @@ Stay in this README for the shortest install-to-validate path. If you skipped
 [`docs/guide/concepts.md`](docs/guide/concepts.md), use the
 [Why four layers?](#why-four-layers) section above as the refresher on
 `philosophy`, `policy`, `requirements`, and `features`.
+If you want the same flow narrated step by step with more context around the
+manual edits, switch to
+[`docs/guide/getting-started.md`](docs/guide/getting-started.md) instead.
 
 The first manual edit in this quick start happens in the generated requirement
 YAML: add `linked_policies:` and `linked_features:` there, then update the

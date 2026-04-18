@@ -2,22 +2,24 @@
 
 <!-- FEAT-DOCS-001 -->
 
-:::tip New to syu?
-New to `syu`? Read [syu concepts](./concepts.md) first to understand the four
-layers before you start editing YAML.
+:::tip New to `syu`?
+Read [syu concepts](./concepts.md) first when you want the fuller mental model
+before you start editing YAML. If you already understand the four layers, this
+guide is the narrated first-run path.
 :::
 
 Need a different level of guidance?
 
 - Jump back to the
   [README quick start on GitHub](https://github.com/ugoite/syu/blob/main/README.md#quick-start)
-  when you want the shortest install-to-validate path and are happy with a
-  compact command card.
+  when you want the same install-to-validate flow collapsed into a compact
+  command card.
 - Follow [existing repository adoption](./existing-repository.md) when the
   repository already has code and history and you want to add `syu` without
   treating it like a blank workspace.
 - Stay on this page when you want the first workspace setup explained step by
-  step, including why the manual YAML edits matter before validation.
+  step, including why the manual YAML edits matter before validation and how the
+  same commands fit together as one guided story.
 - Follow the [end-to-end tutorial](./tutorial.md) when you want a realistic,
   worked repository story instead of the shortest setup path.
 - Use the [trace adapter capability matrix](./trace-adapter-support.md) when
