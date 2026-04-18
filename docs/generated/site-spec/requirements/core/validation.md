@@ -90,24 +90,32 @@ description: "Generated reference for docs/syu/requirements/core/validation.yaml
     - |
       The `validate` command MUST verify requirement-to-test and
       feature-to-implementation traceability in the languages used by `syu`
-      today: Rust, Python, Go, and TypeScript/JavaScript. A declared trace is valid
-      only when the file exists, the symbol exists, the trace path uses canonical
-      repository-relative form, the file explicitly mentions the owning ID, and
-      any `doc_contains` snippets are present in the symbol documentation.
+      today: Rust, Python, Go, and TypeScript/JavaScript. A declared trace is
+      valid only when the file exists, the symbol exists, the trace path uses
+      canonical repository-relative form, and any `doc_contains` snippets are
+      present in the symbol documentation when the declared language supports
+      rich inspection. The checked-in trace mapping itself MUST remain enough
+      to audit ownership without requiring inline requirement or feature IDs in
+      implementation files by default.
       Validation MUST also reject duplicate trace mappings inside a single
       language list, support wildcard file ownership, and provide an optional
       mode that requires every public symbol (non-underscore-prefixed for Python,
       `pub` for Rust, exported for TypeScript/JavaScript) and every test symbol
       (`test_*` functions for Python, `#[test]` for Rust, `test*`-prefixed
       functions for TypeScript/JavaScript) in repository source and test roots
-      to belong to some feature or requirement respectively. Go traces are
-      validated when declared, but strict coverage inventory does not yet scan Go
-      files for undeclared public symbols or tests.
+      to belong to some feature or requirement respectively. That inventory MUST
+      ignore configured repository-relative generated paths, defaulting to
+      common build outputs such as `app/dist`, `build/`, `coverage/`, `dist/`,
+      and `target/` without hiding authored nested directories like
+      `src/build/`. Go traces are validated when declared, but strict coverage
+      inventory does not yet scan Go files for undeclared public symbols or
+      tests.
   - **priority**: high
   - **status**: implemented
   - **linked_policies**:
     - POL-003
     - POL-006
+    - POL-008
   - **linked_features**:
     - FEAT-CHECK-001
   - **tests**:
@@ -116,6 +124,7 @@ description: "Generated reference for docs/syu/requirements/core/validation.yaml
         - **symbols**:
           - check_command_verifies_requirement_test_traceability_in_all_supported_languages
           - check_command_verifies_feature_implementation_traceability_in_all_supported_languages
+          - check_command_accepts_trace_workspaces_without_inline_spec_ids
           - check_command_warns_for_non_canonical_relative_trace_paths
           - check_command_warns_for_backslash_trace_paths
       - **file**: tests/trace_coverage_validation.rs
@@ -159,11 +168,14 @@ description: "Generated reference for docs/syu/requirements/core/validation.yaml
       The `validate` command MUST provide a `--fix` mode that performs safe,
       mechanical repairs for documentation-style trace gaps. `syu.yaml` MUST be
       able to configure default fix behavior, and `--no-fix` MUST disable it.
-      Autofix MUST stay conservative and avoid speculative structural edits.
+      Autofix MUST stay conservative, avoid speculative structural edits, and
+      add optional documentation breadcrumbs without injecting bookkeeping spec
+      IDs by default.
   - **priority**: high
   - **status**: implemented
   - **linked_policies**:
     - POL-003
+    - POL-008
   - **linked_features**:
     - FEAT-CHECK-001
   - **tests**:
@@ -281,24 +293,32 @@ requirements:
     description: |
       The `validate` command MUST verify requirement-to-test and
       feature-to-implementation traceability in the languages used by `syu`
-      today: Rust, Python, Go, and TypeScript/JavaScript. A declared trace is valid
-      only when the file exists, the symbol exists, the trace path uses canonical
-      repository-relative form, the file explicitly mentions the owning ID, and
-      any `doc_contains` snippets are present in the symbol documentation.
+      today: Rust, Python, Go, and TypeScript/JavaScript. A declared trace is
+      valid only when the file exists, the symbol exists, the trace path uses
+      canonical repository-relative form, and any `doc_contains` snippets are
+      present in the symbol documentation when the declared language supports
+      rich inspection. The checked-in trace mapping itself MUST remain enough
+      to audit ownership without requiring inline requirement or feature IDs in
+      implementation files by default.
       Validation MUST also reject duplicate trace mappings inside a single
       language list, support wildcard file ownership, and provide an optional
       mode that requires every public symbol (non-underscore-prefixed for Python,
       `pub` for Rust, exported for TypeScript/JavaScript) and every test symbol
       (`test_*` functions for Python, `#[test]` for Rust, `test*`-prefixed
       functions for TypeScript/JavaScript) in repository source and test roots
-      to belong to some feature or requirement respectively. Go traces are
-      validated when declared, but strict coverage inventory does not yet scan Go
-      files for undeclared public symbols or tests.
+      to belong to some feature or requirement respectively. That inventory MUST
+      ignore configured repository-relative generated paths, defaulting to
+      common build outputs such as `app/dist`, `build/`, `coverage/`, `dist/`,
+      and `target/` without hiding authored nested directories like
+      `src/build/`. Go traces are validated when declared, but strict coverage
+      inventory does not yet scan Go files for undeclared public symbols or
+      tests.
     priority: high
     status: implemented
     linked_policies:
       - POL-003
       - POL-006
+      - POL-008
     linked_features:
       - FEAT-CHECK-001
     tests:
@@ -307,6 +327,7 @@ requirements:
           symbols:
             - check_command_verifies_requirement_test_traceability_in_all_supported_languages
             - check_command_verifies_feature_implementation_traceability_in_all_supported_languages
+            - check_command_accepts_trace_workspaces_without_inline_spec_ids
             - check_command_warns_for_non_canonical_relative_trace_paths
             - check_command_warns_for_backslash_trace_paths
         - file: tests/trace_coverage_validation.rs
@@ -349,11 +370,14 @@ requirements:
       The `validate` command MUST provide a `--fix` mode that performs safe,
       mechanical repairs for documentation-style trace gaps. `syu.yaml` MUST be
       able to configure default fix behavior, and `--no-fix` MUST disable it.
-      Autofix MUST stay conservative and avoid speculative structural edits.
+      Autofix MUST stay conservative, avoid speculative structural edits, and
+      add optional documentation breadcrumbs without injecting bookkeeping spec
+      IDs by default.
     priority: high
     status: implemented
     linked_policies:
       - POL-003
+      - POL-008
     linked_features:
       - FEAT-CHECK-001
     tests:
