@@ -10,9 +10,13 @@ pub mod init;
 mod issue_text;
 pub mod list;
 mod lookup;
+mod prompt;
+pub mod relate;
 pub mod report;
 pub mod search;
 pub mod show;
+pub mod templates;
+pub mod trace;
 
 pub(crate) fn shell_quote_path(path: &Path) -> String {
     let rendered = path.display().to_string();

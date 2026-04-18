@@ -62,7 +62,42 @@ items:
     description: |
       When enabled, `syu` requires every public Rust, Python, Go, and
       TypeScript/JavaScript symbol to belong to some feature and every test in
-      those supported languages to belong to some requirement, in addition to
-      verifying declared traces. The validate command can enable or disable this
-      for one run with `--require-symbol-trace-coverage` or
+      those inventoried languages to belong to some requirement, in addition to
+      verifying declared traces. Declared Go traces are still checked, but Go is
+      not yet part of the strict undeclared-symbol coverage inventory. The
+      validate command can enable or disable this for one run with
+      `--require-symbol-trace-coverage` or
       `--require-symbol-trace-coverage=false`.
+  - key: validate.trace_ownership_mode
+    type: enum(mapping|inline|sidecar)
+    default: mapping
+    summary: Chooses whether trace YAML alone is sufficient or ownership must also be declared inline or in a sidecar manifest.
+    description: |
+      `mapping` keeps the current default where checked-in requirement and
+      feature trace mappings are enough to audit ownership. `inline` adds an
+      extra breadcrumb by requiring traced source and test files to mention
+      their owning requirement or feature ID directly. `sidecar` keeps the YAML
+      trace mapping as the canonical file/symbol link but requires each traced
+      file to have an adjacent `<file>.syu-ownership.yaml` manifest with
+      matching owner IDs and symbols. Autofix updates the sidecar manifest
+      instead of inserting IDs into source when `sidecar` is enabled.
+  - key: validate.symbol_trace_coverage_ignored_paths
+    type: array<path>
+    default:
+      - build
+      - coverage
+      - dist
+      - target
+      - app/build
+      - app/coverage
+      - app/dist
+      - app/target
+    summary: Exact repository-relative directories that strict symbol coverage skips.
+    description: |
+      These paths are matched exactly against repository-relative directories
+      while `syu` inventories public symbols and tests for strict ownership
+      checks. The defaults skip common build outputs such as `app/dist` and
+      repository-root `build/`, `coverage/`, `dist/`, and `target/` without
+      hiding authored nested paths like `src/build/`. Set this list to `[]`
+      when you intentionally want generated artifacts to count toward strict
+      trace coverage too.

@@ -31,11 +31,19 @@ verified.
 
 Pick the newcomer path that matches what you need next:
 
+- **Getting started**: if you are using `syu` for the first time and want the
+  shortest install-to-validate path, the in-page four-layer refresher is the
+  fastest path through first workspace setup explained step by step.
 - **Quick start**: stay in this README when you want the shortest path from install
   to `syu validate .` and only need a short layer refresher before the first
   commands.
 - **Tutorial**: follow [`docs/guide/tutorial.md`](docs/guide/tutorial.md) when you
   want a realistic end-to-end repository story instead of a short scaffold flow.
+- **Trace adapter matrix**: open
+  [`docs/guide/trace-adapter-support.md`](docs/guide/trace-adapter-support.md)
+  when you already have a workspace and need to know which built-in languages
+  support symbol validation only versus richer `doc_contains` and strict
+  coverage checks.
 - **Troubleshooting**: jump to
   [`docs/guide/troubleshooting.md`](docs/guide/troubleshooting.md) when validation
   or traceability errors are already blocking you.
@@ -45,7 +53,9 @@ Keep the detailed guides close:
 - [`docs/guide/concepts.md`](docs/guide/concepts.md)
 - [`docs/guide/getting-started.md`](docs/guide/getting-started.md)
 - [`docs/guide/tutorial.md`](docs/guide/tutorial.md)
+- [`docs/guide/trace-adapter-support.md`](docs/guide/trace-adapter-support.md)
 - [`docs/guide/configuration.md`](docs/guide/configuration.md)
+- [`docs/guide/spec-antipatterns.md`](docs/guide/spec-antipatterns.md)
 - [`docs/guide/troubleshooting.md`](docs/guide/troubleshooting.md)
 - [`CONTRIBUTING.md`](CONTRIBUTING.md)
 
@@ -245,10 +255,15 @@ Want a closer starting point for a repository that is already clearly
 Rust-first, Python-first, or polyglot? Start with a lightweight template:
 
 ```bash
+syu templates
 syu init . --template rust-only
 syu init . --template python-only
 syu init . --template polyglot
 ```
+
+Run `syu templates` first if you want the starter names, one-line descriptions,
+matching checked-in example paths, and whether a starter is example-backed or
+starter-only before choosing a scaffold.
 
 You can combine both flags when you want a custom spec root and a closer
 starter layout:
@@ -455,7 +470,7 @@ Key behaviors:
 - `validate.allow_planned` controls whether `planned` requirements and features are allowed at all
 - `validate.require_non_orphaned_items` turns isolated layered definitions into validation errors
 - `validate.require_reciprocal_links` keeps adjacent-layer backlinks mandatory by default while still allowing phased migration when disabled
-- `validate.require_symbol_trace_coverage` opt-in checks that public Rust, Python, Go, and TypeScript/JavaScript symbols belong to features and tests belong to requirements
+- `validate.require_symbol_trace_coverage` opt-in checks that public Rust, Python, Go, and TypeScript/JavaScript symbols belong to features and tests belong to requirements, while still skipping configured repository-relative generated paths
 - `report.output` sets the default `syu report` destination while `--output` still takes precedence
 - `app.bind` and `app.port` define the default local browser-app address and port unless `--bind` / `--port` override them
 - `report.output` sets the default `syu report` destination while `--output` still takes precedence
@@ -504,11 +519,14 @@ missing files.
 
 The repository ships working example projects:
 
+- [`examples/go-only`](examples/go-only)
 - [`examples/rust-only`](examples/rust-only)
 - [`examples/python-only`](examples/python-only)
 - [`examples/polyglot`](examples/polyglot)
 
-Each one is validated in the automated test suite.
+Each one is validated in the automated test suite. If you are deciding between a
+checked-in example and a scaffold template, start with
+[`docs/guide/examples-and-templates.md`](docs/guide/examples-and-templates.md).
 
 ## Contributing and local development
 

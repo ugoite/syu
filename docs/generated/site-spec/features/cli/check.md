@@ -19,7 +19,7 @@ description: "Generated reference for docs/syu/features/cli/check.yaml"
 
 - **id**: FEAT-CHECK-001
   - **title**: Unified validation command
-  - **summary**: Validate graph links, rule-backed diagnostics, trace ownership, temporary strictness overrides, optional strict coverage, and safe autofix with one command.
+  - **summary**: Validate graph links, rule-backed diagnostics, trace ownership, temporary strictness overrides, optional strict coverage, and safe autofix from the workspace root or any child directory with one command.
   - **status**: implemented
   - **linked_requirements**:
     - REQ-CORE-001
@@ -68,6 +68,10 @@ description: "Generated reference for docs/syu/features/cli/check.yaml"
           - SYU-workspace-load-001
           - SYU-graph-reference-001
           - SYU-coverage-test-001
+    - **go**:
+      - **file**: tests/fixtures/workspaces/passing/go/feature_trace.go
+        - **symbols**:
+          - FeatureTraceGo
 
 ## Source YAML
 
@@ -78,7 +82,7 @@ version: 1
 features:
   - id: FEAT-CHECK-001
     title: Unified validation command
-    summary: Validate graph links, rule-backed diagnostics, trace ownership, temporary strictness overrides, optional strict coverage, and safe autofix with one command.
+    summary: Validate graph links, rule-backed diagnostics, trace ownership, temporary strictness overrides, optional strict coverage, and safe autofix from the workspace root or any child directory with one command.
     status: implemented
     linked_requirements:
       - REQ-CORE-001
@@ -127,4 +131,8 @@ features:
             - SYU-workspace-load-001
             - SYU-graph-reference-001
             - SYU-coverage-test-001
+      go:
+        - file: tests/fixtures/workspaces/passing/go/feature_trace.go
+          symbols:
+            - FeatureTraceGo
 ```

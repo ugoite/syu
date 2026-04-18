@@ -48,7 +48,10 @@ When `require_symbol_trace_coverage: true`, syu additionally checks that every
 *public* symbol in the relevant source files is claimed by at least one spec
 item, and that every test function is claimed by at least one requirement. 100%
 coverage means no public API or test is left undeclared. This is an optional
-stricter mode for mature repositories.
+stricter mode for mature repositories. Use
+[`trace-adapter-support.md`](./trace-adapter-support.md) when you need the
+current per-language matrix for symbol discovery, `doc_contains`, and strict
+coverage behavior.
 
 ## Minimal configuration
 
@@ -145,7 +148,10 @@ every test belongs to some requirement.
 - `true`: undeclared public APIs and tests become validation errors
 
 This is useful once the repository wants maintenance work to stay fully owned by
-the specification across the supported implementation languages.
+the specification across the supported implementation languages. Strict
+coverage still skips configured repository-relative generated paths such as
+`build/`, `coverage/`, `dist/`, and `target/` so authored files nested under
+`src/` or `tests/` keep counting.
 For an experimental strict run, use `syu validate . --require-symbol-trace-coverage`.
 
 ### `app.bind`

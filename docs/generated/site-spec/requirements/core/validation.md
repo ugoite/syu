@@ -69,6 +69,9 @@ description: "Generated reference for docs/syu/requirements/core/validation.yaml
           - validate_cli_override_for_planned_items_mentions_cli_source
           - validate_cli_override_can_disable_orphan_checks
           - validate_cli_override_can_disable_reciprocal_checks
+      - **file**: tests/workspace_discovery_command.rs
+        - **symbols**:
+          - validate_command_discovers_workspace_from_nested_current_directory
       - **file**: src/command/check.rs
         - **symbols**:
           - *
@@ -92,23 +95,31 @@ description: "Generated reference for docs/syu/requirements/core/validation.yaml
       feature-to-implementation traceability in the languages used by `syu`
       today: Rust, Python, Go, and TypeScript/JavaScript. A declared trace is
       valid only when the file exists, the symbol exists, the trace path uses
-      canonical repository-relative form, the file explicitly mentions the
-      owning ID, and any `doc_contains` snippets are present in the symbol
-      documentation when the declared language supports rich inspection.
+      canonical repository-relative form, and any `doc_contains` snippets are
+      present in the symbol documentation when the declared language supports
+      rich inspection. The checked-in trace mapping itself MUST remain enough
+      to audit ownership without requiring inline requirement or feature IDs in
+      implementation files by default. Repositories that want an extra
+      repository-native ownership breadcrumb MUST be able to opt into either
+      inline IDs in traced artifacts or checked-in sidecar ownership manifests.
       Validation MUST also reject duplicate trace mappings inside a single
       language list, support wildcard file ownership, and provide an optional
       mode that requires every public symbol (non-underscore-prefixed for
       Python, exported identifiers for Go, `pub` for Rust, exported for
       TypeScript/JavaScript) and every test symbol (`test_*` functions for
-      Python, `Test*` functions in Go `_test.go` files, `#[test]` for Rust,
-      `test*`-prefixed functions for TypeScript/JavaScript) in repository
-      source and test roots to belong to some feature or requirement
-      respectively.
+      Python, `Test*`, `Benchmark*`, `Fuzz*`, and `Example*` functions in Go
+      `_test.go` files, `#[test]` for Rust, `test*`-prefixed functions for
+      TypeScript/JavaScript) in repository source and test roots to belong to
+      some feature or requirement respectively. That inventory MUST ignore
+      configured repository-relative generated paths, defaulting to common build
+      outputs such as `app/dist`, `build/`, `coverage/`, `dist/`, and `target/`
+      without hiding authored nested directories like `src/build/`.
   - **priority**: high
   - **status**: implemented
   - **linked_policies**:
     - POL-003
     - POL-006
+    - POL-008
   - **linked_features**:
     - FEAT-CHECK-001
   - **tests**:
@@ -128,6 +139,9 @@ description: "Generated reference for docs/syu/requirements/core/validation.yaml
       - **file**: tests/duplicate_validation.rs
         - **symbols**:
           - validate_reports_duplicate_trace_entries
+      - **file**: tests/sidecar_ownership_validation.rs
+        - **symbols**:
+          - *
       - **file**: src/coverage.rs
         - **symbols**:
           - *
@@ -168,6 +182,7 @@ description: "Generated reference for docs/syu/requirements/core/validation.yaml
   - **status**: implemented
   - **linked_policies**:
     - POL-003
+    - POL-008
   - **linked_features**:
     - FEAT-CHECK-001
   - **tests**:
@@ -201,6 +216,9 @@ description: "Generated reference for docs/syu/requirements/core/validation.yaml
       - **file**: tests/main_binary.rs
         - **symbols**:
           - *
+      - **file**: tests/workspace_discovery_command.rs
+        - **symbols**:
+          - report_command_discovers_workspace_from_child_directory
       - **file**: src/command/report.rs
         - **symbols**:
           - *
@@ -265,6 +283,9 @@ requirements:
             - validate_cli_override_for_planned_items_mentions_cli_source
             - validate_cli_override_can_disable_orphan_checks
             - validate_cli_override_can_disable_reciprocal_checks
+        - file: tests/workspace_discovery_command.rs
+          symbols:
+            - validate_command_discovers_workspace_from_nested_current_directory
         - file: src/command/check.rs
           symbols:
             - '*'
@@ -287,23 +308,31 @@ requirements:
       feature-to-implementation traceability in the languages used by `syu`
       today: Rust, Python, Go, and TypeScript/JavaScript. A declared trace is
       valid only when the file exists, the symbol exists, the trace path uses
-      canonical repository-relative form, the file explicitly mentions the
-      owning ID, and any `doc_contains` snippets are present in the symbol
-      documentation when the declared language supports rich inspection.
+      canonical repository-relative form, and any `doc_contains` snippets are
+      present in the symbol documentation when the declared language supports
+      rich inspection. The checked-in trace mapping itself MUST remain enough
+      to audit ownership without requiring inline requirement or feature IDs in
+      implementation files by default. Repositories that want an extra
+      repository-native ownership breadcrumb MUST be able to opt into either
+      inline IDs in traced artifacts or checked-in sidecar ownership manifests.
       Validation MUST also reject duplicate trace mappings inside a single
       language list, support wildcard file ownership, and provide an optional
       mode that requires every public symbol (non-underscore-prefixed for
       Python, exported identifiers for Go, `pub` for Rust, exported for
       TypeScript/JavaScript) and every test symbol (`test_*` functions for
-      Python, `Test*` functions in Go `_test.go` files, `#[test]` for Rust,
-      `test*`-prefixed functions for TypeScript/JavaScript) in repository
-      source and test roots to belong to some feature or requirement
-      respectively.
+      Python, `Test*`, `Benchmark*`, `Fuzz*`, and `Example*` functions in Go
+      `_test.go` files, `#[test]` for Rust, `test*`-prefixed functions for
+      TypeScript/JavaScript) in repository source and test roots to belong to
+      some feature or requirement respectively. That inventory MUST ignore
+      configured repository-relative generated paths, defaulting to common build
+      outputs such as `app/dist`, `build/`, `coverage/`, `dist/`, and `target/`
+      without hiding authored nested directories like `src/build/`.
     priority: high
     status: implemented
     linked_policies:
       - POL-003
       - POL-006
+      - POL-008
     linked_features:
       - FEAT-CHECK-001
     tests:
@@ -323,6 +352,9 @@ requirements:
         - file: tests/duplicate_validation.rs
           symbols:
             - validate_reports_duplicate_trace_entries
+        - file: tests/sidecar_ownership_validation.rs
+          symbols:
+            - '*'
         - file: src/coverage.rs
           symbols:
             - '*'
@@ -362,6 +394,7 @@ requirements:
     status: implemented
     linked_policies:
       - POL-003
+      - POL-008
     linked_features:
       - FEAT-CHECK-001
     tests:
@@ -394,6 +427,9 @@ requirements:
         - file: tests/main_binary.rs
           symbols:
             - '*'
+        - file: tests/workspace_discovery_command.rs
+          symbols:
+            - report_command_discovers_workspace_from_child_directory
         - file: src/command/report.rs
           symbols:
             - '*'

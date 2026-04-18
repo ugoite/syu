@@ -1,6 +1,10 @@
 // FEAT-ADD-001
+// FEAT-RELATE-001
 // FEAT-SEARCH-001
+// FEAT-TRACE-001
 // FEAT-BROWSE-001
+// REQ-CORE-021
+// REQ-CORE-023
 
 pub mod cli;
 pub mod command;
@@ -59,11 +63,14 @@ enum Dispatch {
     List(cli::ListArgs),
     Show(cli::ShowArgs),
     Search(cli::SearchArgs),
+    Relate(cli::RelateArgs),
+    Trace(cli::TraceArgs),
     App(cli::AppArgs),
     PrintHelp,
     Validate(cli::ValidateArgs),
     Report(cli::ReportArgs),
     Init(cli::InitArgs),
+    Templates(cli::TemplatesArgs),
     Add(cli::AddArgs),
 }
 
@@ -73,6 +80,8 @@ fn dispatch(cli: cli::Cli, stdin_is_terminal: bool, stdout_is_terminal: bool) ->
         Some(cli::Commands::List(args)) => Dispatch::List(args),
         Some(cli::Commands::Show(args)) => Dispatch::Show(args),
         Some(cli::Commands::Search(args)) => Dispatch::Search(args),
+        Some(cli::Commands::Relate(args)) => Dispatch::Relate(args),
+        Some(cli::Commands::Trace(args)) => Dispatch::Trace(args),
         Some(cli::Commands::App(args)) => Dispatch::App(args),
         None if stdin_is_terminal && stdout_is_terminal => {
             Dispatch::Browse(cli::BrowseArgs::default())
@@ -81,6 +90,7 @@ fn dispatch(cli: cli::Cli, stdin_is_terminal: bool, stdout_is_terminal: bool) ->
         Some(cli::Commands::Validate(args)) => Dispatch::Validate(args),
         Some(cli::Commands::Report(args)) => Dispatch::Report(args),
         Some(cli::Commands::Init(args)) => Dispatch::Init(args),
+        Some(cli::Commands::Templates(args)) => Dispatch::Templates(args),
         Some(cli::Commands::Add(args)) => Dispatch::Add(args),
     }
 }
@@ -91,6 +101,8 @@ fn run_dispatch(dispatch: Dispatch) -> Result<i32> {
         Dispatch::List(args) => command::list::run_list_command(&args),
         Dispatch::Show(args) => command::show::run_show_command(&args),
         Dispatch::Search(args) => command::search::run_search_command(&args),
+        Dispatch::Relate(args) => command::relate::run_relate_command(&args),
+        Dispatch::Trace(args) => command::trace::run_trace_command(&args),
         Dispatch::App(args) => command::app::run_app_command(&args),
         Dispatch::PrintHelp => {
             let mut command = cli::Cli::command();
@@ -101,6 +113,7 @@ fn run_dispatch(dispatch: Dispatch) -> Result<i32> {
         Dispatch::Validate(args) => command::check::run_check_command(&args),
         Dispatch::Report(args) => command::report::run_report_command(&args),
         Dispatch::Init(args) => command::init::run_init_command(&args),
+        Dispatch::Templates(args) => command::templates::run_templates_command(&args),
         Dispatch::Add(args) => command::add::run_add_command(&args),
     }
 }
@@ -119,7 +132,8 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     use crate::cli::{
-        AddArgs, AppArgs, Cli, Commands, ListArgs, LookupKind, OutputFormat, SearchArgs, ShowArgs,
+        AddArgs, AppArgs, Cli, Commands, ListArgs, LookupKind, OutputFormat, RelateArgs,
+        SearchArgs, ShowArgs, TemplatesArgs, TraceArgs,
     };
 
     // REQ-CORE-015
@@ -131,6 +145,14 @@ mod tests {
             super::Dispatch::Browse(crate::cli::BrowseArgs { workspace, .. })
                 if workspace == Path::new(".")
         ));
+    }
+
+    #[test]
+    // REQ-CORE-015
+    fn print_help_dispatch_renders_successfully() {
+        let code = super::run_dispatch(super::Dispatch::PrintHelp)
+            .expect("print help dispatch should succeed");
+        assert_eq!(code, 0);
     }
 
     #[test]
@@ -195,6 +217,51 @@ mod tests {
                     && workspace == Path::new("workspace")
                     && format == OutputFormat::Text
         ));
+
+        let templates = super::dispatch(
+            Cli {
+                command: Some(Commands::Templates(TemplatesArgs {
+                    format: OutputFormat::Json,
+                })),
+            },
+            true,
+            true,
+        );
+        assert!(matches!(
+            templates,
+            super::Dispatch::Templates(crate::cli::TemplatesArgs { format })
+                if format == OutputFormat::Json
+        ));
+    }
+
+    #[test]
+    // REQ-CORE-021
+    fn dispatches_trace_subcommands_without_rewriting_them() {
+        let trace = super::dispatch(
+            Cli {
+                command: Some(Commands::Trace(TraceArgs {
+                    file: PathBuf::from("src/lib.rs"),
+                    workspace: PathBuf::from("workspace"),
+                    symbol: Some("run".to_string()),
+                    format: OutputFormat::Json,
+                })),
+            },
+            true,
+            true,
+        );
+
+        assert!(matches!(
+            trace,
+            super::Dispatch::Trace(crate::cli::TraceArgs {
+                file,
+                workspace,
+                symbol,
+                format
+            }) if file == Path::new("src/lib.rs")
+                && workspace == Path::new("workspace")
+                && symbol.as_deref() == Some("run")
+                && format == OutputFormat::Json
+        ));
     }
 
     #[test]
@@ -219,6 +286,30 @@ mod tests {
                 if query == "traceability"
                     && workspace == Path::new("workspace")
                     && kind == Some(LookupKind::Feature)
+                    && format == OutputFormat::Json
+        ));
+    }
+
+    #[test]
+    // REQ-CORE-023
+    fn dispatches_relate_subcommands_without_rewriting_them() {
+        let relate = super::dispatch(
+            Cli {
+                command: Some(Commands::Relate(RelateArgs {
+                    selector: "REQ-CORE-023".to_string(),
+                    workspace: PathBuf::from("workspace"),
+                    format: OutputFormat::Json,
+                })),
+            },
+            true,
+            true,
+        );
+
+        assert!(matches!(
+            relate,
+            super::Dispatch::Relate(crate::cli::RelateArgs { selector, workspace, format })
+                if selector == "REQ-CORE-023"
+                    && workspace == Path::new("workspace")
                     && format == OutputFormat::Json
         ));
     }

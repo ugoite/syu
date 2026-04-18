@@ -157,7 +157,7 @@ impl LanguageAdapter for GoAdapter {
     }
 
     fn aliases(&self) -> &'static [&'static str] {
-        &["go", "golang"]
+        &["go", "golang", "gotest"]
     }
 
     fn extensions(&self) -> &'static [&'static str] {
@@ -167,9 +167,10 @@ impl LanguageAdapter for GoAdapter {
     fn patterns(&self, symbol: &str) -> Vec<String> {
         let escaped = regex::escape(symbol);
         vec![
-            format!(r"(?m)\bfunc\s+(?:\([^)]*\)\s*)?{escaped}\b"),
+            format!(r"(?m)\bfunc\s+(?:\([^)]+\)\s*)?{escaped}\b"),
             format!(r"(?m)\btype\s+{escaped}\b"),
-            format!(r"(?m)\b(?:const|var)\s+{escaped}\b"),
+            format!(r"(?m)\b(?:var|const)\s+{escaped}\b"),
+            format!(r"(?ms)\b(?:var|const)\s*\([^)]*\b{escaped}\b"),
             format!(r"(?m)\b{escaped}\b"),
         ]
     }
@@ -327,12 +328,12 @@ mod tests {
             Some("typescript")
         );
         assert_eq!(
-            adapter_for_language("golang").map(LanguageAdapter::canonical_name),
-            Some("go")
-        );
-        assert_eq!(
             adapter_for_language("bash").map(LanguageAdapter::canonical_name),
             Some("shell")
+        );
+        assert_eq!(
+            adapter_for_language("golang").map(LanguageAdapter::canonical_name),
+            Some("go")
         );
         assert_eq!(
             adapter_for_language("yml").map(LanguageAdapter::canonical_name),
@@ -356,17 +357,17 @@ mod tests {
     #[test]
     fn adapters_match_supported_extensions() {
         let rust = adapter_for_language("rust").expect("rust adapter should exist");
-        let shell = adapter_for_language("shell").expect("shell adapter should exist");
         let go = adapter_for_language("go").expect("go adapter should exist");
+        let shell = adapter_for_language("shell").expect("shell adapter should exist");
         let yaml = adapter_for_language("yaml").expect("yaml adapter should exist");
         let json = adapter_for_language("json").expect("json adapter should exist");
         let markdown = adapter_for_language("markdown").expect("markdown adapter should exist");
         let gitignore = adapter_for_language("gitignore").expect("gitignore adapter should exist");
 
         assert!(rust.supports_path(Path::new("src/lib.rs")));
+        assert!(go.supports_path(Path::new("go/app.go")));
         assert!(!rust.supports_path(Path::new("src/lib.py")));
         assert!(shell.supports_path(Path::new("scripts/install-syu.sh")));
-        assert!(go.supports_path(Path::new("cmd/syu/main.go")));
         assert!(yaml.supports_path(Path::new(".github/workflows/ci.yml")));
         assert!(json.supports_path(Path::new("release-please-config.json")));
         assert!(markdown.supports_path(Path::new("README.md")));
@@ -397,21 +398,15 @@ mod tests {
             "featureTraceTs"
         ));
         assert!(go.symbol_exists(
-            "package trace\n\nfunc FeatureTraceGo() {}\n",
-            "FeatureTraceGo"
+            "func GoFeatureImpl() string { return \"ok\" }\n",
+            "GoFeatureImpl"
         ));
+        assert!(go.symbol_exists("func GenericAPI[T any]() {}\n", "GenericAPI"));
         assert!(go.symbol_exists(
-            "package trace\n\ntype TraceService interface { Run() }\n",
-            "TraceService"
+            "func (svc Service) TestGoRequirement(t *testing.T) {}\n",
+            "TestGoRequirement"
         ));
-        assert!(go.symbol_exists(
-            "package trace\n\ntype Server struct{}\n\nfunc (s *Server) Start() {}\n",
-            "Start"
-        ));
-        assert!(go.symbol_exists(
-            "package trace\n\nimport \"testing\"\n\nfunc TestTraceCoverage(t *testing.T) {}\n",
-            "TestTraceCoverage"
-        ));
+        assert!(go.symbol_exists("const (\n    ExportedFlag = true\n)\n", "ExportedFlag"));
         assert!(shell.symbol_exists("install_syu() {\n  echo ok\n}\n", "install_syu"));
         assert!(yaml.symbol_exists("name: CI\njobs:\n  quality:\n", "quality"));
         assert!(json.symbol_exists("{\"package\":\"syu\"}", "package"));
