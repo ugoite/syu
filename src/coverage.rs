@@ -1507,6 +1507,24 @@ mod tests {
     }
 
     #[test]
+    fn collect_java_test_symbols_covers_fully_qualified_test_annotations() {
+        let symbols = collect_java_test_symbols(
+            "class TraceabilityTest {\n    @org.junit.jupiter.api.Test\n    void qualifiedTest() {}\n}\n",
+        );
+
+        assert_eq!(symbols, vec!["qualifiedTest"]);
+    }
+
+    #[test]
+    fn collect_java_public_symbols_covers_nested_public_static_types() {
+        let symbols = collect_java_public_symbols(
+            "public class FeatureTrace {\n    public static final class NestedFeature {}\n}\n",
+        );
+
+        assert_eq!(symbols, vec!["FeatureTrace", "NestedFeature"]);
+    }
+
+    #[test]
     fn collect_java_public_symbols_skips_unclosed_interface_bodies() {
         let symbols = collect_java_public_symbols(
             "public interface BrokenTrace {\n    void missingBrace();\n",
