@@ -587,6 +587,10 @@ The repository ships working example projects:
 - [`examples/python-only`](examples/python-only)
 - [`examples/polyglot`](examples/polyglot)
 
+`rust-only`, `python-only`, and `polyglot` match `syu init --template ...`
+starters directly. `go-only` is a reference-only workaround example for an
+unsupported implementation language.
+
 Each one is validated in the automated test suite. If you are deciding between a
 checked-in example and a scaffold template, start with
 [`docs/guide/examples-and-templates.md`](docs/guide/examples-and-templates.md).
