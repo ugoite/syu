@@ -2,9 +2,10 @@
 
 <!-- FEAT-DOCS-001 -->
 
-:::tip New to syu?
-New to `syu`? Read [syu concepts](./concepts.md) first to understand the four
-layers before you start editing YAML.
+:::tip New to `syu`?
+If you already understand the four-layer model, you can continue straight to the
+guided setup below. If you want the fuller mental model before you start editing
+YAML, read [syu concepts](./concepts.md) first.
 :::
 
 Need a different level of guidance?
