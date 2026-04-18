@@ -50,6 +50,12 @@ const journeys = [
     to: '/docs/guide/getting-started'
   },
   {
+    title: 'Upgrade an existing workspace',
+    description:
+      'Jump straight to the migration guide when a new alpha release changes config, validation defaults, or guide structure.',
+    to: '/docs/guide/migration'
+  },
+  {
     title: 'Follow a full tutorial',
     description: 'Build a realistic four-layer example from scratch when you want the full repository story.',
     to: '/docs/guide/tutorial'
