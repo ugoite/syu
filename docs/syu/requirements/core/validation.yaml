@@ -79,11 +79,12 @@ requirements:
       Validation MUST also reject duplicate trace mappings inside a single
       language list, support wildcard file ownership, and provide an optional
       mode that requires every public symbol (non-underscore-prefixed for Python,
-      `pub` for Rust, exported for Go, exported for TypeScript/JavaScript) and
-      every test symbol (`test_*` functions for Python, `#[test]` for Rust,
-      `Test*` functions for Go, `test*`-prefixed functions for TypeScript/JavaScript) in
-      repository source and test roots
-      to belong to some feature or requirement respectively.
+      `pub` for Rust, exported for TypeScript/JavaScript) and every test symbol
+      (`test_*` functions for Python, `#[test]` for Rust, `test*`-prefixed
+      functions for TypeScript/JavaScript) in repository source and test roots
+      to belong to some feature or requirement respectively. Go traces are
+      validated when declared, but strict coverage inventory does not yet scan Go
+      files for undeclared public symbols or tests.
     priority: high
     status: implemented
     linked_policies:
