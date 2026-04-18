@@ -31,7 +31,7 @@ verified.
 
 Pick the newcomer path that matches what you need next:
 
-- **Quick start**: stay in this README when the in-page four-layer refresher is
+- **Quick start**: stay in this README when the in-page four-layer overview is
   enough and you want the shortest path from install to `syu validate .`.
 - **Tutorial**: follow [`docs/guide/tutorial.md`](docs/guide/tutorial.md) when you
   want a realistic end-to-end repository story instead of a short scaffold flow.
@@ -163,7 +163,7 @@ below. The rest of this section assumes you installed the published CLI.
 ## Quick start
 
 Stay in this README for the shortest install-to-validate path. If you want a
-quick refresher on the four-layer model before the commands, use
+quick overview of the four-layer model before the commands, use
 [Why four layers?](#why-four-layers) above.
 
 The first manual edit in this quick start happens in the generated requirement
