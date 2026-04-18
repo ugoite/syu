@@ -446,6 +446,10 @@ the full validation result and exit code.
 For CI or shell scripts that still want text output, add `--quiet` to suppress
 the success summary and next-step guidance while keeping the exit code behavior.
 
+Need warnings to stay visible in text output but still fail the job? Add
+`--warning-exit-code 3` (or another non-zero code) so warning-only runs return
+that code while error-bearing runs continue to return exit code 1.
+
 ### Understanding validation output
 
 Validation errors follow the pattern `SYU-[genre]-[content]-[NNN]`:

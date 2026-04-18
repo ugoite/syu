@@ -39,6 +39,9 @@ Pick the newcomer path that matches what you need next:
   commands.
 - **Tutorial**: follow [`docs/guide/tutorial.md`](docs/guide/tutorial.md) when you
   want a realistic end-to-end repository story instead of a short scaffold flow.
+- **Visual explorer**: start with [`docs/guide/app.md`](docs/guide/app.md) or run
+  `syu app .` when you want graphical spec navigation before learning the full
+  text-first CLI flow.
 - **Trace adapter matrix**: open
   [`docs/guide/trace-adapter-support.md`](docs/guide/trace-adapter-support.md)
   when you already have a workspace and need to know which built-in languages
@@ -53,6 +56,7 @@ Keep the detailed guides close:
 - [`docs/guide/concepts.md`](docs/guide/concepts.md)
 - [`docs/guide/getting-started.md`](docs/guide/getting-started.md)
 - [`docs/guide/tutorial.md`](docs/guide/tutorial.md)
+- [`docs/guide/app.md`](docs/guide/app.md)
 - [`docs/guide/trace-adapter-support.md`](docs/guide/trace-adapter-support.md)
 - [`docs/guide/configuration.md`](docs/guide/configuration.md)
 - [`docs/guide/spec-antipatterns.md`](docs/guide/spec-antipatterns.md)
@@ -327,6 +331,7 @@ syu validate . --format json
 syu validate . --severity error --genre trace
 syu validate . --rule SYU-trace-file-002
 syu validate . --id REQ-001
+syu validate . --warning-exit-code 3
 syu validate . --fix
 syu validate . --no-fix
 syu validate . --allow-planned=false
@@ -339,6 +344,9 @@ Use `--severity`, `--genre`, `--rule`, and `--id` to narrow the rendered issue l
 without changing the underlying validation result or exit code.
 Use the validate override flags for one-off stricter or looser runs without
 editing `syu.yaml`.
+By default, warning-only runs still exit 0. Add `--warning-exit-code <CODE>` when
+CI or shell automation needs a distinct non-zero status for warnings while
+keeping error-bearing runs on exit code 1.
 
 For a plain-English guide to common validation errors, see the
 [troubleshooting guide](docs/guide/troubleshooting.md).
