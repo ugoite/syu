@@ -530,7 +530,7 @@ fn repository_declares_contribution_workflow_assets() {
     assert!(contributing.contains("scripts/ci/quality-gates.sh"));
     assert!(contributing.contains("scripts/ci/check-generated-docs-freshness.sh"));
     assert!(contributing.contains("docs/generated/"));
-    assert!(contributing.contains("scripts/ci/check-app-dist-freshness.sh"));
+    assert!(contributing.contains("scripts/ci/check-browser-app-freshness.sh"));
     assert!(contributing.contains("GitHub uses the PR title as the squash commit headline"));
     assert!(contributing.contains("app/dist"));
     assert!(contributing.contains("npm run build:wasm"));
@@ -557,6 +557,7 @@ fn repository_declares_contribution_workflow_assets() {
     assert!(pr_template.contains("FEAT-CONTRIB-002"));
     assert!(pr_template.contains("scripts/ci/quality-gates.sh"));
     assert!(pr_template.contains("cargo run -- validate ."));
+    assert!(pr_template.contains("requirement or feature IDs"));
     assert!(pr_template.contains("include the same IDs in the PR title"));
     assert!(pr_template.contains("preserves them in `git log`"));
 

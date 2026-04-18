@@ -29,7 +29,7 @@ pr = json.loads(sys.argv[1])
 title = pr.get("title", "")
 body = pr.get("body") or ""
 
-spec_ids = sorted(set(re.findall(r"\b(?:REQ|FEAT|POL|PHIL)-[A-Z0-9-]+\b", body)))
+spec_ids = sorted(set(re.findall(r"\b(?:REQ|FEAT)-[A-Z0-9-]+\b", body)))
 if not spec_ids:
     print("No spec IDs found in PR body; skipping squash-title preservation check.")
     raise SystemExit(0)
