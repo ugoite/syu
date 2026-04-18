@@ -35,8 +35,8 @@ Pick the newcomer path that matches what you need next:
   shortest install-to-validate path, the in-page four-layer refresher is the
   fastest path through first workspace setup explained step by step.
 - **Quick start**: stay in this README when you want the shortest path from install
-  to `syu validate .` and only need a short layer refresher before the first
-  commands.
+  to `syu validate .`, want the README itself to stay self-contained, and only
+  need a short layer refresher before the first commands.
 - **Tutorial**: follow [`docs/guide/tutorial.md`](docs/guide/tutorial.md) when you
   want a realistic end-to-end repository story instead of a short scaffold flow.
 - **Trace adapter matrix**: open
@@ -177,15 +177,16 @@ below. The rest of this section assumes you installed the published CLI.
 Stay in this README for the shortest install-to-validate path. If you skipped
 [`docs/guide/concepts.md`](docs/guide/concepts.md), use the
 [Why four layers?](#why-four-layers) section above as the refresher on
-`philosophy`, `policy`, `requirements`, and `features`.
+`philosophy`, `policy`, `requirements`, and `features`. There is no other
+required pre-read before the commands below.
 
 The first manual edit in this quick start happens in the generated requirement
 YAML: add `linked_policies:` and `linked_features:` there, then update the
 adjacent policy and feature YAML so they add the reciprocal
 `linked_requirements:` entry back to the new requirement.
 
-Read [`docs/guide/concepts.md`](docs/guide/concepts.md) first if you want the
-fuller rationale and authoring guidance before continuing.
+Read [`docs/guide/concepts.md`](docs/guide/concepts.md) first only when you want
+the fuller rationale and authoring guidance before continuing.
 
 Step 0: required — run `syu init .` before any of the other commands in a new repository.
 
