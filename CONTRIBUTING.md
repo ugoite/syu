@@ -151,7 +151,8 @@ When you work locally, match the Node major to the surface you are changing:
 
 If you switch between both in one shell session, use a version manager such as
 `nvm`, `fnm`, or `Volta` so the browser app and docs site each run on the same
-major that CI expects.
+major that CI expects. Both checked-in Node surfaces also pin the expected npm
+release in `package.json` via the `packageManager` field.
 
 ### Rust version
 
