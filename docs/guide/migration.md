@@ -121,9 +121,9 @@ This guide only has release-by-release notes starting at `alpha.5`. The earlier
 layout stabilized, so this repository does **not** maintain step-by-step upgrade
 instructions for those versions. If you are upgrading from one of those early
 alphas, treat `alpha.5` as the first supported landing point: compare your
-workspace against a freshly generated `alpha.7` scaffold, make the required
-`spec.root` and validation-config updates, then run `syu validate .` until the
-workspace is green.
+workspace against a freshly generated scaffold from the version you are
+upgrading to, make the required `spec.root` and validation-config updates, then
+run `syu validate .` until the workspace is green.
 
 | syu version | `spec.root` default | `require_reciprocal_links` | `report.output` |
 |---|---|---|---|
