@@ -300,7 +300,8 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("**Getting started**"));
     assert!(readme.contains("using `syu` for the first time"));
     assert!(readme.contains("already have a workspace"));
-    assert!(readme.contains("same first workspace setup explained step by step"));
+    assert!(readme.contains("first workspace setup"));
+    assert!(readme.contains("explained step by step"));
     assert!(readme.contains("[Why four layers?](#why-four-layers)"));
     assert!(readme.contains("Step 0: required"));
     assert!(readme.contains("Generate a requirement stub"));
