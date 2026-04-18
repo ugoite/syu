@@ -40,6 +40,9 @@ Pick the newcomer path that matches what you need next:
 - **Tutorial**: follow [`docs/guide/tutorial.md`](docs/guide/tutorial.md) when you
   learn best from a realistic repository story, want more narrative context than
   Quick start, and do not mind a longer walkthrough.
+- **Visual explorer**: start with [`docs/guide/app.md`](docs/guide/app.md) or run
+  `syu app .` when you want graphical spec navigation before learning the full
+  text-first CLI flow.
 - **Trace adapter matrix**: open
   [`docs/guide/trace-adapter-support.md`](docs/guide/trace-adapter-support.md)
   when you already have a workspace and need a capability reference for which
@@ -55,6 +58,7 @@ Keep the detailed guides close:
 - [`docs/guide/concepts.md`](docs/guide/concepts.md)
 - [`docs/guide/getting-started.md`](docs/guide/getting-started.md)
 - [`docs/guide/tutorial.md`](docs/guide/tutorial.md)
+- [`docs/guide/app.md`](docs/guide/app.md)
 - [`docs/guide/trace-adapter-support.md`](docs/guide/trace-adapter-support.md)
 - [`docs/guide/configuration.md`](docs/guide/configuration.md)
 - [`docs/guide/spec-antipatterns.md`](docs/guide/spec-antipatterns.md)
@@ -329,6 +333,7 @@ syu validate . --format json
 syu validate . --severity error --genre trace
 syu validate . --rule SYU-trace-file-002
 syu validate . --id REQ-001
+syu validate . --warning-exit-code 3
 syu validate . --fix
 syu validate . --no-fix
 syu validate . --allow-planned=false
@@ -341,6 +346,9 @@ Use `--severity`, `--genre`, `--rule`, and `--id` to narrow the rendered issue l
 without changing the underlying validation result or exit code.
 Use the validate override flags for one-off stricter or looser runs without
 editing `syu.yaml`.
+By default, warning-only runs still exit 0. Add `--warning-exit-code <CODE>` when
+CI or shell automation needs a distinct non-zero status for warnings while
+keeping error-bearing runs on exit code 1.
 
 For a plain-English guide to common validation errors, see the
 [troubleshooting guide](docs/guide/troubleshooting.md).
@@ -535,7 +543,7 @@ Key behaviors:
 - `validate.allow_planned` controls whether `planned` requirements and features are allowed at all
 - `validate.require_non_orphaned_items` turns isolated layered definitions into validation errors
 - `validate.require_reciprocal_links` keeps adjacent-layer backlinks mandatory by default while still allowing phased migration when disabled
-- `validate.require_symbol_trace_coverage` opt-in checks that public Rust, Python, Go, and TypeScript/JavaScript symbols belong to features and tests belong to requirements, while still skipping configured repository-relative generated paths
+- `validate.require_symbol_trace_coverage` opt-in checks that public Rust, Python, Go, Java, and TypeScript/JavaScript symbols belong to features and tests belong to requirements, while still skipping configured repository-relative generated paths
 - `report.output` sets the default `syu report` destination while `--output` still takes precedence
 - `app.bind` and `app.port` define the default local browser-app address and port unless `--bind` / `--port` override them
 - `report.output` sets the default `syu report` destination while `--output` still takes precedence
