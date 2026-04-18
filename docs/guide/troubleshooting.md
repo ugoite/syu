@@ -235,30 +235,24 @@ current name.
 
 ---
 
+### `SYU-trace-language-001` — unsupported trace adapter
+
+**What it means:** The `lang:` key does not match any built-in adapter. Today
+`syu` ships Rust, Python, TypeScript / JavaScript, Shell, YAML, JSON, Markdown,
+and Gitignore adapters.
+
+**Fix:** Change the trace to one of those built-in language aliases, or check
+the [trace adapter capability matrix](./trace-adapter-support.md) before you
+commit to `doc_contains` or strict coverage expectations for a new language.
+
+---
+
 ### `SYU-trace-extension-001` — language/file mismatch
 
 **What it means:** The `lang:` field says `rust` but the file ends in `.py`,
 or vice versa.
 
 **Fix:** Correct either the `lang:` value or the `file:` path so they agree.
-
----
-
-### `SYU-trace-id-001` — trace ID comment missing in source
-
-**What it means:** The traced source file does not contain a comment with the
-owning spec ID (e.g. `# FEAT-AUTH-001`).
-
-**Fix:** Add a brief comment to the function or module:
-
-```rust
-// FEAT-AUTH-001
-pub fn authenticate_user(...) { ... }
-```
-
-> **Autofix available:** `syu validate . --fix` can insert the owning spec ID
-> comment and any missing `doc_contains` snippets using language-appropriate
-> comment or doc-comment syntax when the symbol already exists.
 
 ---
 
@@ -277,8 +271,36 @@ remove the `doc_contains:` assertion from the trace if it no longer applies.
 **What it means:** `doc_contains:` is only supported for `rust`, `python`, and
 `typescript`. You declared it on a `lang:` that `syu` cannot inspect.
 
-**Fix:** Remove the `doc_contains:` assertion, or switch to a supported
-language.
+**Fix:** Remove the `doc_contains:` assertion from that mapping, or switch to a
+supported language for rich doc inspection.
+
+If the language already has a built-in adapter without rich doc inspection
+(`shell`, `yaml`, `json`, `markdown`, or `gitignore`), you do **not** need to
+remove the whole trace. Those mappings can still point to:
+
+- the traced file
+- explicit `symbols:`
+- wildcard ownership with `symbols: ["*"]`
+
+For example, this is still valid today:
+
+```yaml
+implementations:
+  shell:
+    - file: scripts/install-syu.sh
+      symbols:
+        - install_syu
+```
+
+Use that lighter mapping until the language gains richer inspection support.
+If the mapping uses an unsupported implementation language such as `go`,
+`java`, or `csharp`, removing `doc_contains` is not enough: those entries still
+raise `SYU-trace-language-001`. Keep the higher-layer spec link in place and
+wait for adapter support before adding the code-level trace.
+
+The [trace adapter capability matrix](./trace-adapter-support.md) shows which
+built-in adapters stop at symbol validation, which ones can inspect docs, and
+which languages participate in strict inventory coverage.
 
 ---
 
@@ -300,12 +322,15 @@ symbol non-public if it is not part of the intended API.
 
 > **Strictness toggle:** Use `syu validate . --require-symbol-trace-coverage`
 > when you want to trial this stricter rule without committing a config change.
+> The [trace adapter capability matrix](./trace-adapter-support.md) lists the
+> languages that participate in this inventory in the current checked-in docs.
 
 ---
 
 ### `SYU-coverage-test-001` — test has no owning requirement
 
-**What it means:** A test function is not referenced by any requirement trace.
+**What it means:** A test function or method is not referenced by any
+requirement trace.
 
 **Fix:** Add the test to a requirement's trace block, or rename/remove the test
 if it is obsolete.
@@ -318,7 +343,7 @@ if it is obsolete.
 
 | What `--fix` does | Safe? |
 |---|---|
-| Inserts spec ID comments and required `doc_contains` snippets using language-appropriate comment or doc-comment syntax | ✅ Yes |
+| Inserts required `doc_contains` snippets using language-appropriate comment or doc-comment syntax | ✅ Yes |
 | Rewrites or deletes symbols | ❌ No — `--fix` never does this |
 | Adds missing `linked_*` graph links | ❌ No — only you know the correct links |
 | Creates new spec entries | ❌ No |
@@ -329,8 +354,10 @@ Run `git diff` after `--fix` to review every change before committing.
 
 ## "Validation passes but traces feel wrong"
 
-Passing `syu validate .` does not mean the spec perfectly reflects intent.
-Watch out for these false-confidence patterns:
+Passing `syu validate .` does not mean the spec perfectly reflects intent. For
+common four-layer design smells that are still technically valid, read the
+[spec anti-patterns guide](./spec-antipatterns.md) after you clear the blocking
+errors below. Watch out for these false-confidence patterns:
 
 - **Over-broad wildcards:** An empty `symbols:` list does not validate
   (`SYU-trace-symbol-001`). If you intentionally mean "this spec item owns the
@@ -349,8 +376,13 @@ Watch out for these false-confidence patterns:
 
 - [Getting started guide](./getting-started.md) — use the shortest newcomer path
   when you want to rebuild a clean mental model before debugging
+- [Trace adapter capability matrix](./trace-adapter-support.md) — check which
+  built-in languages support symbol validation only versus `doc_contains` and
+  strict ownership inventory
 - [End-to-end tutorial](./tutorial.md) — follow a full working example when you
   want to compare your workspace against a realistic repository story
+- [Spec anti-patterns](./spec-antipatterns.md) — use this when validation passes
+  but the four-layer design still feels unstable, repetitive, or too broad
 - Full rule catalog: [`docs/syu/features/validation/validation.yaml`](../syu/features/validation/validation.yaml)
 - Filter by genre: `syu validate . --genre graph`
 - Filter by severity: `syu validate . --severity error`

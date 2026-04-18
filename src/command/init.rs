@@ -1,5 +1,5 @@
 // REQ-CORE-009
-// FEAT-INIT-006
+// FEAT-INIT-007
 // FEAT-INIT-005
 // FEAT-INIT-004
 // FEAT-INIT-003
@@ -158,6 +158,9 @@ fn run_init_command_with_prompt_io(args: &InitArgs, prompt_io: &mut impl PromptI
                 "  3. Run `syu browse {workspace_arg}` for terminal exploration, or `syu app {workspace_arg}` for the browser UI"
             );
             println!("  4. Commit the generated files to version control");
+            println!(
+                "  Need a different starter next time? Run `syu templates` before another `syu init`."
+            );
         }
     }
 
@@ -193,7 +196,6 @@ fn resolve_init_options_with_prompt_io(
         });
     }
 
-    validate_interactive_init_mode(args, prompt_io)?;
     let default_project_name = args
         .name
         .clone()
@@ -674,9 +676,8 @@ mod tests {
         ensure_writable_targets, feature_document_path, feature_kind, infer_project_name,
         parse_starter_template_prompt, path_label, prompt_for_spec_root,
         prompt_for_starter_template, requirement_document_path, resolve_init_id_prefixes,
-        resolve_init_options_with_prompt_io, resolve_init_spec_root,
-        resolve_interactive_id_prefixes, run_init_command, run_init_command_with_prompt_io,
-        scaffold_files,
+        resolve_init_spec_root, resolve_interactive_id_prefixes, run_init_command,
+        run_init_command_with_prompt_io, scaffold_files,
     };
 
     #[derive(Default)]
@@ -926,9 +927,9 @@ mod tests {
         let tempdir = tempdir().expect("tempdir should exist");
         let workspace = tempdir.path().join("demo");
         let mut prompt_io = FakePromptIo::default();
-        let error = resolve_init_options_with_prompt_io(
+        let error = run_init_command_with_prompt_io(
             &InitArgs {
-                workspace,
+                workspace: workspace.clone(),
                 interactive: true,
                 name: None,
                 spec_root: None,
@@ -941,7 +942,6 @@ mod tests {
                 force: false,
                 format: crate::cli::OutputFormat::Text,
             },
-            tempdir.path(),
             &mut prompt_io,
         )
         .expect_err("interactive init should require a terminal");
@@ -951,6 +951,7 @@ mod tests {
                 .to_string()
                 .contains("`syu init --interactive` requires a terminal")
         );
+        assert!(!workspace.exists());
     }
 
     #[test]

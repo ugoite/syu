@@ -31,7 +31,12 @@ description: "Generated reference for docs/syu/requirements/core/workspace.yaml"
       `spec.root` value into `syu.yaml`, and `syu init --template` MUST support
       small `rust-only`, `python-only`, and `polyglot` starter layouts so
       adopters can begin closer to their repository style without copying
-      example files by hand. `syu init --id-prefix` MUST support seeding a
+      example files by hand. The CLI MUST also provide `syu templates` so users
+      can discover the available starter layouts, short descriptions, and any
+      matching checked-in examples before they scaffold, and the root help plus
+      closely related `syu init` guidance MUST surface that discovery command
+      alongside `syu init` without sending newcomers to docs first.
+      `syu init --id-prefix` MUST support seeding a
       shared project-specific stem into the starter philosophy, policy,
       requirement, and feature IDs, and the per-layer `--philosophy-prefix`,
       `--policy-prefix`, `--requirement-prefix`, and `--feature-prefix` flags
@@ -51,12 +56,16 @@ description: "Generated reference for docs/syu/requirements/core/workspace.yaml"
     - FEAT-INIT-004
     - FEAT-INIT-005
     - FEAT-INIT-006
+    - FEAT-INIT-007
   - **tests**:
     - **rust**:
       - **file**: tests/init_command.rs
         - **symbols**:
           - *
       - **file**: src/command/init.rs
+        - **symbols**:
+          - *
+      - **file**: src/command/templates.rs
         - **symbols**:
           - *
       - **file**: src/command/prompt.rs
@@ -68,6 +77,12 @@ description: "Generated reference for docs/syu/requirements/core/workspace.yaml"
       - **file**: src/config.rs
         - **symbols**:
           - *
+      - **file**: tests/templates_command.rs
+        - **symbols**:
+          - *
+      - **file**: tests/help_command.rs
+        - **symbols**:
+          - templates_help_mentions_json_and_init_follow_up
 - **id**: REQ-CORE-015
   - **title**: Provide a resilient interactive browse CLI
   - **description**:
@@ -94,6 +109,7 @@ description: "Generated reference for docs/syu/requirements/core/workspace.yaml"
       - **file**: src/lib.rs
         - **symbols**:
           - dispatches_interactive_bare_invocations_to_browse_defaults
+          - print_help_dispatch_renders_successfully
       - **file**: src/command/browse.rs
         - **symbols**:
           - *
@@ -271,7 +287,12 @@ requirements:
       `spec.root` value into `syu.yaml`, and `syu init --template` MUST support
       small `rust-only`, `python-only`, and `polyglot` starter layouts so
       adopters can begin closer to their repository style without copying
-      example files by hand. `syu init --id-prefix` MUST support seeding a
+      example files by hand. The CLI MUST also provide `syu templates` so users
+      can discover the available starter layouts, short descriptions, and any
+      matching checked-in examples before they scaffold, and the root help plus
+      closely related `syu init` guidance MUST surface that discovery command
+      alongside `syu init` without sending newcomers to docs first.
+      `syu init --id-prefix` MUST support seeding a
       shared project-specific stem into the starter philosophy, policy,
       requirement, and feature IDs, and the per-layer `--philosophy-prefix`,
       `--policy-prefix`, `--requirement-prefix`, and `--feature-prefix` flags
@@ -291,12 +312,16 @@ requirements:
       - FEAT-INIT-004
       - FEAT-INIT-005
       - FEAT-INIT-006
+      - FEAT-INIT-007
     tests:
       rust:
         - file: tests/init_command.rs
           symbols:
             - '*'
         - file: src/command/init.rs
+          symbols:
+            - '*'
+        - file: src/command/templates.rs
           symbols:
             - '*'
         - file: src/command/prompt.rs
@@ -308,6 +333,12 @@ requirements:
         - file: src/config.rs
           symbols:
             - '*'
+        - file: tests/templates_command.rs
+          symbols:
+            - '*'
+        - file: tests/help_command.rs
+          symbols:
+            - templates_help_mentions_json_and_init_follow_up
   - id: REQ-CORE-015
     title: Provide a resilient interactive browse CLI
     description: |
@@ -333,6 +364,7 @@ requirements:
         - file: src/lib.rs
           symbols:
             - dispatches_interactive_bare_invocations_to_browse_defaults
+            - print_help_dispatch_renders_successfully
         - file: src/command/browse.rs
           symbols:
             - '*'

@@ -1,5 +1,5 @@
 // REQ-CORE-009
-// FEAT-INIT-006
+// FEAT-INIT-007
 
 use std::io::{self, IsTerminal, Write};
 

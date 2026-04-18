@@ -268,15 +268,16 @@ description: "Generated reference for docs/syu/features/validation/validation.ya
 - **code**: SYU-trace-id-001
   - **genre**: trace
   - **severity**: error
-  - **title**: Traced files must mention the owning specification ID
-  - **summary**: A trace should be explicit inside the implementation or test artifact itself.
+  - **title**: Configured trace ownership breadcrumbs must stay explicit
+  - **summary**: When ownership breadcrumbs are enabled, the trace must stay explicit inline or in its checked-in sidecar manifest.
   - **description**:
     - |
-      `syu` is built around repository-native explainability. It is not enough
-      for YAML to say a file belongs to a requirement or feature; the file should
-      also mention that ownership so someone reading the code or test can see the
-      link without consulting another system. This rule keeps traceability visible
-      at the point where work actually happens.
+      Some repositories are comfortable letting trace YAML be the only ownership
+      source, while others still want an extra breadcrumb near the code or test
+      itself. `validate.trace_ownership_mode` controls that tradeoff. When it is
+      set to `inline` or `sidecar`, `syu` requires the traced artifact to satisfy
+      the chosen ownership mode so review-time explainability stays
+      repository-native.
 - **code**: SYU-trace-symbol-001
   - **genre**: trace
   - **severity**: error
@@ -374,15 +375,18 @@ description: "Generated reference for docs/syu/features/validation/validation.ya
   - **genre**: coverage
   - **severity**: error
   - **title**: Coverage inventory paths must be walkable
-  - **summary**: Strict trace coverage starts by discovering supported Rust, Python, and TypeScript/JavaScript source and test files under `src/` and `tests/`.
+  - **summary**: Strict trace coverage starts by discovering supported Rust, Python, and TypeScript/JavaScript source and test files under `src/` and `tests/`, while skipping configured repository-relative generated paths.
   - **description**:
     - |
       The strict trace coverage rule only means something when `syu` can walk the
       repository paths that are supposed to contain owned Rust, Python, and
-      TypeScript/JavaScript source and test files. If directory discovery fails,
-      the inventory itself is incomplete and any 100-percent coverage conclusion
-      would be misleading. This rule surfaces repository layout problems before
-      coverage claims become untrustworthy.
+      TypeScript/JavaScript source and test files. `syu` skips configured
+      repository-relative generated paths, defaulting to common build outputs
+      such as `app/dist`, `build/`, `coverage/`, `dist/`, and `target/` without
+      hiding authored nested paths like `src/build/`. If directory discovery
+      fails, the inventory itself is incomplete and any 100-percent coverage
+      conclusion would be misleading. This rule surfaces repository layout
+      problems before coverage claims become untrustworthy.
 - **code**: SYU-coverage-read-001
   - **genre**: coverage
   - **severity**: error
@@ -693,15 +697,15 @@ rules:
   - code: SYU-trace-id-001
     genre: trace
     severity: error
-    title: Traced files must mention the owning specification ID
-    summary: A trace should be explicit inside the implementation or test artifact itself.
+    title: Configured trace ownership breadcrumbs must stay explicit
+    summary: When ownership breadcrumbs are enabled, the trace must stay explicit inline or in its checked-in sidecar manifest.
     description: |
-      `syu` is built around repository-native explainability. It is not enough
-      for YAML to say a file belongs to a requirement or feature; the file should
-      also mention that ownership so someone reading the code or test can see the
-      link without consulting another system. This rule keeps traceability visible
-      at the point where work actually happens.
-
+      Some repositories are comfortable letting trace YAML be the only ownership
+      source, while others still want an extra breadcrumb near the code or test
+      itself. `validate.trace_ownership_mode` controls that tradeoff. When it is
+      set to `inline` or `sidecar`, `syu` requires the traced artifact to satisfy
+      the chosen ownership mode so review-time explainability stays
+      repository-native.
   - code: SYU-trace-symbol-001
     genre: trace
     severity: error
@@ -799,14 +803,17 @@ rules:
     genre: coverage
     severity: error
     title: Coverage inventory paths must be walkable
-    summary: Strict trace coverage starts by discovering supported Rust, Python, and TypeScript/JavaScript source and test files under `src/` and `tests/`.
+    summary: Strict trace coverage starts by discovering supported Rust, Python, and TypeScript/JavaScript source and test files under `src/` and `tests/`, while skipping configured repository-relative generated paths.
     description: |
       The strict trace coverage rule only means something when `syu` can walk the
       repository paths that are supposed to contain owned Rust, Python, and
-      TypeScript/JavaScript source and test files. If directory discovery fails,
-      the inventory itself is incomplete and any 100-percent coverage conclusion
-      would be misleading. This rule surfaces repository layout problems before
-      coverage claims become untrustworthy.
+      TypeScript/JavaScript source and test files. `syu` skips configured
+      repository-relative generated paths, defaulting to common build outputs
+      such as `app/dist`, `build/`, `coverage/`, `dist/`, and `target/` without
+      hiding authored nested paths like `src/build/`. If directory discovery
+      fails, the inventory itself is incomplete and any 100-percent coverage
+      conclusion would be misleading. This rule surfaces repository layout
+      problems before coverage claims become untrustworthy.
 
   - code: SYU-coverage-read-001
     genre: coverage
