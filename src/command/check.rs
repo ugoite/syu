@@ -4626,9 +4626,9 @@ mod tests {
             root,
             &SyuConfig::default(),
             "REQ-1",
-            "java",
+            "kotlin",
             &TraceReference {
-                file: PathBuf::from("Trace.java"),
+                file: PathBuf::from("Trace.kt"),
                 symbols: vec!["expected".to_string()],
                 doc_contains: vec!["Explain expected".to_string()],
             },
