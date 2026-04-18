@@ -222,11 +222,17 @@ until you are ready to declare real tests and implementation traces.
 
 ### Unsupported implementation languages can still adopt the spec layers first
 
-`syu` can validate code-level traces today in Rust, Python, and
+`syu` can validate code-level traces today in Rust, Python, Go, Java, and
 TypeScript/JavaScript, plus lighter file/symbol ownership in `shell`, `yaml`,
-`json`, `markdown`, and `gitignore`. Repositories that are mostly Go, Java,
-C#, or another unsupported implementation language can still adopt `syu` today,
-but they should treat code-level mappings for those files as future work.
+`json`, `markdown`, and `gitignore`. Repositories that are mostly C# or another
+unsupported implementation language can still adopt `syu` today, but they
+should treat code-level mappings for those files as future work.
+
+Go and Java already have built-in pattern-based symbol validation and
+participate in strict `validate.require_symbol_trace_coverage` inventory, even
+though they do not support `doc_contains` checks yet. The
+[trace adapter capability matrix](./trace-adapter-support.md) summarizes that
+language-by-language support.
 
 Today you can still:
 
