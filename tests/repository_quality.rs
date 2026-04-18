@@ -330,6 +330,7 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("syu app"));
     assert!(readme.contains("examples/go-only"));
     assert!(readme.contains("examples/polyglot"));
+    assert!(readme.contains("examples/team-scale"));
     assert!(readme.contains("examples-and-templates.md"));
     assert!(readme.contains("CONTRIBUTING.md"));
     assert!(readme.contains("Contributing and local development"));
