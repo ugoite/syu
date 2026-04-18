@@ -295,6 +295,7 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("Trace adapter matrix"));
     assert!(readme.contains("docs/guide/tutorial.md"));
     assert!(readme.contains("docs/guide/migration.md"));
+    assert!(readme.contains("docs/guide/app.md"));
     assert!(readme.contains("docs/guide/troubleshooting.md"));
     assert!(readme.contains("docs/guide/spec-antipatterns.md"));
     assert!(readme.contains("docs/guide/vscode-extension.md"));
@@ -302,6 +303,7 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("the in-page four-layer refresher is"));
     assert!(readme.contains("**Getting started**"));
     assert!(readme.contains("**Migration / upgrade**"));
+    assert!(readme.contains("**Visual explorer**"));
     assert!(readme.contains("using `syu` for the first time"));
     assert!(readme.contains("already have a workspace"));
     assert!(readme.contains("first workspace setup"));
@@ -358,6 +360,7 @@ fn repository_declares_documentation_guides() {
     assert!(anti_patterns.contains("When to merge, split, or rename spec items"));
     assert!(anti_patterns.contains("green-but-messy spec"));
     assert!(app_guide.contains("Status badge"));
+    assert!(app_guide.contains("README chooser on GitHub"));
     assert!(app_guide.contains("## Search shortcuts"));
     assert!(app_guide.contains("ArrowDown"));
     assert!(app_guide.contains("Escape"));
@@ -449,7 +452,7 @@ fn repository_declares_documentation_guides() {
     assert!(trace_adapter_support.contains("validate.require_symbol_trace_coverage"));
     assert!(trace_adapter_support.contains("TypeScript / JavaScript"));
     assert!(trace_adapter_support.contains("Gitignore"));
-    assert!(trace_adapter_support.contains("lang: go"));
+    assert!(trace_adapter_support.contains("| Go | `go`, `golang`, `gotest` / `.go` |"));
     assert!(examples_and_templates.contains("starter templates"));
     assert!(examples_and_templates.contains("checked-in examples"));
     assert!(examples_and_templates.contains("`syu init . --template rust-only`"));
@@ -461,7 +464,7 @@ fn repository_declares_documentation_guides() {
     assert!(configuration.contains("validate.default_fix"));
     assert!(configuration.contains("trace-adapter-support.md"));
     assert!(configuration.contains("validate.allow_planned"));
-    assert!(configuration.contains("Rust, Python, Go, and TypeScript/JavaScript"));
+    assert!(configuration.contains("Rust, Python, Go, Java, and TypeScript/JavaScript"));
     assert!(configuration.contains("--spec-root"));
     assert!(configuration.contains(&format!("version: {current_version}")));
     assert!(configuration.contains("docs/syu/config/overview.yaml"));
@@ -471,13 +474,15 @@ fn repository_declares_documentation_guides() {
     assert!(config_spec.contains("spec.root"));
     assert!(config_validate.contains("validate.default_fix"));
     assert!(config_validate.contains("validate.require_symbol_trace_coverage"));
-    assert!(config_validate.contains("Rust, Python, Go, and TypeScript/JavaScript"));
+    assert!(config_validate.contains("Rust, Python, Go, Java, and TypeScript/JavaScript"));
     assert!(config_runtimes.contains("runtimes.python.command"));
     assert!(generated_config_overview.contains("docs/syu/config/overview.yaml"));
     assert!(generated_config_overview.contains("current CLI version"));
     assert!(generated_config_spec.contains("docs/syu/config/spec.yaml"));
     assert!(generated_config_validate.contains("validate.default_fix"));
-    assert!(generated_config_validate.contains("Rust, Python, Go, and TypeScript/JavaScript"));
+    assert!(
+        generated_config_validate.contains("Rust, Python, Go, Java, and TypeScript/JavaScript")
+    );
     assert!(generated_config_validate.contains("array&lt;path&gt;"));
     assert!(generated_config_runtimes.contains("docs/syu/config/runtimes.yaml"));
     assert!(generated_site_index.contains("/docs/generated/site-spec/features/cli/show-list"));
@@ -486,7 +491,7 @@ fn repository_declares_documentation_guides() {
     assert!(generated_validation.contains("SYU-graph-reference-001"));
     assert!(
         generated_validation
-            .contains("Rust, Python, Go, and TypeScript/JavaScript source and test files")
+            .contains("Rust, Python, Go, Java, and TypeScript/JavaScript source and test files")
     );
     assert!(generated_docs_freshness.contains("FEAT-QUALITY-001"));
     assert!(generated_docs_freshness.contains("check_generated_docs_freshness"));

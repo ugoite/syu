@@ -356,6 +356,11 @@ pub fn run_check_command(args: &CheckArgs) -> Result<i32> {
         ),
     };
     let overall_success = result.is_success();
+    let warning_only_success = overall_success
+        && result
+            .issues
+            .iter()
+            .any(|issue| issue.severity == Severity::Warning);
     let filters = IssueFilters::from_args(args);
     let (result, filtered_view) = filter_check_result(result, &filters);
 
@@ -395,7 +400,17 @@ pub fn run_check_command(args: &CheckArgs) -> Result<i32> {
         }
     }
 
-    Ok(if overall_success { 0 } else { 1 })
+    Ok(
+        match (
+            overall_success,
+            warning_only_success,
+            args.warning_exit_code,
+        ) {
+            (false, _, _) => 1,
+            (true, true, Some(code)) => i32::from(code.get()),
+            (true, _, _) => 0,
+        },
+    )
 }
 
 // FEAT-CHECK-001
@@ -892,8 +907,9 @@ fn render_text_report(
         }
     }
 
+    let workspace_arg = shell_quote_path(workspace_arg);
+
     if overall_success && result.issues.is_empty() && !quiet {
-        let workspace_arg = shell_quote_path(workspace_arg);
         writeln!(&mut output).expect("writing to String must succeed");
         writeln!(&mut output, "What to do next:").expect("writing to String must succeed");
         writeln!(
@@ -914,6 +930,29 @@ fn render_text_report(
         writeln!(
             &mut output,
             "  syu show <ID> {workspace_arg}    inspect a single spec item in detail"
+        )
+        .expect("writing to String must succeed");
+    } else if !overall_success {
+        writeln!(&mut output).expect("writing to String must succeed");
+        writeln!(&mut output, "What to inspect next:").expect("writing to String must succeed");
+        writeln!(
+            &mut output,
+            "  syu show <ID> {workspace_arg}           inspect one requirement, feature, policy, or philosophy named above"
+        )
+        .expect("writing to String must succeed");
+        writeln!(
+            &mut output,
+            "  syu validate {workspace_arg} --severity error   rerun with only error-level issues if you need the shortest list first"
+        )
+        .expect("writing to String must succeed");
+        writeln!(
+            &mut output,
+            "  syu validate {workspace_arg} --genre graph      focus on missing links, reciprocal links, or missing definitions"
+        )
+        .expect("writing to String must succeed");
+        writeln!(
+            &mut output,
+            "  syu app {workspace_arg}                 open the browser UI to inspect the same workspace graph visually"
         )
         .expect("writing to String must succeed");
     }
@@ -2214,16 +2253,16 @@ fn verify_trace_reference(
     let subject = format!("{} {}", role.subject_kind(), owner_id);
     let Some(adapter) = adapter_for_language(language) else {
         issues.push(Issue::error(
-            "SYU-trace-language-001",
-            subject,
-            Some(format_reference_location(language, reference)),
-            format!(
-                "Language `{language}` is not supported. Built-in adapters currently cover Rust, Python, TypeScript, Shell, YAML, JSON, Markdown, and Gitignore."
-            ),
-            Some(format!(
-                "Use a supported language alias such as `rust`, `python`, `typescript`, `shell`, `yaml`, `json`, `markdown`, or `gitignore` for `{owner_id}`."
-            )),
-        ));
+                "SYU-trace-language-001",
+                subject,
+                Some(format_reference_location(language, reference)),
+                format!(
+                    "Language `{language}` is not supported. Built-in adapters currently cover Rust, Python, Java, TypeScript, Shell, YAML, JSON, Markdown, and Gitignore."
+                ),
+                Some(format!(
+                    "Use a supported language alias such as `rust`, `python`, `java`, `typescript`, `shell`, `yaml`, `json`, `markdown`, or `gitignore` for `{owner_id}`."
+                )),
+            ));
         return false;
     };
 
@@ -2714,6 +2753,7 @@ mod tests {
             require_non_orphaned_items: None,
             require_reciprocal_links: None,
             require_symbol_trace_coverage: None,
+            warning_exit_code: None,
             quiet: false,
         })
         .expect("command should render load errors");
@@ -2780,6 +2820,7 @@ mod tests {
             require_non_orphaned_items: None,
             require_reciprocal_links: None,
             require_symbol_trace_coverage: None,
+            warning_exit_code: None,
             quiet: false,
         })
         .expect_err("autofix failures should bubble up");
@@ -2805,6 +2846,7 @@ mod tests {
             require_non_orphaned_items: None,
             require_reciprocal_links: None,
             require_symbol_trace_coverage: None,
+            warning_exit_code: None,
             quiet: false,
         })
         .expect("command should complete");
@@ -3591,9 +3633,9 @@ mod tests {
         let mut entry = requirement("REQ-1");
         entry.status = "proposed".to_string();
         entry.tests.insert(
-            "java".to_string(),
+            "csharp".to_string(),
             vec![TraceReference {
-                file: PathBuf::from("Trace.java"),
+                file: PathBuf::from("Trace.cs"),
                 symbols: vec!["trace".to_string()],
                 doc_contains: Vec::new(),
             }],
@@ -3781,7 +3823,7 @@ mod tests {
     #[test]
     fn verify_trace_reference_reports_unsupported_languages() {
         let reference = TraceReference {
-            file: PathBuf::from("Trace.java"),
+            file: PathBuf::from("Trace.cs"),
             symbols: vec!["main".to_string()],
             doc_contains: Vec::new(),
         };
@@ -3791,7 +3833,7 @@ mod tests {
             &SyuConfig::default(),
             "REQ-1",
             TraceRole::RequirementTest,
-            "java",
+            "csharp",
             &reference,
             &mut issues,
         ));
@@ -4108,6 +4150,34 @@ mod tests {
             "FEAT-1",
             TraceRole::FeatureImplementation,
             "shell",
+            &reference,
+            &mut issues,
+        ));
+        assert!(issues.is_empty());
+    }
+
+    #[test]
+    fn verify_trace_reference_accepts_valid_java_files() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        let path = tempdir.path().join("TraceService.java");
+        fs::write(
+            &path,
+            "// FEAT-TRACE-004\npublic class TraceService {\n    public void featureTraceJava() {}\n}\n",
+        )
+        .expect("file should exist");
+
+        let reference = TraceReference {
+            file: PathBuf::from("TraceService.java"),
+            symbols: vec!["featureTraceJava".to_string()],
+            doc_contains: Vec::new(),
+        };
+        let mut issues = Vec::new();
+        assert!(verify_trace_reference(
+            tempdir.path(),
+            &SyuConfig::default(),
+            "FEAT-TRACE-004",
+            TraceRole::FeatureImplementation,
+            "java",
             &reference,
             &mut issues,
         ));
@@ -4598,9 +4668,9 @@ mod tests {
             root,
             &SyuConfig::default(),
             "REQ-1",
-            "java",
+            "kotlin",
             &TraceReference {
-                file: PathBuf::from("Trace.java"),
+                file: PathBuf::from("Trace.kt"),
                 symbols: vec!["expected".to_string()],
                 doc_contains: vec!["Explain expected".to_string()],
             },
