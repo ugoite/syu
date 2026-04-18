@@ -31,31 +31,37 @@ verified.
 
 Pick the newcomer path that matches what you need next:
 
-- **Getting started**: if you are using `syu` for the first time and want the
-  shortest install-to-validate path, the in-page four-layer refresher is the
-  fastest path through first workspace setup explained step by step.
-- **Quick start**: stay in this README when you want the shortest path from install
-  to `syu validate .` and only need a short layer refresher before the first
-  commands.
+- **Getting started**: choose this if you are new to `syu`, want a guided first
+  run, and do **not** already know the four-layer model. Expect the most
+  hand-holding and roughly 10-15 minutes for the first workspace setup.
+- **Quick start**: stay in this README when you want a compact, self-contained
+  reference card, are happy with a short layer refresher, and want the fastest
+  install-to-`syu validate .` path in about 5 minutes.
 - **Tutorial**: follow [`docs/guide/tutorial.md`](docs/guide/tutorial.md) when you
-  want a realistic end-to-end repository story instead of a short scaffold flow.
+  learn best from a realistic repository story, want more narrative context than
+  Quick start, and do not mind a longer walkthrough.
+- **Migration / upgrade**: open [`docs/guide/migration.md`](docs/guide/migration.md)
+  when you already have a `syu` workspace and want the release-specific steps
+  for moving between alpha versions safely.
 - **Visual explorer**: start with [`docs/guide/app.md`](docs/guide/app.md) or run
   `syu app .` when you want graphical spec navigation before learning the full
   text-first CLI flow.
 - **Trace adapter matrix**: open
   [`docs/guide/trace-adapter-support.md`](docs/guide/trace-adapter-support.md)
-  when you already have a workspace and need to know which built-in languages
-  support symbol validation only versus richer `doc_contains` and strict
-  coverage checks.
+  when you already have a workspace and need a capability reference for which
+  built-in languages support symbol validation only versus richer
+  `doc_contains` and strict coverage checks.
 - **Troubleshooting**: jump to
   [`docs/guide/troubleshooting.md`](docs/guide/troubleshooting.md) when validation
-  or traceability errors are already blocking you.
+  or traceability errors are already blocking you and you want the shortest path
+  to unblocking an existing workspace instead of following the onboarding flow.
 
 Keep the detailed guides close:
 
 - [`docs/guide/concepts.md`](docs/guide/concepts.md)
 - [`docs/guide/getting-started.md`](docs/guide/getting-started.md)
 - [`docs/guide/tutorial.md`](docs/guide/tutorial.md)
+- [`docs/guide/migration.md`](docs/guide/migration.md)
 - [`docs/guide/app.md`](docs/guide/app.md)
 - [`docs/guide/trace-adapter-support.md`](docs/guide/trace-adapter-support.md)
 - [`docs/guide/configuration.md`](docs/guide/configuration.md)
@@ -181,15 +187,19 @@ below. The rest of this section assumes you installed the published CLI.
 Stay in this README for the shortest install-to-validate path. If you skipped
 [`docs/guide/concepts.md`](docs/guide/concepts.md), use the
 [Why four layers?](#why-four-layers) section above as the refresher on
-`philosophy`, `policy`, `requirements`, and `features`.
+`philosophy`, `policy`, `requirements`, and `features`. There is no other
+required pre-read before the commands below.
+If you want the same flow narrated step by step with more context around the
+manual edits, switch to
+[`docs/guide/getting-started.md`](docs/guide/getting-started.md) instead.
 
 The first manual edit in this quick start happens in the generated requirement
 YAML: add `linked_policies:` and `linked_features:` there, then update the
 adjacent policy and feature YAML so they add the reciprocal
 `linked_requirements:` entry back to the new requirement.
 
-Read [`docs/guide/concepts.md`](docs/guide/concepts.md) first if you want the
-fuller rationale and authoring guidance before continuing.
+Read [`docs/guide/concepts.md`](docs/guide/concepts.md) first only when you want
+the fuller rationale and authoring guidance before continuing.
 
 Step 0: required — run `syu init .` before any of the other commands in a new repository.
 
@@ -590,10 +600,16 @@ missing files.
 
 The repository ships working example projects:
 
+- [`examples/docs-first`](examples/docs-first)
 - [`examples/go-only`](examples/go-only)
 - [`examples/rust-only`](examples/rust-only)
 - [`examples/python-only`](examples/python-only)
 - [`examples/polyglot`](examples/polyglot)
+- [`examples/team-scale`](examples/team-scale)
+`rust-only`, `python-only`, and `polyglot` match `syu init --template ...`
+starters directly. `go-only` is a reference-only workaround example for an
+unsupported implementation language, and `team-scale` is a reference-only
+example for studying a larger split-by-area repository shape.
 
 Each one is validated in the automated test suite. If you are deciding between a
 checked-in example and a scaffold template, start with
