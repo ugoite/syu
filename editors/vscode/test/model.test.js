@@ -22,8 +22,8 @@ test('loadSpecModel indexes spec documents without syu yaml', async () => {
 
   assert.equal(model.byKind.get('philosophy').length, 1);
   assert.equal(model.byKind.get('policy').length, 2);
-  assert.equal(model.byKind.get('requirement').length, 3);
-  assert.equal(model.byKind.get('feature').length, 3);
+  assert.equal(model.byKind.get('requirement').length, 4);
+  assert.equal(model.byKind.get('feature').length, 4);
   assert.equal(
     model.byId.get('REQ-TRACE-001').documentPath,
     'docs/syu/requirements/traceability/core.yaml'
