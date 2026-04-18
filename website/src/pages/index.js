@@ -101,6 +101,12 @@ export default function Home() {
               Get started
             </Link>
             <Link
+              className="button button--secondary button--lg"
+              to="https://github.com/ugoite/syu/blob/main/README.md#quick-start"
+            >
+              Quick start in the README
+            </Link>
+            <Link
               className="button button--outline button--lg siteHeroOutlineButton"
               to="/docs/generated/site-spec"
             >
