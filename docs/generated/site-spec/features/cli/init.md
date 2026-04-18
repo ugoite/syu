@@ -35,7 +35,7 @@ description: "Generated reference for docs/syu/features/cli/init.yaml"
           - current_cli_version
 - **id**: FEAT-INIT-002
   - **title**: Post-init next-step guidance
-  - **summary**: After successful init, print created file list and actionable next steps; support --format json to emit created_files for CI integrations.
+  - **summary**: After successful init, print created file list and actionable next steps, including a short `syu templates` follow-up when users want to compare starters before scaffolding another workspace; support --format json to emit created_files for CI integrations.
   - **status**: implemented
   - **linked_requirements**:
     - REQ-CORE-009
@@ -98,6 +98,22 @@ description: "Generated reference for docs/syu/features/cli/init.yaml"
       - **file**: src/cli.rs
         - **symbols**:
           - InitArgs
+- **id**: FEAT-INIT-006
+  - **title**: Starter template discovery command
+  - **summary**: Allow `syu templates` to list starter template names, short descriptions, and any matching checked-in example paths before users scaffold a workspace, and surface that discovery path from newcomer-oriented root and init help.
+  - **status**: implemented
+  - **linked_requirements**:
+    - REQ-CORE-009
+  - **implementations**:
+    - **rust**:
+      - **file**: src/command/templates.rs
+        - **symbols**:
+          - run_templates_command
+          - starter_template_catalog
+      - **file**: src/cli.rs
+        - **symbols**:
+          - TemplatesArgs
+          - Commands
 
 ## Source YAML
 
@@ -124,7 +140,7 @@ features:
             - current_cli_version
   - id: FEAT-INIT-002
     title: Post-init next-step guidance
-    summary: After successful init, print created file list and actionable next steps; support --format json to emit created_files for CI integrations.
+    summary: After successful init, print created file list and actionable next steps, including a short `syu templates` follow-up when users want to compare starters before scaffolding another workspace; support --format json to emit created_files for CI integrations.
     status: implemented
     linked_requirements:
       - REQ-CORE-009
@@ -187,4 +203,20 @@ features:
         - file: src/cli.rs
           symbols:
             - InitArgs
+  - id: FEAT-INIT-006
+    title: Starter template discovery command
+    summary: Allow `syu templates` to list starter template names, short descriptions, and any matching checked-in example paths before users scaffold a workspace, and surface that discovery path from newcomer-oriented root and init help.
+    status: implemented
+    linked_requirements:
+      - REQ-CORE-009
+    implementations:
+      rust:
+        - file: src/command/templates.rs
+          symbols:
+            - run_templates_command
+            - starter_template_catalog
+        - file: src/cli.rs
+          symbols:
+            - TemplatesArgs
+            - Commands
 ```
