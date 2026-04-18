@@ -54,7 +54,6 @@ traceability: requirements=1/1 traces validated; features=1/1 traces validated
   real `.go` files instead of a markdown workaround.
 - **Pattern-based matching is enough here** — `syu` validates that the named Go
   symbols exist, even though the adapter does not inspect doc comments.
-- **Strict coverage can grow later** — this example keeps the smallest possible
-  shape, but the Go adapter also participates in
-  `validate.require_symbol_trace_coverage` when a repository wants stricter
-  ownership checks.
+- **Strict coverage is available elsewhere** — the Go adapter participates in
+  `validate.require_symbol_trace_coverage`, but this example keeps the minimal
+  `go/` layout and is not demonstrating the stricter ownership-inventory path.
