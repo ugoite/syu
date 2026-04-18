@@ -210,8 +210,9 @@ For a genuinely mixed-language repository, keep the first adoption step small:
   only in supported lightweight adapters that `syu` cannot inspect deeply yet
 - keep unsupported implementation-language areas connected through the spec
   layers until adapter support lands
-- turn stricter symbol coverage on later for the Rust, Python, and
-  TypeScript/JavaScript areas once those traces are stable
+- turn stricter symbol coverage on later for the supported implementation
+  languages you are tracing (Rust, Python, Go, Java, or
+  TypeScript/JavaScript) once those traces are stable
 
 That keeps the repository connected to the spec from day one without forcing a
 polyglot team to fake symbol-level coverage before the current adapters are
