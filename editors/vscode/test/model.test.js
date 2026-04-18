@@ -78,7 +78,24 @@ test('resolveIssueTarget maps definition issues back to YAML files', async () =>
   assert.ok(
     target.path.endsWith(path.join('docs', 'syu', 'requirements', 'traceability', 'core.yaml'))
   );
-  assert.ok(target.range.line >= 0);
+  assert.equal(target.range.line, 8);
+  assert.equal(target.range.startCharacter, 4);
+});
+
+test('resolveIssueTarget preserves absolute issue locations', async () => {
+  const model = await loadSpecModel(fixtureRoot('passing'));
+  const absoluteTarget = path.join(fixtureRoot('passing'), 'src', 'rust_feature.rs');
+  const target = await resolveIssueTarget(
+    {
+      subject: 'feature FEAT-TRACE-001',
+      location: absoluteTarget,
+      message: 'trace is broken'
+    },
+    model,
+    fixtureRoot('passing')
+  );
+
+  assert.equal(target.path, absoluteTarget);
 });
 
 test('normalizeRelativePath keeps repository relative paths portable', () => {

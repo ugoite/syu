@@ -402,7 +402,17 @@ function parseTraceLocation(location) {
     return null
   }
 
-  const relativePath = normalizeRelativePath(location.slice(separator + 1))
+  const rawPath = location.slice(separator + 1).trim()
+  if (!rawPath) {
+    return null
+  }
+
+  const systemPath = toSystemPath(rawPath)
+  if (path.isAbsolute(systemPath)) {
+    return path.normalize(systemPath)
+  }
+
+  const relativePath = normalizeRelativePath(rawPath)
   return relativePath || null
 }
 
@@ -431,14 +441,17 @@ function formatDiagnosticMessage(issue) {
 async function resolveIssueTarget(issue, model, workspaceRoot) {
   const traceLocation = parseTraceLocation(issue.location)
   const subjectItem = itemFromIssueSubject(issue, model)
-  const relativePath =
+  const locationPath =
     traceLocation ||
     (looksLikeWorkspaceRelativeFile(issue.location)
-      ? normalizeRelativePath(issue.location)
+      ? issue.location
       : null) ||
     subjectItem?.documentPath ||
     'syu.yaml'
-  const targetPath = path.join(workspaceRoot, toSystemPath(relativePath))
+  const normalizedLocation = toSystemPath(locationPath)
+  const targetPath = path.isAbsolute(normalizedLocation)
+    ? path.normalize(normalizedLocation)
+    : path.join(workspaceRoot, normalizeRelativePath(normalizedLocation))
   const range = await resolveIssueRange(targetPath, issue, subjectItem)
 
   return { path: targetPath, range }
@@ -455,14 +468,21 @@ async function resolveIssueRange(targetPath, issue, subjectItem) {
 
 function findIssueRange(contents, issue, subjectItem) {
   const lines = contents.split(/\r?\n/u)
-  const searchTerms = []
 
-  if (subjectItem && isFieldName(issue.location)) {
-    searchTerms.push(`${issue.location}:`)
-  }
   if (subjectItem) {
-    searchTerms.push(`id: ${subjectItem.id}`)
+    const subjectRange = findTermRange(lines, `id: ${subjectItem.id}`)
+    if (subjectRange) {
+      if (isFieldName(issue.location)) {
+        const fieldRange = findFieldRangeInItemBlock(lines, issue.location, subjectRange.line)
+        if (fieldRange) {
+          return fieldRange
+        }
+      }
+      return subjectRange
+    }
   }
+
+  const searchTerms = []
   if (
     typeof issue.location === 'string' &&
     issue.location &&
@@ -473,21 +493,74 @@ function findIssueRange(contents, issue, subjectItem) {
   }
 
   for (const term of searchTerms) {
-    for (let line = 0; line < lines.length; line += 1) {
-      const startCharacter = lines[line].indexOf(term)
-      if (startCharacter === -1) {
-        continue
-      }
-
-      return {
-        line,
-        startCharacter,
-        endCharacter: startCharacter + term.length
-      }
+    const range = findTermRange(lines, term)
+    if (range) {
+      return range
     }
   }
 
   return { line: 0, startCharacter: 0, endCharacter: 0 }
+}
+
+function findTermRange(lines, term, startLine = 0, endLine = lines.length) {
+  for (let line = startLine; line < endLine; line += 1) {
+    const startCharacter = lines[line].indexOf(term)
+    if (startCharacter === -1) {
+      continue
+    }
+
+    return {
+      line,
+      startCharacter,
+      endCharacter: startCharacter + term.length
+    }
+  }
+
+  return null
+}
+
+function findFieldRangeInItemBlock(lines, fieldName, itemStartLine) {
+  const blockEnd = findItemBlockEnd(lines, itemStartLine)
+  const fieldPrefix = `${fieldName}:`
+
+  for (let line = itemStartLine + 1; line < blockEnd; line += 1) {
+    const trimmed = lines[line].trimStart()
+    if (!trimmed.startsWith(fieldPrefix)) {
+      continue
+    }
+
+    const startCharacter = lines[line].indexOf(fieldPrefix)
+    return {
+      line,
+      startCharacter,
+      endCharacter: startCharacter + fieldPrefix.length
+    }
+  }
+
+  return null
+}
+
+function findItemBlockEnd(lines, itemStartLine) {
+  const itemIndent = lines[itemStartLine].match(/^(\s*)-\s+id:\s+/u)?.[1].length ?? 0
+
+  for (let line = itemStartLine + 1; line < lines.length; line += 1) {
+    const current = lines[line]
+    if (!current.trim()) {
+      continue
+    }
+
+    const nextItem = current.match(/^(\s*)-\s+id:\s+/u)
+    if (nextItem && nextItem[1].length === itemIndent) {
+      return line
+    }
+
+    const currentIndent = current.match(/^(\s*)/u)?.[1].length ?? 0
+    if (currentIndent <= itemIndent) {
+      return line
+    }
+  }
+
+  return lines.length
 }
 
 function runSyuJson({ workspaceRoot, binaryPath, args }) {
