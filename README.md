@@ -31,9 +31,13 @@ verified.
 
 Pick the newcomer path that matches what you need next:
 
-- **Quick start**: stay in this README when you want the shortest path from install
-  to `syu validate .` and only need a short layer refresher before the first
-  commands.
+- **Quick start**: stay in this README when the in-page four-layer refresher is
+  enough, you want the shortest path from install to `syu validate .`, and you
+  are comfortable editing the first reciprocal links yourself.
+- **Getting started**: follow
+  [`docs/guide/getting-started.md`](docs/guide/getting-started.md) when you want
+  the same first workspace setup explained step by step before the manual YAML
+  edits and first validation run.
 - **Existing repository adoption**: follow
   [`docs/guide/existing-repository.md`](docs/guide/existing-repository.md) when
   the repository already has code and history and you want an incremental
@@ -42,6 +46,9 @@ Pick the newcomer path that matches what you need next:
   [`docs/guide/migration.md`](docs/guide/migration.md) when you are updating an
   existing `syu` workspace between alpha releases and need the release-specific
   upgrade steps first.
+- **Visual explorer**: open [`docs/guide/app.md`](docs/guide/app.md) or run
+  `syu app .` when you want graphical spec navigation before learning the full
+  CLI workflow.
 - **Tutorial**: follow [`docs/guide/tutorial.md`](docs/guide/tutorial.md) when you
   want a realistic end-to-end repository story instead of a short scaffold flow.
 - **Trace adapter matrix**: open
@@ -214,18 +221,26 @@ below. The rest of this section assumes you installed the published CLI.
 
 ## Quick start
 
-Stay in this README for the shortest install-to-validate path. If you skipped
-[`docs/guide/concepts.md`](docs/guide/concepts.md), use the
-[Why four layers?](#why-four-layers) section above as the refresher on
-`philosophy`, `policy`, `requirements`, and `features`.
+Treat this section as the compact command card. Stay in this README when the
+in-page four-layer refresher is enough and you want the shortest install-to-validate path.
+If you want the first-run walkthrough explained step by step instead, switch to
+[`docs/guide/getting-started.md`](docs/guide/getting-started.md) before
+continuing.
+
+The only prerequisite for the commands below is the
+[Why four layers?](#why-four-layers) refresher above, which gives you the
+minimal context for `philosophy`, `policy`, `requirements`, and `features`.
 
 The first manual edit in this quick start happens in the generated requirement
 YAML: add `linked_policies:` and `linked_features:` there, then update the
 adjacent policy and feature YAML so they add the reciprocal
 `linked_requirements:` entry back to the new requirement.
 
-Read [`docs/guide/concepts.md`](docs/guide/concepts.md) first if you want the
-fuller rationale and authoring guidance before continuing.
+Read [`docs/guide/concepts.md`](docs/guide/concepts.md) before continuing only
+if you want the fuller rationale and authoring guidance instead of the shortest
+README-first path.
+If you want the canonical narrated first-run path instead, jump to
+[`docs/guide/getting-started.md`](docs/guide/getting-started.md).
 
 Step 0: required — run `syu init .` before any of the other commands in a new
 repository. If the repository already exists and you do not want an in-place
@@ -592,10 +607,10 @@ missing files.
 
 The repository ships working example projects:
 
-- [`examples/rust-only`](examples/rust-only) — minimal single-language Rust starter
-- [`examples/python-only`](examples/python-only) — minimal Python-first starter
-- [`examples/polyglot`](examples/polyglot) — one requirement and feature traced across Rust, Python, and TypeScript
-- [`examples/team-scale`](examples/team-scale) — a larger Rust workspace that shows phased adoption, nested documents, and recovery drills
+- [`examples/rust-only`](examples/rust-only) — minimal single-language Rust starter, and the checked-in match for `syu init . --template rust-only`
+- [`examples/python-only`](examples/python-only) — minimal Python-first starter, and the checked-in match for `syu init . --template python-only`
+- [`examples/polyglot`](examples/polyglot) — one requirement and feature traced across Rust, Python, and TypeScript, and the checked-in match for `syu init . --template polyglot`
+- [`examples/team-scale`](examples/team-scale) — a larger Rust workspace that shows phased adoption, nested documents, and recovery drills; reference-only, not a starter template
 
 Each one is validated in the automated test suite.
 
