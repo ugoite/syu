@@ -40,6 +40,8 @@ description: "Generated reference for docs/syu/policies/policies.yaml"
     - REQ-CORE-018
     - REQ-CORE-019
     - REQ-CORE-020
+    - REQ-CORE-021
+    - REQ-CORE-023
 - **id**: POL-002
   - **title**: Validation should explain the current state instead of only failing
   - **summary**: Errors, reports, and browsing should make the layered model legible even when the workspace is broken.
@@ -62,18 +64,23 @@ description: "Generated reference for docs/syu/policies/policies.yaml"
     - REQ-CORE-018
     - REQ-CORE-019
     - REQ-CORE-021
+    - REQ-CORE-023
+    - REQ-CORE-024
 - **id**: POL-003
   - **title**: Traceability should prove ownership from specification to code and tests
   - **summary**: Declared traces should map to real files, real symbols, optional full-file ownership, and derivable repository history.
   - **description**:
     - |
       Declared traces are only credible when `syu` can verify the referenced
-      file, symbol, owning ID, and optional documentation snippets from the
-      repository. When that trace data is checked in, it should also be possible
-      to project it onto Git history so maintenance work and code review can see
-      which commits changed the traced surface. When a project opts in, public
-      APIs and tests should also be required to belong to some feature or
-      requirement so maintenance work does not quietly outrun the specification.
+      file, symbol, and optional documentation snippets from the repository.
+      The checked-in specification should stay sufficient to audit ownership
+      without forcing bookkeeping IDs into implementation files by default.
+      When a project opts in, public APIs and tests should also be required to
+      belong to some feature or requirement so maintenance work does not
+      quietly outrun the specification.
+      When that trace data is checked in, it should also be possible to project
+      it onto Git history so maintenance work and code review can see which
+      commits changed the traced surface.
   - **linked_philosophies**:
     - PHIL-001
     - PHIL-002
@@ -81,6 +88,7 @@ description: "Generated reference for docs/syu/policies/policies.yaml"
     - REQ-CORE-002
     - REQ-CORE-003
     - REQ-CORE-021
+    - REQ-CORE-024
 - **id**: POL-004
   - **title**: Starting, browsing, and configuring syu should stay low ceremony
   - **summary**: Setup and exploration should be quick enough that teams do not resent the tool.
@@ -102,6 +110,8 @@ description: "Generated reference for docs/syu/policies/policies.yaml"
     - REQ-CORE-019
     - REQ-CORE-020
     - REQ-CORE-021
+    - REQ-CORE-023
+    - REQ-CORE-024
 - **id**: POL-005
   - **title**: Documentation and examples must lower adoption friction
   - **summary**: Guides, reports, sites, and examples are part of the product surface.
@@ -156,6 +166,22 @@ description: "Generated reference for docs/syu/policies/policies.yaml"
     - REQ-CORE-007
     - REQ-CORE-008
     - REQ-CORE-014
+- **id**: POL-008
+  - **title**: Traceability should preserve source purity by default
+  - **summary**: Checked-in trace mappings should stay audit-friendly without forcing inline spec-ID bookkeeping into code.
+  - **description**:
+    - |
+      `syu` should let teams prove requirement and feature ownership from the
+      repository itself: checked-in YAML, real files, real symbols, and optional
+      documentation assertions. Inline breadcrumbs inside source are still a
+      valid strategy when a team wants them, but the default model should keep
+      implementation files readable and low ceremony.
+  - **linked_philosophies**:
+    - PHIL-001
+    - PHIL-003
+  - **linked_requirements**:
+    - REQ-CORE-002
+    - REQ-CORE-003
 
 ## Source YAML
 
@@ -183,6 +209,8 @@ policies:
       - REQ-CORE-018
       - REQ-CORE-019
       - REQ-CORE-020
+      - REQ-CORE-021
+      - REQ-CORE-023
 
   - id: POL-002
     title: Validation should explain the current state instead of only failing
@@ -205,18 +233,23 @@ policies:
       - REQ-CORE-018
       - REQ-CORE-019
       - REQ-CORE-021
+      - REQ-CORE-023
+      - REQ-CORE-024
 
   - id: POL-003
     title: Traceability should prove ownership from specification to code and tests
     summary: "Declared traces should map to real files, real symbols, optional full-file ownership, and derivable repository history."
     description: |
       Declared traces are only credible when `syu` can verify the referenced
-      file, symbol, owning ID, and optional documentation snippets from the
-      repository. When that trace data is checked in, it should also be possible
-      to project it onto Git history so maintenance work and code review can see
-      which commits changed the traced surface. When a project opts in, public
-      APIs and tests should also be required to belong to some feature or
-      requirement so maintenance work does not quietly outrun the specification.
+      file, symbol, and optional documentation snippets from the repository.
+      The checked-in specification should stay sufficient to audit ownership
+      without forcing bookkeeping IDs into implementation files by default.
+      When a project opts in, public APIs and tests should also be required to
+      belong to some feature or requirement so maintenance work does not
+      quietly outrun the specification.
+      When that trace data is checked in, it should also be possible to project
+      it onto Git history so maintenance work and code review can see which
+      commits changed the traced surface.
     linked_philosophies:
       - PHIL-001
       - PHIL-002
@@ -224,6 +257,7 @@ policies:
       - REQ-CORE-002
       - REQ-CORE-003
       - REQ-CORE-021
+      - REQ-CORE-024
 
   - id: POL-004
     title: Starting, browsing, and configuring syu should stay low ceremony
@@ -245,6 +279,8 @@ policies:
       - REQ-CORE-019
       - REQ-CORE-020
       - REQ-CORE-021
+      - REQ-CORE-023
+      - REQ-CORE-024
 
   - id: POL-005
     title: Documentation and examples must lower adoption friction
@@ -299,4 +335,20 @@ policies:
       - REQ-CORE-007
       - REQ-CORE-008
       - REQ-CORE-014
+
+  - id: POL-008
+    title: Traceability should preserve source purity by default
+    summary: "Checked-in trace mappings should stay audit-friendly without forcing inline spec-ID bookkeeping into code."
+    description: |
+      `syu` should let teams prove requirement and feature ownership from the
+      repository itself: checked-in YAML, real files, real symbols, and optional
+      documentation assertions. Inline breadcrumbs inside source are still a
+      valid strategy when a team wants them, but the default model should keep
+      implementation files readable and low ceremony.
+    linked_philosophies:
+      - PHIL-001
+      - PHIL-003
+    linked_requirements:
+      - REQ-CORE-002
+      - REQ-CORE-003
 ```

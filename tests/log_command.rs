@@ -1,9 +1,16 @@
-// REQ-CORE-021
+// REQ-CORE-024
 
 use assert_cmd::cargo::CommandCargoExt;
 use serde_json::Value;
-use std::{fs, path::Path, process::Command};
+use std::{
+    fs,
+    path::Path,
+    process::Command,
+    sync::atomic::{AtomicU64, Ordering},
+};
 use tempfile::{TempDir, tempdir};
+
+static COMMIT_TIMESTAMP: AtomicU64 = AtomicU64::new(1_776_355_200);
 
 fn write_history_workspace() -> TempDir {
     let tempdir = tempdir().expect("tempdir should exist");
@@ -79,15 +86,47 @@ fn init_git_repository(workspace: &Path) {
     git(workspace, &["config", "user.name", "Test User"]);
     git(workspace, &["config", "user.email", "test@example.com"]);
     git(workspace, &["add", "."]);
-    git(
-        workspace,
-        &["commit", "-m", "chore: initial history fixture"],
-    );
+    git_commit_with_timestamp(workspace, "chore: initial history fixture");
 }
 
 fn git_commit(workspace: &Path, summary: &str) {
     git(workspace, &["add", "."]);
-    git(workspace, &["commit", "-m", summary]);
+    git_commit_with_timestamp(workspace, summary);
+}
+
+fn git_commit_with_timestamp(workspace: &Path, summary: &str) {
+    let timestamp = COMMIT_TIMESTAMP.fetch_add(1, Ordering::Relaxed);
+    let timestamp = format!("{timestamp} +0000");
+
+    let mut command = Command::new("git");
+    command
+        .arg("-C")
+        .arg(workspace)
+        .args(["commit", "-m", summary])
+        .env("GIT_AUTHOR_DATE", &timestamp)
+        .env("GIT_COMMITTER_DATE", &timestamp);
+    for key in [
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_CEILING_DIRECTORIES",
+        "GIT_COMMON_DIR",
+        "GIT_DIR",
+        "GIT_INDEX_FILE",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_PREFIX",
+        "GIT_WORK_TREE",
+    ] {
+        command.env_remove(key);
+    }
+
+    let output = command.output().expect("git should run");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        output.status.success(),
+        "git commit failed\nstdout:\n{}\nstderr:\n{}",
+        stdout,
+        stderr
+    );
 }
 
 fn git(workspace: &Path, args: &[&str]) {
@@ -142,11 +181,11 @@ fn write_fake_git_for_log_failure(script_dir: &Path) {
     }
 }
 
-fn write_fake_git_for_rev_list_failure(script_dir: &Path) {
+fn write_fake_git_for_merge_base_failure(script_dir: &Path) {
     let script_path = script_dir.join("git");
     fs::write(
         &script_path,
-        "#!/bin/sh\nset -eu\nworkspace=\"$2\"\ncommand_name=\"$3\"\nif [ \"$command_name\" = \"rev-parse\" ]; then\n  printf '%s\\n' \"$workspace\"\n  exit 0\nfi\nif [ \"$command_name\" = \"log\" ]; then\n  printf '\\036sha\\000short\\000author\\0002026-04-13T00:00:00+00:00\\000subject\\000src/history_tests.rs\\000'\n  exit 0\nfi\nif [ \"$command_name\" = \"rev-list\" ]; then\n  echo 'synthetic git rev-list failure' >&2\n  exit 1\nfi\necho 'unexpected git invocation' >&2\nexit 1\n",
+        "#!/bin/sh\nset -eu\nworkspace=\"$2\"\ncommand_name=\"$3\"\nif [ \"$command_name\" = \"rev-parse\" ]; then\n  printf '%s\\n' \"$workspace\"\n  exit 0\nfi\nif [ \"$command_name\" = \"log\" ]; then\n  printf '\\036sha\\000short\\000author\\0002026-04-13T00:00:00+00:00\\000subject\\000src/history_tests.rs\\000'\n  exit 0\nfi\nif [ \"$command_name\" = \"merge-base\" ]; then\n  echo 'synthetic git merge-base failure' >&2\n  exit 2\nfi\necho 'unexpected git invocation' >&2\nexit 1\n",
     )
     .expect("fake git script");
 
@@ -162,7 +201,7 @@ fn write_fake_git_for_rev_list_failure(script_dir: &Path) {
     }
 }
 
-fn write_fake_git_for_rev_list_spawn_failure(script_dir: &Path) {
+fn write_fake_git_for_merge_base_spawn_failure(script_dir: &Path) {
     let script_path = script_dir.join("git");
     fs::write(
         &script_path,
@@ -610,10 +649,10 @@ fn log_command_reports_git_log_failures() {
 }
 
 #[test]
-fn log_command_reports_git_rev_list_failures() {
+fn log_command_falls_back_when_git_merge_base_fails() {
     let workspace = write_history_workspace();
     let fake_bin = tempdir().expect("tempdir should exist");
-    write_fake_git_for_rev_list_failure(fake_bin.path());
+    write_fake_git_for_merge_base_failure(fake_bin.path());
 
     let output = Command::cargo_bin("syu")
         .expect("binary should build")
@@ -628,17 +667,16 @@ fn log_command_reports_git_rev_list_failures() {
         .output()
         .expect("command should run");
 
-    assert_eq!(output.status.code(), Some(2));
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("failed to read git history order"));
-    assert!(stderr.contains("synthetic git rev-list failure"));
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("subject"));
 }
 
 #[test]
-fn log_command_reports_git_rev_list_spawn_errors() {
+fn log_command_falls_back_when_git_merge_base_cannot_spawn() {
     let workspace = write_history_workspace();
     let fake_bin = tempdir().expect("tempdir should exist");
-    write_fake_git_for_rev_list_spawn_failure(fake_bin.path());
+    write_fake_git_for_merge_base_spawn_failure(fake_bin.path());
 
     let output = Command::cargo_bin("syu")
         .expect("binary should build")
@@ -653,14 +691,9 @@ fn log_command_reports_git_rev_list_spawn_errors() {
         .output()
         .expect("command should run");
 
-    assert_eq!(output.status.code(), Some(2));
+    assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    let combined = format!("{stdout}{stderr}");
-    assert!(
-        combined.contains("failed to run `git rev-list`"),
-        "stdout:\n{stdout}\nstderr:\n{stderr}"
-    );
+    assert!(stdout.contains("subject"));
 }
 
 #[test]

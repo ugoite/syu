@@ -2,13 +2,17 @@
 // FEAT-APP-001
 // FEAT-ADD-001
 // FEAT-LOG-001
+// FEAT-RELATE-001
 // FEAT-SEARCH-001
 // FEAT-BROWSE-001
 // FEAT-BROWSE-002
+// FEAT-INIT-007
+// FEAT-INIT-006
 // FEAT-INIT-005
 // FEAT-INIT-004
 // FEAT-INIT-003
 // FEAT-LIST-002
+// FEAT-TRACE-001
 // FEAT-REPORT-001
 // FEAT-INIT-002
 // REQ-CORE-001
@@ -18,10 +22,11 @@ use std::path::PathBuf;
 
 const ROOT_AFTER_HELP: &str = "\
 New here?
-  1. syu init .      scaffold a workspace in the current directory
-  2. syu validate .  check the layered spec and traceability
-  3. syu browse .    explore the spec in your terminal
-  4. syu app .       start the local browser UI server";
+  1. syu templates   compare starter layouts before you scaffold
+  2. syu init .      scaffold a workspace in the current directory
+  3. syu validate .  check the layered spec and traceability
+  4. syu browse .    explore the spec in your terminal
+  5. syu app .       start the local browser UI server";
 
 const APP_AFTER_HELP: &str = concat!(
     "After startup, open the printed URL in your browser.\n",
@@ -30,12 +35,25 @@ const APP_AFTER_HELP: &str = concat!(
 );
 
 const INIT_AFTER_HELP: &str = "\
+Use `syu templates` first when you want to compare starter layouts before you scaffold.
+
 Examples:
+  syu templates
   syu init .
+  syu init . --interactive
   syu init . --id-prefix store
   syu init . --template rust-only
   syu init . --spec-root docs/spec
   syu init path/to/workspace --name my-project --spec-root spec/contracts --template polyglot --id-prefix store";
+
+// FEAT-INIT-006
+const TEMPLATES_AFTER_HELP: &str = "\
+Use `syu templates` when you want a quick catalog of starter layouts before you scaffold.
+Use `syu init --template ...` when you are ready to generate files.
+
+Examples:
+  syu templates
+  syu templates --format json";
 
 const ADD_AFTER_HELP: &str = "\
 After writing a stub, `syu add` prints the reciprocal-link follow-up and matching scaffold suggestions needed before `syu validate` will pass cleanly.
@@ -49,7 +67,7 @@ Examples:
   syu add feature path/to/workspace --interactive
   syu add feature FEAT-AUTH-001 --kind auth --file docs/syu/features/auth/login.yaml";
 
-const WORKSPACE_HELP: &str = "Workspace root containing syu.yaml and the configured spec tree";
+const WORKSPACE_HELP: &str = "Workspace root or any child directory; syu walks upward to find syu.yaml and the configured spec tree";
 
 const LIST_AFTER_HELP: &str = "\
 Choose `syu list` when you want list-shaped output that can be narrowed to one layer or emitted as JSON for automation.
@@ -62,10 +80,12 @@ Examples:
   syu list path/to/workspace
   syu list requirement path/to/workspace
   syu list path/to/workspace requirement
+  syu list requirement docs/syu
+  syu list requirement docs/syu/features
 
 Note:
-  Pass the workspace root that contains syu.yaml.
-  The configured spec.root lives inside that workspace; do not pass it directly.";
+  Pass the workspace root, the configured spec.root directory, or any child directory.
+  syu walks upward until it finds syu.yaml, then resolves the configured spec.root from that workspace.";
 const BROWSE_AFTER_HELP: &str = "\
 Choose `syu browse --non-interactive` when you want the browse snapshot in plain text: workspace metadata, per-layer counts, grouped items, and the current validation errors.
 Choose `syu list` when you want list-shaped output that can be narrowed to one layer or emitted as JSON for automation.
@@ -86,6 +106,19 @@ Examples:
   syu log REQ-CORE-002
   syu log FEAT-CHECK-001 --kind implementation --path src/command
   syu log REQ-CORE-019 --format json";
+
+const RELATE_AFTER_HELP: &str = "\
+Examples:
+  syu relate REQ-CORE-018
+  syu relate FEAT-SEARCH-001 --format json
+  syu relate src/command/search.rs
+  syu relate run_search_command";
+
+const TRACE_AFTER_HELP: &str = "\
+Examples:
+  syu trace src/rust_feature.rs
+  syu trace src/rust_feature.rs --symbol feature_trace_rust
+  syu trace src/rust_feature.rs path/to/workspace --format json";
 
 #[derive(Debug, Parser)]
 #[command(
@@ -126,6 +159,16 @@ pub enum Commands {
     )]
     Log(LogArgs),
     #[command(
+        about = "Inspect the connected graph around one ID, path, or source symbol",
+        after_help = RELATE_AFTER_HELP
+    )]
+    Relate(RelateArgs),
+    #[command(
+        about = "Resolve linked requirements, features, policies, and philosophies from a traced file or symbol",
+        after_help = TRACE_AFTER_HELP
+    )]
+    Trace(TraceArgs),
+    #[command(
         about = "Start a local HTTP server and browser UI for workspace exploration, then print the URL to open in your browser",
         after_help = APP_AFTER_HELP
     )]
@@ -142,6 +185,11 @@ pub enum Commands {
         after_help = INIT_AFTER_HELP
     )]
     Init(InitArgs),
+    #[command(
+        about = "List starter templates and related checked-in examples",
+        after_help = TEMPLATES_AFTER_HELP
+    )]
+    Templates(TemplatesArgs),
     #[command(
         about = "Scaffold a new philosophy, policy, requirement, or feature stub",
         after_help = ADD_AFTER_HELP
@@ -297,6 +345,38 @@ pub struct LogArgs {
 }
 
 #[derive(Debug, Clone, Args)]
+pub struct TraceArgs {
+    #[arg(help = "Repository-relative source or test file to resolve through trace ownership")]
+    pub file: PathBuf,
+
+    #[arg(help = WORKSPACE_HELP)]
+    #[arg(default_value = ".")]
+    pub workspace: PathBuf,
+
+    #[arg(help = "Optional symbol name to resolve within the traced file")]
+    #[arg(long)]
+    pub symbol: Option<String>,
+
+    #[arg(help = "Output format for trace lookup results")]
+    #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
+    pub format: OutputFormat,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct RelateArgs {
+    #[arg(help = "Definition ID, repository-relative path, or traced source symbol to inspect")]
+    pub selector: String,
+
+    #[arg(help = WORKSPACE_HELP)]
+    #[arg(default_value = ".")]
+    pub workspace: PathBuf,
+
+    #[arg(help = "Output format for the related graph")]
+    #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
+    pub format: OutputFormat,
+}
+
+#[derive(Debug, Clone, Args)]
 pub struct AppArgs {
     #[arg(help = WORKSPACE_HELP)]
     #[arg(default_value = ".")]
@@ -417,6 +497,10 @@ pub struct InitArgs {
     #[arg(default_value = ".")]
     pub workspace: PathBuf,
 
+    #[arg(help = "Prompt for starter settings in a terminal before scaffolding files")]
+    #[arg(long, action = ArgAction::SetTrue)]
+    pub interactive: bool,
+
     #[arg(help = "Override the inferred project name")]
     #[arg(long)]
     pub name: Option<String>,
@@ -457,7 +541,16 @@ pub struct InitArgs {
     #[arg(long)]
     pub force: bool,
 
-    #[arg(help = "Output format (text shows next-step guidance; json returns created file paths)")]
+    #[arg(
+        help = "Output format (text shows next-step guidance; json returns created file paths; --interactive supports text only)"
+    )]
+    #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
+    pub format: OutputFormat,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct TemplatesArgs {
+    #[arg(help = "Output format for starter-template discovery")]
     #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
     pub format: OutputFormat,
 }
@@ -506,6 +599,17 @@ pub enum StarterTemplate {
     Polyglot,
 }
 
+impl StarterTemplate {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Generic => "generic",
+            Self::RustOnly => "rust-only",
+            Self::PythonOnly => "python-only",
+            Self::Polyglot => "polyglot",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum OutputFormat {
     Text,
@@ -550,7 +654,9 @@ impl ValidationGenreFilter {
 
 #[cfg(test)]
 mod tests {
-    use super::{Cli, LookupKind, ValidationGenreFilter, ValidationSeverityFilter};
+    use super::{
+        Cli, LookupKind, StarterTemplate, ValidationGenreFilter, ValidationSeverityFilter,
+    };
     use clap::Parser;
 
     #[test]
@@ -559,6 +665,10 @@ mod tests {
         assert_eq!(LookupKind::Policy.label(), "policy");
         assert_eq!(LookupKind::Requirement.label(), "requirement");
         assert_eq!(LookupKind::Feature.label(), "feature");
+        assert_eq!(StarterTemplate::Generic.label(), "generic");
+        assert_eq!(StarterTemplate::RustOnly.label(), "rust-only");
+        assert_eq!(StarterTemplate::PythonOnly.label(), "python-only");
+        assert_eq!(StarterTemplate::Polyglot.label(), "polyglot");
         assert_eq!(ValidationSeverityFilter::Error.as_str(), "error");
         assert_eq!(ValidationSeverityFilter::Warning.as_str(), "warning");
         assert_eq!(ValidationGenreFilter::Workspace.as_str(), "workspace");
@@ -609,6 +719,24 @@ mod tests {
     }
 
     #[test]
+    fn templates_args_accept_json_format() {
+        let cli = Cli::try_parse_from(["syu", "templates", "--format", "json"])
+            .expect("templates args should parse");
+
+        let rendered = format!("{cli:?}");
+        assert!(rendered.contains("command: Some(Templates("));
+        assert!(rendered.contains("format: Json"));
+    }
+
+    #[test]
+    fn templates_args_default_to_text_format() {
+        let cli = Cli::try_parse_from(["syu", "templates"]).expect("templates args should parse");
+        let rendered = format!("{cli:?}");
+        assert!(rendered.contains("command: Some(Templates("));
+        assert!(rendered.contains("format: Text"));
+    }
+
+    #[test]
     fn init_args_accept_custom_spec_root() {
         let cli = Cli::try_parse_from(["syu", "init", ".", "--spec-root", "docs/spec"])
             .expect("init args should parse");
@@ -648,6 +776,17 @@ mod tests {
         let rendered = format!("{cli:?}");
         assert!(rendered.contains("command: Some(Init("));
         assert!(rendered.contains("id_prefix: Some(\"store\")"));
+    }
+
+    #[test]
+    fn init_args_support_interactive_mode() {
+        let cli = Cli::try_parse_from(["syu", "init", ".", "--interactive"])
+            .expect("interactive init args should parse");
+
+        let rendered = format!("{cli:?}");
+        assert!(rendered.contains("command: Some(Init("));
+        assert!(rendered.contains("workspace: \".\""));
+        assert!(rendered.contains("interactive: true"));
     }
 
     #[test]

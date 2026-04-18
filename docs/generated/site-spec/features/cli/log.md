@@ -22,7 +22,7 @@ description: "Generated reference for docs/syu/features/cli/log.yaml"
   - **summary**: Show the commit history behind one requirement or feature by projecting the current trace graph onto checked-in Git paths.
   - **status**: implemented
   - **linked_requirements**:
-    - REQ-CORE-021
+    - REQ-CORE-024
   - **implementations**:
     - **rust**:
       - **file**: src/command/log.rs
@@ -56,7 +56,7 @@ features:
     summary: Show the commit history behind one requirement or feature by projecting the current trace graph onto checked-in Git paths.
     status: implemented
     linked_requirements:
-      - REQ-CORE-021
+      - REQ-CORE-024
     implementations:
       rust:
         - file: src/command/log.rs

@@ -1,5 +1,5 @@
 // FEAT-LOG-001
-// REQ-CORE-021
+// REQ-CORE-024
 
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -439,70 +439,140 @@ fn normalized_tracked_path(path: &str) -> PathBuf {
 
 fn order_commits_by_repository_history(
     workspace_root: &Path,
-    mut commits_by_sha: BTreeMap<String, MatchedCommit>,
+    commits_by_sha: BTreeMap<String, MatchedCommit>,
     limit: usize,
 ) -> Result<Vec<MatchedCommit>> {
-    let candidate_shas = commits_by_sha.keys().cloned().collect::<BTreeSet<_>>();
-    let ordered_shas = repository_history_order(workspace_root, &candidate_shas)?;
-    let mut commits = Vec::new();
-
-    for sha in ordered_shas {
-        let commit = commits_by_sha
-            .remove(&sha)
-            .expect("rev-list order should only include known SHAs");
-        commits.push(commit);
-        if commits.len() == limit {
-            return Ok(commits);
-        }
+    let mut commits = commits_by_sha.into_values().collect::<Vec<_>>();
+    if sort_commits_by_history_relationship(workspace_root, &mut commits).is_err() {
+        commits.sort_by(commit_recency_cmp);
     }
-
-    let mut remainder = commits_by_sha.into_values().collect::<Vec<_>>();
-    remainder.sort_by(|left, right| {
-        right
-            .authored_at
-            .cmp(&left.authored_at)
-            .then_with(|| right.sha.cmp(&left.sha))
-    });
-    commits.extend(remainder);
     commits.truncate(limit);
     Ok(commits)
 }
 
-fn repository_history_order(
+fn sort_commits_by_history_relationship(
     workspace_root: &Path,
-    candidate_shas: &BTreeSet<String>,
-) -> Result<Vec<String>> {
-    let output = git_command(workspace_root)
-        .args(["rev-list", "HEAD"])
-        .output()
-        .with_context(|| {
-            format!(
-                "failed to run `git rev-list` in `{}`",
-                workspace_root.display()
-            )
-        })?;
-    if !output.status.success() {
-        bail!(
-            "failed to read git history order for `{}`: {}",
-            workspace_root.display(),
-            String::from_utf8_lossy(&output.stderr).trim()
-        );
+    commits: &mut [MatchedCommit],
+) -> Result<()> {
+    let mut precedence = BTreeMap::<String, BTreeSet<String>>::new();
+    let mut indegree = BTreeMap::<String, usize>::new();
+    let mut cache = BTreeMap::<(String, String), bool>::new();
+
+    for commit in commits.iter() {
+        precedence.entry(commit.sha.clone()).or_default();
+        indegree.entry(commit.sha.clone()).or_insert(0);
     }
 
-    let history =
-        String::from_utf8(output.stdout).context("git rev-list output should be valid UTF-8")?;
-    let mut remaining = candidate_shas.clone();
-    let mut ordered = Vec::new();
-    for sha in history.lines() {
-        if remaining.remove(sha) {
-            ordered.push(sha.to_string());
-            if remaining.is_empty() {
-                break;
+    for left_index in 0..commits.len() {
+        for right_index in (left_index + 1)..commits.len() {
+            let left = &commits[left_index];
+            let right = &commits[right_index];
+            if commit_is_ancestor_of(workspace_root, &left.sha, &right.sha, &mut cache)? {
+                if precedence
+                    .entry(right.sha.clone())
+                    .or_default()
+                    .insert(left.sha.clone())
+                {
+                    *indegree.entry(left.sha.clone()).or_insert(0) += 1;
+                }
+            } else if commit_is_ancestor_of(workspace_root, &right.sha, &left.sha, &mut cache)?
+                && precedence
+                    .entry(left.sha.clone())
+                    .or_default()
+                    .insert(right.sha.clone())
+            {
+                *indegree.entry(right.sha.clone()).or_insert(0) += 1;
             }
         }
     }
 
-    Ok(ordered)
+    let commit_lookup = commits
+        .iter()
+        .cloned()
+        .map(|commit| (commit.sha.clone(), commit))
+        .collect::<BTreeMap<_, _>>();
+    let mut ready = indegree
+        .iter()
+        .filter(|(_, degree)| **degree == 0)
+        .map(|(sha, _)| sha.clone())
+        .collect::<Vec<_>>();
+    sort_ready_commits(&mut ready, &commit_lookup);
+    let mut ordered = Vec::new();
+
+    while let Some(sha) = ready.pop() {
+        ordered.push(
+            commit_lookup
+                .get(&sha)
+                .expect("ready commits should exist in the lookup")
+                .clone(),
+        );
+        for dependent in precedence.get(&sha).into_iter().flatten() {
+            let degree = indegree
+                .get_mut(dependent)
+                .expect("dependent commits should track indegree");
+            *degree -= 1;
+            if *degree == 0 {
+                ready.push(dependent.clone());
+            }
+        }
+        sort_ready_commits(&mut ready, &commit_lookup);
+    }
+
+    if ordered.len() != commits.len() {
+        bail!("could not derive a stable candidate history order");
+    }
+
+    commits.clone_from_slice(&ordered);
+    Ok(())
+}
+
+fn commit_is_ancestor_of(
+    workspace_root: &Path,
+    older_sha: &str,
+    newer_sha: &str,
+    cache: &mut BTreeMap<(String, String), bool>,
+) -> Result<bool> {
+    let cache_key = (older_sha.to_string(), newer_sha.to_string());
+    if let Some(result) = cache.get(&cache_key) {
+        return Ok(*result);
+    }
+
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(workspace_root)
+        .args(["merge-base", "--is-ancestor", older_sha, newer_sha])
+        .output()
+        .with_context(|| {
+            format!(
+                "failed to run `git merge-base --is-ancestor` in `{}`",
+                workspace_root.display()
+            )
+        })?;
+
+    let result = match output.status.code() {
+        Some(0) => true,
+        Some(1) => false,
+        _ => {
+            bail!(
+                "failed to compare git history order for `{}`: {}",
+                workspace_root.display(),
+                String::from_utf8_lossy(&output.stderr).trim()
+            )
+        }
+    };
+    cache.insert(cache_key, result);
+    Ok(result)
+}
+
+fn commit_recency_cmp(left: &MatchedCommit, right: &MatchedCommit) -> std::cmp::Ordering {
+    right
+        .authored_at
+        .cmp(&left.authored_at)
+        .then_with(|| right.sha.cmp(&left.sha))
+}
+
+fn sort_ready_commits(ready: &mut [String], commit_lookup: &BTreeMap<String, MatchedCommit>) {
+    ready.sort_by(|left, right| commit_recency_cmp(&commit_lookup[right], &commit_lookup[left]));
 }
 
 fn git_command(workspace_root: &Path) -> Command {
@@ -635,6 +705,7 @@ mod tests {
         fs,
         path::{Path, PathBuf},
         process::Command,
+        sync::{LazyLock, Mutex, MutexGuard},
     };
 
     use tempfile::tempdir;
@@ -645,11 +716,44 @@ mod tests {
     };
 
     use super::{
-        HistoryKind, MatchedCommit, TrackedPath, collect_trace_paths, load_git_history,
-        lookup_kind_for_id, normalize_path_filter, order_commits_by_repository_history,
-        parse_git_history, render_history_text, tracked_paths_for_feature,
+        HistoryKind, MatchedCommit, TrackedPath, collect_trace_paths, commit_is_ancestor_of,
+        load_git_history, lookup_kind_for_id, normalize_path_filter,
+        order_commits_by_repository_history, parse_git_history, render_history_text,
+        sort_commits_by_history_relationship, tracked_paths_for_feature,
         tracked_paths_for_requirement,
     };
+
+    static PATH_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
+
+    struct PathGuard {
+        original: std::ffi::OsString,
+        _lock: MutexGuard<'static, ()>,
+    }
+
+    impl PathGuard {
+        fn set(paths: Vec<PathBuf>) -> Self {
+            let lock = PATH_LOCK.lock().unwrap_or_else(|err| err.into_inner());
+            let original = std::env::var_os("PATH").unwrap_or_default();
+            unsafe {
+                std::env::set_var(
+                    "PATH",
+                    std::env::join_paths(paths).expect("path should join"),
+                );
+            }
+            Self {
+                original,
+                _lock: lock,
+            }
+        }
+    }
+
+    impl Drop for PathGuard {
+        fn drop(&mut self) {
+            unsafe {
+                std::env::set_var("PATH", &self.original);
+            }
+        }
+    }
 
     #[test]
     fn normalize_path_filter_accepts_relative_paths() {
@@ -802,7 +906,56 @@ mod tests {
     }
 
     #[test]
-    fn order_commits_by_repository_history_falls_back_when_rev_list_misses_commits() {
+    fn order_commits_by_repository_history_uses_candidate_ancestry() {
+        let _lock = PATH_LOCK.lock().unwrap_or_else(|err| err.into_inner());
+        let repo = tempdir().expect("tempdir should exist");
+        init_test_git_repository(repo.path());
+
+        fs::write(repo.path().join("history.txt"), "old\n").expect("history file should write");
+        git(repo.path(), &["add", "history.txt"]);
+        git(repo.path(), &["commit", "-m", "feat: old history"]);
+        let old_sha = git_stdout(repo.path(), &["rev-parse", "HEAD"]);
+
+        fs::write(repo.path().join("history.txt"), "new\n").expect("history file should write");
+        git(repo.path(), &["add", "history.txt"]);
+        git(repo.path(), &["commit", "-m", "feat: new history"]);
+        let new_sha = git_stdout(repo.path(), &["rev-parse", "HEAD"]);
+
+        let commits = BTreeMap::from([
+            (
+                old_sha.clone(),
+                MatchedCommit {
+                    sha: old_sha,
+                    short_sha: "old".to_string(),
+                    summary: "feat: old history".to_string(),
+                    author: "Tester".to_string(),
+                    authored_at: "2026-04-13T00:00:00+00:00".to_string(),
+                    reasons: vec![TrackedPath::definition("history.txt")],
+                },
+            ),
+            (
+                new_sha.clone(),
+                MatchedCommit {
+                    sha: new_sha,
+                    short_sha: "new".to_string(),
+                    summary: "feat: new history".to_string(),
+                    author: "Tester".to_string(),
+                    authored_at: "2026-04-13T01:00:00+00:00".to_string(),
+                    reasons: vec![TrackedPath::definition("history.txt")],
+                },
+            ),
+        ]);
+
+        let ordered = order_commits_by_repository_history(repo.path(), commits, 10)
+            .expect("candidate ancestry ordering should succeed");
+        assert_eq!(ordered.len(), 2);
+        assert_eq!(ordered[0].summary, "feat: new history");
+        assert_eq!(ordered[1].summary, "feat: old history");
+    }
+
+    #[test]
+    fn order_commits_by_repository_history_falls_back_when_merge_base_fails() {
+        let _lock = PATH_LOCK.lock().unwrap_or_else(|err| err.into_inner());
         let repo = tempdir().expect("tempdir should exist");
         init_test_git_repository(repo.path());
 
@@ -831,11 +984,221 @@ mod tests {
             ),
         ]);
 
+        write_fake_git_for_merge_base_failure(repo.path());
+        let original_path = std::env::var_os("PATH").unwrap_or_default();
+        unsafe {
+            std::env::set_var(
+                "PATH",
+                std::env::join_paths(
+                    std::iter::once(repo.path().to_path_buf())
+                        .chain(std::env::split_paths(&original_path)),
+                )
+                .expect("path should join"),
+            );
+        }
+
         let ordered = order_commits_by_repository_history(repo.path(), commits, 10)
             .expect("fallback ordering should succeed");
+        unsafe {
+            std::env::set_var("PATH", original_path);
+        }
         assert_eq!(ordered.len(), 2);
         assert_eq!(ordered[0].sha, "missing-new");
         assert_eq!(ordered[1].sha, "missing-old");
+    }
+
+    #[test]
+    fn order_commits_by_repository_history_sorts_multiple_ready_dependents_by_recency() {
+        let fake_bin = tempdir().expect("tempdir should exist");
+        write_fake_git_for_merge_base_graph(
+            fake_bin.path(),
+            &[
+                ("old-a", "new", true),
+                ("old-b", "new", true),
+                ("old-a", "old-b", false),
+                ("old-b", "old-a", false),
+            ],
+        );
+        let _path_guard = PathGuard::set(vec![fake_bin.path().to_path_buf()]);
+
+        let commits = BTreeMap::from([
+            (
+                "old-a".to_string(),
+                MatchedCommit {
+                    sha: "old-a".to_string(),
+                    short_sha: "old-a".to_string(),
+                    summary: "old-a".to_string(),
+                    author: "Tester".to_string(),
+                    authored_at: "2026-04-13T00:00:00+00:00".to_string(),
+                    reasons: vec![TrackedPath::definition("docs/old-a.yaml")],
+                },
+            ),
+            (
+                "old-b".to_string(),
+                MatchedCommit {
+                    sha: "old-b".to_string(),
+                    short_sha: "old-b".to_string(),
+                    summary: "old-b".to_string(),
+                    author: "Tester".to_string(),
+                    authored_at: "2026-04-13T01:00:00+00:00".to_string(),
+                    reasons: vec![TrackedPath::definition("docs/old-b.yaml")],
+                },
+            ),
+            (
+                "new".to_string(),
+                MatchedCommit {
+                    sha: "new".to_string(),
+                    short_sha: "new".to_string(),
+                    summary: "new".to_string(),
+                    author: "Tester".to_string(),
+                    authored_at: "2026-04-13T02:00:00+00:00".to_string(),
+                    reasons: vec![TrackedPath::definition("docs/new.yaml")],
+                },
+            ),
+        ]);
+
+        let ordered = order_commits_by_repository_history(Path::new("/repo"), commits, 10)
+            .expect("ordering should succeed");
+        assert_eq!(
+            ordered
+                .iter()
+                .map(|commit| commit.sha.as_str())
+                .collect::<Vec<_>>(),
+            vec!["new", "old-b", "old-a"]
+        );
+    }
+
+    #[test]
+    fn order_commits_by_repository_history_sorts_newly_ready_dependents_by_recency() {
+        let fake_bin = tempdir().expect("tempdir should exist");
+        write_fake_git_for_merge_base_graph(
+            fake_bin.path(),
+            &[
+                ("root", "mid-a", true),
+                ("root", "mid-b", true),
+                ("mid-a", "mid-b", false),
+                ("mid-b", "mid-a", false),
+            ],
+        );
+        let _path_guard = PathGuard::set(vec![fake_bin.path().to_path_buf()]);
+
+        let commits = BTreeMap::from([
+            (
+                "root".to_string(),
+                MatchedCommit {
+                    sha: "root".to_string(),
+                    short_sha: "root".to_string(),
+                    summary: "root".to_string(),
+                    author: "Tester".to_string(),
+                    authored_at: "2026-04-13T00:00:00+00:00".to_string(),
+                    reasons: vec![TrackedPath::definition("docs/root.yaml")],
+                },
+            ),
+            (
+                "mid-a".to_string(),
+                MatchedCommit {
+                    sha: "mid-a".to_string(),
+                    short_sha: "mid-a".to_string(),
+                    summary: "mid-a".to_string(),
+                    author: "Tester".to_string(),
+                    authored_at: "2026-04-13T01:00:00+00:00".to_string(),
+                    reasons: vec![TrackedPath::definition("docs/mid-a.yaml")],
+                },
+            ),
+            (
+                "mid-b".to_string(),
+                MatchedCommit {
+                    sha: "mid-b".to_string(),
+                    short_sha: "mid-b".to_string(),
+                    summary: "mid-b".to_string(),
+                    author: "Tester".to_string(),
+                    authored_at: "2026-04-13T02:00:00+00:00".to_string(),
+                    reasons: vec![TrackedPath::definition("docs/mid-b.yaml")],
+                },
+            ),
+        ]);
+
+        let ordered = order_commits_by_repository_history(Path::new("/repo"), commits, 10)
+            .expect("ordering should succeed");
+        assert_eq!(
+            ordered
+                .iter()
+                .map(|commit| commit.sha.as_str())
+                .collect::<Vec<_>>(),
+            vec!["mid-b", "mid-a", "root"]
+        );
+    }
+
+    #[test]
+    fn order_commits_by_repository_history_reports_inconsistent_ancestry_cycles() {
+        let fake_bin = tempdir().expect("tempdir should exist");
+        write_fake_git_for_merge_base_graph(
+            fake_bin.path(),
+            &[
+                ("old-a", "old-b", true),
+                ("old-b", "old-c", true),
+                ("old-c", "old-a", true),
+            ],
+        );
+        let _path_guard = PathGuard::set(vec![fake_bin.path().to_path_buf()]);
+
+        let mut commits = vec![
+            MatchedCommit {
+                sha: "old-a".to_string(),
+                short_sha: "old-a".to_string(),
+                summary: "old-a".to_string(),
+                author: "Tester".to_string(),
+                authored_at: "2026-04-13T00:00:00+00:00".to_string(),
+                reasons: vec![TrackedPath::definition("docs/old-a.yaml")],
+            },
+            MatchedCommit {
+                sha: "old-b".to_string(),
+                short_sha: "old-b".to_string(),
+                summary: "old-b".to_string(),
+                author: "Tester".to_string(),
+                authored_at: "2026-04-13T01:00:00+00:00".to_string(),
+                reasons: vec![TrackedPath::definition("docs/old-b.yaml")],
+            },
+            MatchedCommit {
+                sha: "old-c".to_string(),
+                short_sha: "old-c".to_string(),
+                summary: "old-c".to_string(),
+                author: "Tester".to_string(),
+                authored_at: "2026-04-13T02:00:00+00:00".to_string(),
+                reasons: vec![TrackedPath::definition("docs/old-c.yaml")],
+            },
+        ];
+
+        let error = sort_commits_by_history_relationship(Path::new("/repo"), &mut commits)
+            .expect_err("inconsistent ancestry should fail");
+        assert!(
+            error
+                .to_string()
+                .contains("could not derive a stable candidate history order")
+        );
+    }
+
+    #[test]
+    fn commit_is_ancestor_of_returns_cached_results_without_spawning_git() {
+        let mut cache = BTreeMap::from([(("old".to_string(), "new".to_string()), true)]);
+        assert!(
+            commit_is_ancestor_of(Path::new("/repo"), "old", "new", &mut cache)
+                .expect("cached lookups should succeed")
+        );
+    }
+
+    #[test]
+    fn commit_is_ancestor_of_reports_spawn_failures() {
+        let fake_bin = tempdir().expect("tempdir should exist");
+        let _path_guard = PathGuard::set(vec![fake_bin.path().to_path_buf()]);
+
+        let error = commit_is_ancestor_of(Path::new("/repo"), "old", "new", &mut BTreeMap::new())
+            .expect_err("missing git binary should fail");
+        assert!(
+            error
+                .to_string()
+                .contains("failed to run `git merge-base --is-ancestor`")
+        );
     }
 
     #[test]
@@ -925,6 +1288,39 @@ mod tests {
         assert_eq!(HistoryKind::Implementation.label(), "implementation");
     }
 
+    #[test]
+    fn sort_ready_commits_prefers_newer_commits_first() {
+        let mut ready = vec!["older".to_string(), "newer".to_string()];
+        let commit_lookup = BTreeMap::from([
+            (
+                "older".to_string(),
+                MatchedCommit {
+                    sha: "older".to_string(),
+                    short_sha: "older".to_string(),
+                    summary: "older".to_string(),
+                    author: "Tester".to_string(),
+                    authored_at: "2026-04-13T00:00:00+00:00".to_string(),
+                    reasons: vec![TrackedPath::definition("docs/older.yaml")],
+                },
+            ),
+            (
+                "newer".to_string(),
+                MatchedCommit {
+                    sha: "newer".to_string(),
+                    short_sha: "newer".to_string(),
+                    summary: "newer".to_string(),
+                    author: "Tester".to_string(),
+                    authored_at: "2026-04-13T01:00:00+00:00".to_string(),
+                    reasons: vec![TrackedPath::definition("docs/newer.yaml")],
+                },
+            ),
+        ]);
+
+        super::sort_ready_commits(&mut ready, &commit_lookup);
+
+        assert_eq!(ready, vec!["older".to_string(), "newer".to_string()]);
+    }
+
     fn trace_map(path: &str, symbol: &str) -> BTreeMap<String, Vec<TraceReference>> {
         let mut traces = BTreeMap::new();
         traces.insert(
@@ -972,5 +1368,87 @@ mod tests {
             stdout,
             stderr
         );
+    }
+
+    fn git_stdout(path: &Path, args: &[&str]) -> String {
+        let mut command = Command::new("git");
+        command.arg("-C").arg(path).args(args);
+        for key in [
+            "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+            "GIT_CEILING_DIRECTORIES",
+            "GIT_COMMON_DIR",
+            "GIT_DIR",
+            "GIT_INDEX_FILE",
+            "GIT_OBJECT_DIRECTORY",
+            "GIT_PREFIX",
+            "GIT_WORK_TREE",
+        ] {
+            command.env_remove(key);
+        }
+        let output = command.output().expect("git should run");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            output.status.success(),
+            "git {:?} failed\nstdout:\n{}\nstderr:\n{}",
+            args,
+            stdout,
+            stderr
+        );
+        String::from_utf8(output.stdout)
+            .expect("git output should be valid utf-8")
+            .trim()
+            .to_string()
+    }
+
+    fn write_fake_git_for_merge_base_failure(script_dir: &Path) {
+        let script_path = script_dir.join("git");
+        fs::write(
+            &script_path,
+            "#!/bin/sh\nset -eu\nworkspace=\"$2\"\ncommand_name=\"$3\"\nif [ \"$command_name\" = \"merge-base\" ]; then\n  echo 'synthetic git merge-base failure' >&2\n  exit 2\nfi\nexec /usr/bin/git \"$@\"\n",
+        )
+        .expect("fake git script");
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+
+            let mut permissions = fs::metadata(&script_path)
+                .expect("fake git metadata")
+                .permissions();
+            permissions.set_mode(0o755);
+            fs::set_permissions(&script_path, permissions).expect("fake git permissions");
+        }
+    }
+
+    fn write_fake_git_for_merge_base_graph(script_dir: &Path, edges: &[(&str, &str, bool)]) {
+        let cases = edges
+            .iter()
+            .map(|(older, newer, result)| {
+                let status = if *result { 0 } else { 1 };
+                format!(
+                    "if [ \"$5\" = \"{older}\" ] && [ \"$6\" = \"{newer}\" ]; then\n  exit {status}\nfi\n"
+                )
+            })
+            .collect::<String>();
+        let script_path = script_dir.join("git");
+        fs::write(
+            &script_path,
+            format!(
+                "#!/bin/sh\nset -eu\nif [ \"$3\" != \"merge-base\" ]; then\n  echo 'unexpected git invocation' >&2\n  exit 1\nfi\n{cases}exit 1\n"
+            ),
+        )
+        .expect("fake git graph script");
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+
+            let mut permissions = fs::metadata(&script_path)
+                .expect("fake git metadata")
+                .permissions();
+            permissions.set_mode(0o755);
+            fs::set_permissions(&script_path, permissions).expect("fake git permissions");
+        }
     }
 }
