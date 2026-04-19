@@ -2,7 +2,7 @@
 
 use std::{
     collections::BTreeMap,
-    fs,
+    env, fs,
     path::{Component, Path, PathBuf},
 };
 
@@ -21,15 +21,22 @@ use crate::{
 // FEAT-REPORT-001
 pub fn run_report_command(args: &ReportArgs) -> Result<i32> {
     let (result, output, spec_coverage_summary) = match load_workspace(&args.workspace) {
-        Ok(workspace) => (
-            collect_check_result_from_workspace(&workspace),
-            resolve_report_output(
-                &workspace.root,
-                workspace.config.report.output.as_deref(),
-                args.output.as_deref(),
-            )?,
-            render_spec_coverage_summary(&workspace)?,
-        ),
+        Ok(workspace) => {
+            let configured_output = workspace.config.report.output.as_deref();
+            let cli_output = args.output.as_deref();
+            let managed_output = resolve_report_output(&workspace.root, configured_output, None)?;
+            let output = resolve_report_output(&workspace.root, configured_output, cli_output)?;
+            let effective_output = resolve_effective_output_path(output.as_deref())?;
+            let managed = managed_output.as_deref();
+            let effective = effective_output.as_deref();
+            let spec_coverage_summary =
+                render_spec_coverage_summary(&workspace, managed, effective)?;
+            (
+                collect_check_result_from_workspace(&workspace),
+                output,
+                spec_coverage_summary,
+            )
+        }
         Err(error) => (
             attach_referenced_rules(CheckResult::from_load_error(
                 args.workspace.to_path_buf(),
@@ -96,7 +103,27 @@ fn resolve_configured_report_output(workspace_root: &Path, output: &Path) -> Res
     Ok(workspace_root.join(normalized))
 }
 
-fn render_spec_coverage_summary(workspace: &Workspace) -> Result<Option<String>> {
+fn resolve_effective_output_path(output: Option<&Path>) -> Result<Option<PathBuf>> {
+    output
+        .map(|path| {
+            if path.is_absolute() {
+                Ok(path.to_path_buf())
+            } else {
+                Ok(env::current_dir()?.join(path))
+            }
+        })
+        .transpose()
+}
+
+fn render_spec_coverage_summary(
+    workspace: &Workspace,
+    managed_output: Option<&Path>,
+    effective_output: Option<&Path>,
+) -> Result<Option<String>> {
+    if managed_output.is_some() && effective_output == managed_output {
+        return Ok(None);
+    }
+
     let lcov_path = workspace.root.join("target/coverage/lcov.info");
     if !lcov_path.is_file() {
         return Ok(None);
@@ -347,16 +374,25 @@ struct FeatureCoverageDetail {
 #[cfg(test)]
 mod tests {
     use std::{
+        collections::BTreeMap,
         fs,
         path::{Path, PathBuf},
     };
 
     use tempfile::tempdir;
 
-    use crate::cli::ReportArgs;
     use crate::test_support::CurrentDirGuard;
+    use crate::{
+        cli::ReportArgs,
+        config::SyuConfig,
+        model::{Requirement, TraceReference},
+        workspace::Workspace,
+    };
 
-    use super::{resolve_report_output, run_report_command};
+    use super::{
+        coverage_label, render_requirement_coverage_row, resolve_report_output, run_report_command,
+        rust_trace_paths,
+    };
 
     fn fixture_path(name: &str) -> std::path::PathBuf {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -560,6 +596,126 @@ mod tests {
         assert!(report.contains("FEAT-TRACE-001"));
         assert!(report.contains("50.0% (1/2)"));
         assert!(report.contains("100.0% (1/1)"));
+    }
+
+    #[test]
+    fn report_command_skips_spec_coverage_summary_for_configured_report_outputs() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        copy_dir_recursive(&fixture_path("passing"), tempdir.path());
+        write_config(tempdir.path(), Some("docs/generated/syu-report.md"));
+        fs::create_dir_all(tempdir.path().join("target/coverage"))
+            .expect("coverage directory should exist");
+        fs::write(
+            tempdir.path().join("target/coverage/lcov.info"),
+            format!(
+                "SF:{}\nDA:1,1\nend_of_record\n",
+                tempdir.path().join("src/rust_feature.rs").display()
+            ),
+        )
+        .expect("lcov file should exist");
+
+        let args = ReportArgs {
+            workspace: tempdir.path().to_path_buf(),
+            output: None,
+        };
+
+        let result = run_report_command(&args).expect("report should succeed");
+        let report = fs::read_to_string(tempdir.path().join("docs/generated/syu-report.md"))
+            .expect("report should be written");
+
+        assert_eq!(result, 0);
+        assert!(!report.contains("# Coverage by requirement and feature"));
+    }
+
+    #[test]
+    fn report_command_skips_spec_coverage_summary_when_cli_targets_managed_report() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        copy_dir_recursive(&fixture_path("passing"), tempdir.path());
+        write_config(tempdir.path(), Some("docs/generated/syu-report.md"));
+        fs::create_dir_all(tempdir.path().join("target/coverage"))
+            .expect("coverage directory should exist");
+        fs::write(
+            tempdir.path().join("target/coverage/lcov.info"),
+            format!(
+                "SF:{}\nDA:1,1\nend_of_record\n",
+                tempdir.path().join("src/rust_feature.rs").display()
+            ),
+        )
+        .expect("lcov file should exist");
+        let _current_dir = CurrentDirGuard::chdir(tempdir.path());
+
+        let args = ReportArgs {
+            workspace: tempdir.path().to_path_buf(),
+            output: Some(PathBuf::from("docs/generated/syu-report.md")),
+        };
+
+        let result = run_report_command(&args).expect("report should succeed");
+        let report = fs::read_to_string(tempdir.path().join("docs/generated/syu-report.md"))
+            .expect("report should be written");
+
+        assert_eq!(result, 0);
+        assert!(!report.contains("# Coverage by requirement and feature"));
+    }
+
+    #[test]
+    fn coverage_helpers_cover_empty_and_uninstrumented_states() {
+        assert_eq!(coverage_label(0, 1, 0, 0, 0, "no refs"), "no refs");
+        assert_eq!(coverage_label(1, 1, 0, 0, 0, "no refs"), "not instrumented");
+        assert_eq!(coverage_label(1, 1, 1, 0, 0, "no refs"), "0.0% (0/0)");
+    }
+
+    #[test]
+    fn rust_trace_paths_preserves_absolute_paths() {
+        let workspace = Workspace {
+            root: PathBuf::from("/repo"),
+            spec_root: PathBuf::from("/repo/docs/syu"),
+            config: SyuConfig::default(),
+            philosophies: Vec::new(),
+            policies: Vec::new(),
+            requirements: Vec::new(),
+            features: Vec::new(),
+        };
+        let absolute = PathBuf::from("/tmp/rust_trace.rs");
+        let traces = vec![TraceReference {
+            file: absolute.clone(),
+            symbols: vec![String::from("trace")],
+            doc_contains: Vec::new(),
+        }];
+
+        assert_eq!(rust_trace_paths(&workspace, Some(&traces)), vec![absolute]);
+    }
+
+    #[test]
+    fn requirement_rows_render_dashes_for_missing_links() {
+        let workspace = Workspace {
+            root: PathBuf::from("/repo"),
+            spec_root: PathBuf::from("/repo/docs/syu"),
+            config: SyuConfig::default(),
+            philosophies: Vec::new(),
+            policies: Vec::new(),
+            requirements: Vec::new(),
+            features: Vec::new(),
+        };
+        let requirement = Requirement {
+            id: String::from("REQ-EMPTY-001"),
+            title: String::from("Empty"),
+            description: String::from("Empty"),
+            priority: String::from("medium"),
+            status: String::from("planned"),
+            linked_policies: Vec::new(),
+            linked_features: Vec::new(),
+            tests: BTreeMap::new(),
+        };
+
+        assert_eq!(
+            render_requirement_coverage_row(
+                &requirement,
+                &workspace,
+                &BTreeMap::new(),
+                &BTreeMap::new(),
+            ),
+            "| REQ-EMPTY-001 | — | 0 | no test refs | — |"
+        );
     }
 
     #[cfg(unix)]
