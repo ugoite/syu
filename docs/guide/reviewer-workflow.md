@@ -95,6 +95,12 @@ Use `syu log` when review needs historical context:
 - did a recent commit rename the traced file or symbol?
 - is the PR fixing a regression in a path that already has relevant history?
 
+Treat `syu log` as history for the **currently traced** surface, not proof that
+the whole PR diff is covered. A newly added implementation or test file can be
+missing from this history slice if the trace mapping was never updated, so pair
+an empty or too-small log result with the PR diff and `syu trace`/`syu relate`
+before concluding that review coverage is complete.
+
 For requirement-oriented review, swap to definition or test history instead:
 
 ```bash

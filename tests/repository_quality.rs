@@ -541,6 +541,10 @@ fn repository_declares_documentation_guides() {
     assert!(tutorial.contains("[troubleshooting](./troubleshooting.md)"));
     assert!(tutorial.contains("starter registry entry"));
     assert!(tutorial.contains("Only add another `files` entry"));
+    let reviewer_workflow = read_file("docs/guide/reviewer-workflow.md");
+    assert!(reviewer_workflow.contains("currently traced"));
+    assert!(reviewer_workflow.contains("the whole PR diff is covered"));
+    assert!(reviewer_workflow.contains("too-small log result with the PR diff"));
     assert!(trace_adapter_support.contains("# Trace adapter capability matrix"));
     assert!(trace_adapter_support.contains("validate.require_symbol_trace_coverage"));
     assert!(trace_adapter_support.contains("TypeScript / JavaScript"));
