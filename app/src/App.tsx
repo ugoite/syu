@@ -800,6 +800,7 @@ function App() {
                     }
                   } else if (e.key === "Escape") {
                     setSearchQuery("");
+                    setSearchFilter("all");
                     setFocusedResultIndex(-1);
                   }
                 }}

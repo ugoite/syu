@@ -281,6 +281,18 @@ test("loads deep links and supports keyboard search navigation", async ({ page }
   await expect(
     page.locator('[role="option"] span').filter({ hasText: "requirements" }).first(),
   ).toBeVisible();
+  await searchInput.press("Escape");
+  await expect(searchInput).toHaveValue("");
+  await expect(filterGroup.getByRole("button", { name: "All" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(filterGroup.getByRole("button", { name: "Requirements" })).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
+  await expect(page.getByRole("listbox", { name: "Search results" })).toHaveCount(0);
+  await searchInput.fill("syu");
   await filterGroup.getByRole("button", { name: "All" }).click();
   await expect(filterGroup.getByRole("button", { name: "All" })).toHaveAttribute(
     "aria-pressed",
