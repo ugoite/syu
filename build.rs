@@ -29,11 +29,11 @@ fn main() {
     emit_watch(&shared_core_dir.join("Cargo.toml"));
     emit_watch_recursive(&shared_core_dir.join("src"));
 
-    if let Err(error) = ensure_pinned_npm(&app_dir)
-        .and_then(|_| ensure_app_dependencies(&app_dir))
-        .and_then(|_| rebuild_browser_wasm_bindings(&app_dir))
-        .and_then(|_| build_browser_bundle(&app_dir, &out_dir))
-    {
+    if let Err(error) = required_npm_version(&app_dir).and_then(|required_npm| {
+        ensure_app_dependencies(&app_dir, &required_npm)
+            .and_then(|_| rebuild_browser_wasm_bindings(&app_dir, &required_npm))
+            .and_then(|_| build_browser_bundle(&app_dir, &out_dir, &required_npm))
+    }) {
         panic!("{error}");
     }
 }
@@ -66,6 +66,10 @@ fn emit_watch_recursive(path: &Path) {
 
 fn npm_executable() -> &'static str {
     if cfg!(windows) { "npm.cmd" } else { "npm" }
+}
+
+fn npx_executable() -> &'static str {
+    if cfg!(windows) { "npx.cmd" } else { "npx" }
 }
 
 fn node_executable() -> &'static str {
@@ -140,17 +144,8 @@ fn npm_version(app_dir: &Path) -> Result<String, String> {
         .map(|stdout| stdout.trim().to_owned())
 }
 
-fn ensure_pinned_npm(app_dir: &Path) -> Result<(), String> {
-    let required = required_npm_version(app_dir)?;
-    let current = npm_version(app_dir)?;
-
-    if current == required {
-        return Ok(());
-    }
-
-    Err(format!(
-        "Expected npm {required} for app/package.json, found {current}. Run `scripts/ci/pinned-npm.sh install app` before building the embedded browser app."
-    ))
+fn uses_required_npm(app_dir: &Path, required: &str) -> Result<bool, String> {
+    Ok(npm_version(app_dir)? == required)
 }
 
 fn modified_time(path: &Path) -> Option<SystemTime> {
@@ -172,9 +167,33 @@ fn needs_npm_ci(app_dir: &Path) -> bool {
     }
 }
 
-fn run_npm(app_dir: &Path, args: &[String], action: &str) -> Result<(), String> {
-    let status = Command::new(npm_executable())
-        .args(args)
+fn run_npm(
+    app_dir: &Path,
+    required_npm: &str,
+    args: &[String],
+    action: &str,
+) -> Result<(), String> {
+    let mut command;
+    let command_display;
+    if uses_required_npm(app_dir, required_npm)? {
+        command = Command::new(npm_executable());
+        command.args(args);
+        command_display = format!("{} {}", npm_executable(), args.join(" "));
+    } else {
+        command = Command::new(npx_executable());
+        command
+            .arg("-y")
+            .arg(format!("npm@{required_npm}"))
+            .args(args);
+        command_display = format!(
+            "{} -y npm@{} {}",
+            npx_executable(),
+            required_npm,
+            args.join(" ")
+        );
+    }
+
+    let status = command
         .current_dir(app_dir)
         .status()
         .map_err(|error| format!("failed to {action}: {error}"))?;
@@ -184,18 +203,18 @@ fn run_npm(app_dir: &Path, args: &[String], action: &str) -> Result<(), String> 
     }
 
     Err(format!(
-        "failed to {action}: `{}` exited with status {status}",
-        args.join(" ")
+        "failed to {action}: `{command_display}` exited with status {status}",
     ))
 }
 
-fn ensure_app_dependencies(app_dir: &Path) -> Result<(), String> {
+fn ensure_app_dependencies(app_dir: &Path, required_npm: &str) -> Result<(), String> {
     if !needs_npm_ci(app_dir) {
         return Ok(());
     }
 
     run_npm(
         app_dir,
+        required_npm,
         &[String::from("ci")],
         "install browser app dependencies with `npm ci`",
     )
@@ -209,7 +228,7 @@ fn remove_dir_if_exists(path: &Path, description: &str) -> Result<(), String> {
     fs::remove_dir_all(path).map_err(|error| format!("failed to clear {description}: {error}"))
 }
 
-fn rebuild_browser_wasm_bindings(app_dir: &Path) -> Result<(), String> {
+fn rebuild_browser_wasm_bindings(app_dir: &Path, required_npm: &str) -> Result<(), String> {
     remove_dir_if_exists(
         &app_dir.join("src").join("wasm"),
         "generated browser app Wasm bindings",
@@ -217,12 +236,13 @@ fn rebuild_browser_wasm_bindings(app_dir: &Path) -> Result<(), String> {
 
     run_npm(
         app_dir,
+        required_npm,
         &[String::from("run"), String::from("build:wasm")],
         "generate the browser app Wasm bridge",
     )
 }
 
-fn build_browser_bundle(app_dir: &Path, out_dir: &Path) -> Result<(), String> {
+fn build_browser_bundle(app_dir: &Path, out_dir: &Path, required_npm: &str) -> Result<(), String> {
     remove_dir_if_exists(out_dir, "generated browser bundle")?;
     fs::create_dir_all(out_dir)
         .map_err(|error| format!("failed to create browser bundle output directory: {error}"))?;
@@ -230,6 +250,7 @@ fn build_browser_bundle(app_dir: &Path, out_dir: &Path) -> Result<(), String> {
     let out_dir_arg = out_dir.to_string_lossy().into_owned();
     run_npm(
         app_dir,
+        required_npm,
         &[
             String::from("run"),
             String::from("build"),
