@@ -29,7 +29,8 @@ fn main() {
     emit_watch(&shared_core_dir.join("Cargo.toml"));
     emit_watch_recursive(&shared_core_dir.join("src"));
 
-    if let Err(error) = ensure_app_dependencies(&app_dir)
+    if let Err(error) = ensure_pinned_npm(&app_dir)
+        .and_then(|_| ensure_app_dependencies(&app_dir))
         .and_then(|_| rebuild_browser_wasm_bindings(&app_dir))
         .and_then(|_| build_browser_bundle(&app_dir, &out_dir))
     {
@@ -65,6 +66,86 @@ fn emit_watch_recursive(path: &Path) {
 
 fn npm_executable() -> &'static str {
     if cfg!(windows) { "npm.cmd" } else { "npm" }
+}
+
+fn node_executable() -> &'static str {
+    "node"
+}
+
+fn package_manager_for(package_json: &Path) -> Result<String, String> {
+    let output = Command::new(node_executable())
+        .arg("-p")
+        .arg("JSON.parse(require('node:fs').readFileSync(process.argv[1], 'utf8')).packageManager ?? ''")
+        .arg(package_json)
+        .output()
+        .map_err(|error| format!("failed to read {}: {error}", package_json.display()))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_owned();
+        let detail = if stderr.is_empty() {
+            format!("exit status {}", output.status)
+        } else {
+            stderr
+        };
+        return Err(format!(
+            "failed to read {} packageManager: {detail}",
+            package_json.display()
+        ));
+    }
+
+    String::from_utf8(output.stdout)
+        .map_err(|error| format!("failed to decode {} packageManager: {error}", package_json.display()))
+        .map(|stdout| stdout.trim().to_owned())
+}
+
+fn required_npm_version(app_dir: &Path) -> Result<String, String> {
+    let package_json = app_dir.join("package.json");
+    let package_manager = package_manager_for(&package_json)?;
+
+    package_manager
+        .strip_prefix("npm@")
+        .filter(|version| !version.is_empty())
+        .map(str::to_owned)
+        .ok_or_else(|| {
+            format!(
+                "Expected app/package.json to declare packageManager: npm@<version>, found `{package_manager}`."
+            )
+        })
+}
+
+fn npm_version(app_dir: &Path) -> Result<String, String> {
+    let output = Command::new(npm_executable())
+        .arg("--version")
+        .current_dir(app_dir)
+        .output()
+        .map_err(|error| format!("failed to read npm version: {error}"))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_owned();
+        let detail = if stderr.is_empty() {
+            format!("exit status {}", output.status)
+        } else {
+            stderr
+        };
+        return Err(format!("failed to read npm version: {detail}"));
+    }
+
+    String::from_utf8(output.stdout)
+        .map_err(|error| format!("failed to decode npm version: {error}"))
+        .map(|stdout| stdout.trim().to_owned())
+}
+
+fn ensure_pinned_npm(app_dir: &Path) -> Result<(), String> {
+    let required = required_npm_version(app_dir)?;
+    let current = npm_version(app_dir)?;
+
+    if current == required {
+        return Ok(());
+    }
+
+    Err(format!(
+        "Expected npm {required} for app/package.json, found {current}. Run `scripts/ci/pinned-npm.sh install app` before building the embedded browser app."
+    ))
 }
 
 fn modified_time(path: &Path) -> Option<SystemTime> {
