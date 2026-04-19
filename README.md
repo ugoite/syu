@@ -149,10 +149,12 @@ documentation version. Use `SYU_VERSION=alpha`, `stable`, or an explicit
 version selector when you want that installer to fetch a different published
 package track after it starts.
 
+Reuse the `RELEASE` value from the verified flow above, or set it once in your
+shell before any of these shortcuts.
+
 Current installer entrypoint:
 
 ```bash
-RELEASE=v0.0.1-alpha.7
 curl -fsSL "https://github.com/ugoite/syu/releases/download/${RELEASE}/install-syu.sh" | bash
 ```
 
@@ -160,21 +162,18 @@ During the alpha phase, prefer the `alpha` track selector so the same installer
 entrypoint always resolves to the latest published alpha:
 
 ```bash
-RELEASE=v0.0.1-alpha.7
 curl -fsSL "https://github.com/ugoite/syu/releases/download/${RELEASE}/install-syu.sh" | env SYU_VERSION=alpha bash
 ```
 
 Install to a custom directory:
 
 ```bash
-RELEASE=v0.0.1-alpha.7
 curl -fsSL "https://github.com/ugoite/syu/releases/download/${RELEASE}/install-syu.sh" | env SYU_INSTALL_DIR=$HOME/bin bash
 ```
 
 Install a specific prerelease:
 
 ```bash
-RELEASE=v0.0.1-alpha.7
 curl -fsSL "https://github.com/ugoite/syu/releases/download/${RELEASE}/install-syu.sh" | env SYU_VERSION="$RELEASE" bash
 ```
 
