@@ -1,8 +1,4 @@
-use std::{
-    collections::HashSet,
-    fs,
-    path::{Path, PathBuf},
-};
+use std::{collections::HashSet, fs, path::PathBuf};
 
 use serde_json::Value;
 
@@ -18,22 +14,15 @@ fn read_json(path: &str) -> Value {
     serde_json::from_str(&read_file(path)).expect("repository JSON should parse")
 }
 
-fn collect_named_files(root: &Path, file_name: &str, output: &mut Vec<PathBuf>) {
-    for entry in fs::read_dir(root).expect("directory should be readable") {
-        let entry = entry.expect("directory entry should exist");
-        let path = entry.path();
-
-        if path.is_dir() {
-            collect_named_files(&path, file_name, output);
-        } else if path.file_name().and_then(|name| name.to_str()) == Some(file_name) {
-            output.push(path);
-        }
-    }
-}
-
 fn checked_in_example_configs() -> Vec<PathBuf> {
-    let mut configs = Vec::new();
-    collect_named_files(&repo_root().join("examples"), "syu.yaml", &mut configs);
+    let mut configs: Vec<_> = fs::read_dir(repo_root().join("examples"))
+        .expect("examples directory should be readable")
+        .filter_map(|entry| {
+            let path = entry.expect("directory entry should exist").path();
+            let config = path.join("syu.yaml");
+            (path.is_dir() && config.is_file()).then_some(config)
+        })
+        .collect();
     configs.sort();
     configs
 }
