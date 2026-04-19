@@ -374,6 +374,7 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("docs/guide/tutorial.md"));
     assert!(readme.contains("docs/guide/migration.md"));
     assert!(readme.contains("docs/guide/app.md"));
+    assert!(readme.contains("docs/guide/reviewer-workflow.md"));
     assert!(readme.contains("docs/guide/troubleshooting.md"));
     assert!(readme.contains("docs/guide/spec-antipatterns.md"));
     assert!(readme.contains("docs/guide/vscode-extension.md"));
@@ -382,6 +383,7 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("**Getting started**"));
     assert!(readme.contains("**Migration / upgrade**"));
     assert!(readme.contains("**Visual explorer**"));
+    assert!(readme.contains("**Reviewer workflow**"));
     assert!(readme.contains("new to `syu`"));
     assert!(readme.contains("already have a workspace"));
     assert!(readme.contains("10-15 minutes"));
@@ -511,6 +513,7 @@ fn repository_declares_documentation_guides() {
     assert!(getting_started.contains("https://ugoite.github.io/syu/docs/generated/syu-report"));
     assert!(getting_started.contains("status: implemented"));
     assert!(getting_started.contains("Keep exploring"));
+    assert!(getting_started.contains("[reviewer workflow guide](./reviewer-workflow.md)"));
     assert!(getting_started.contains("examples/rust-only"));
     assert!(getting_started.contains("examples/python-only"));
     assert!(getting_started.contains("examples/csharp-fallback"));
@@ -534,6 +537,7 @@ fn repository_declares_documentation_guides() {
     let tutorial = read_file("docs/guide/tutorial.md");
     assert!(tutorial.contains("Want a different entry point?"));
     assert!(tutorial.contains("[getting started](./getting-started.md)"));
+    assert!(tutorial.contains("[reviewer workflow](./reviewer-workflow.md)"));
     assert!(tutorial.contains("[troubleshooting](./troubleshooting.md)"));
     assert!(tutorial.contains("starter registry entry"));
     assert!(tutorial.contains("Only add another `files` entry"));
