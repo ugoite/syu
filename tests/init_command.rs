@@ -125,6 +125,13 @@ fn init_command_bootstraps_language_templates_that_validate_accept() {
             "FEAT-GO-001",
         ),
         (
+            "java-only",
+            "docs/syu/requirements/core/java.yaml",
+            "docs/syu/features/languages/java.yaml",
+            "REQ-JAVA-001",
+            "FEAT-JAVA-001",
+        ),
+        (
             "polyglot",
             "docs/syu/requirements/core/polyglot.yaml",
             "docs/syu/features/languages/polyglot.yaml",
@@ -201,6 +208,27 @@ fn init_command_bootstraps_language_templates_that_validate_accept() {
             assert!(requirement.contains("TestGoRequirement"));
             assert!(feature.contains("status: implemented"));
             assert!(feature.contains("GoFeatureImpl"));
+        } else if template == "java-only" {
+            assert!(workspace.join("pom.xml").exists(), "missing pom.xml");
+            assert!(
+                workspace
+                    .join("src/main/java/example/app/OrderSummary.java")
+                    .exists(),
+                "missing Java source file"
+            );
+            assert!(
+                workspace
+                    .join("src/test/java/example/app/OrderSummaryTest.java")
+                    .exists(),
+                "missing Java test file"
+            );
+            let pom = fs::read_to_string(workspace.join("pom.xml")).expect("pom.xml should exist");
+            assert!(pom.contains("<artifactId>java-only</artifactId>"));
+            assert!(pom.contains("<artifactId>junit-jupiter</artifactId>"));
+            assert!(requirement.contains("status: implemented"));
+            assert!(requirement.contains("JavaRequirementTest"));
+            assert!(feature.contains("status: implemented"));
+            assert!(feature.contains("JavaFeatureImpl"));
         } else {
             assert!(requirement.contains("status: planned"));
             assert!(feature.contains("status: planned"));
