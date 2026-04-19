@@ -658,9 +658,12 @@ If you prefer to install `pre-commit` manually, `pipx install pre-commit` or
 
 ### Browser app development
 
+CI currently validates the browser app with Node 25 and lockfile-driven npm
+installs:
+
 ```bash
 cd app
-npm install
+npm ci
 npm run build:wasm
 npm run build
 cd ..
@@ -673,9 +676,12 @@ The repository ships a Docusaurus site rooted at `website/` that renders the
 checked-in `docs/` tree directly, and the published site is available at
 `https://ugoite.github.io/syu/`.
 
+CI currently validates the docs site with Node 20 and lockfile-driven npm
+installs:
+
 ```bash
 cd website
-npm install
+npm ci
 npm run start
 ```
 
