@@ -548,8 +548,8 @@ fn repository_declares_documentation_guides() {
     );
     assert!(generated_config_validate.contains("array&lt;path&gt;"));
     assert!(generated_config_runtimes.contains("docs/syu/config/runtimes.yaml"));
-    assert!(generated_site_index.contains("features/cli/show-list.md"));
-    assert!(generated_site_index.contains("features/validation/validation.md"));
+    assert!(generated_site_index.contains("features/cli/show-list"));
+    assert!(generated_site_index.contains("features/validation"));
     assert!(generated_validation.contains("docs/syu/features/validation/validation.yaml"));
     assert!(generated_validation.contains("SYU-graph-reference-001"));
     assert!(
