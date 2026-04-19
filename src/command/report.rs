@@ -2,7 +2,7 @@
 
 use std::{
     collections::BTreeMap,
-    env, fs,
+    fs,
     path::{Component, Path, PathBuf},
 };
 
@@ -22,15 +22,13 @@ use crate::{
 pub fn run_report_command(args: &ReportArgs) -> Result<i32> {
     let (result, output, spec_coverage_summary) = match load_workspace(&args.workspace) {
         Ok(workspace) => {
-            let configured_output = workspace.config.report.output.as_deref();
-            let cli_output = args.output.as_deref();
-            let managed_output = resolve_report_output(&workspace.root, configured_output, None)?;
-            let output = resolve_report_output(&workspace.root, configured_output, cli_output)?;
-            let effective_output = resolve_effective_output_path(output.as_deref())?;
-            let managed = managed_output.as_deref();
-            let effective = effective_output.as_deref();
+            let output = resolve_report_output(
+                &workspace.root,
+                workspace.config.report.output.as_deref(),
+                args.output.as_deref(),
+            )?;
             let spec_coverage_summary =
-                render_spec_coverage_summary(&workspace, managed, effective)?;
+                render_spec_coverage_summary(&workspace, output.as_deref())?;
             (
                 collect_check_result_from_workspace(&workspace),
                 output,
@@ -103,24 +101,11 @@ fn resolve_configured_report_output(workspace_root: &Path, output: &Path) -> Res
     Ok(workspace_root.join(normalized))
 }
 
-fn resolve_effective_output_path(output: Option<&Path>) -> Result<Option<PathBuf>> {
-    output
-        .map(|path| {
-            if path.is_absolute() {
-                Ok(path.to_path_buf())
-            } else {
-                Ok(env::current_dir()?.join(path))
-            }
-        })
-        .transpose()
-}
-
 fn render_spec_coverage_summary(
     workspace: &Workspace,
-    managed_output: Option<&Path>,
-    effective_output: Option<&Path>,
+    output: Option<&Path>,
 ) -> Result<Option<String>> {
-    if managed_output.is_some() && effective_output == managed_output {
+    if output.is_some() {
         return Ok(None);
     }
 
@@ -390,9 +375,10 @@ mod tests {
     };
 
     use super::{
-        coverage_label, render_requirement_coverage_row, resolve_report_output, run_report_command,
-        rust_trace_paths,
+        coverage_label, render_requirement_coverage_row, render_spec_coverage_summary,
+        resolve_report_output, run_report_command, rust_trace_paths,
     };
+    use crate::workspace::load_workspace;
 
     fn fixture_path(name: &str) -> std::path::PathBuf {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -581,21 +567,16 @@ mod tests {
         )
         .expect("lcov file should exist");
 
-        let args = ReportArgs {
-            workspace: tempdir.path().to_path_buf(),
-            output: Some(tempdir.path().join("report.md")),
-        };
+        let workspace = load_workspace(tempdir.path()).expect("workspace should load");
+        let summary = render_spec_coverage_summary(&workspace, None)
+            .expect("summary should render")
+            .expect("summary should be present");
 
-        let result = run_report_command(&args).expect("report should succeed");
-        let report =
-            fs::read_to_string(tempdir.path().join("report.md")).expect("report should be written");
-
-        assert_eq!(result, 0);
-        assert!(report.contains("# Coverage by requirement and feature"));
-        assert!(report.contains("REQ-TRACE-001"));
-        assert!(report.contains("FEAT-TRACE-001"));
-        assert!(report.contains("50.0% (1/2)"));
-        assert!(report.contains("100.0% (1/1)"));
+        assert!(summary.contains("# Coverage by requirement and feature"));
+        assert!(summary.contains("REQ-TRACE-001"));
+        assert!(summary.contains("FEAT-TRACE-001"));
+        assert!(summary.contains("50.0% (1/2)"));
+        assert!(summary.contains("100.0% (1/1)"));
     }
 
     #[test]
@@ -628,10 +609,9 @@ mod tests {
     }
 
     #[test]
-    fn report_command_skips_spec_coverage_summary_when_cli_targets_managed_report() {
+    fn report_command_skips_spec_coverage_summary_for_cli_file_outputs() {
         let tempdir = tempdir().expect("tempdir should exist");
         copy_dir_recursive(&fixture_path("passing"), tempdir.path());
-        write_config(tempdir.path(), Some("docs/generated/syu-report.md"));
         fs::create_dir_all(tempdir.path().join("target/coverage"))
             .expect("coverage directory should exist");
         fs::write(
@@ -646,12 +626,12 @@ mod tests {
 
         let args = ReportArgs {
             workspace: tempdir.path().to_path_buf(),
-            output: Some(PathBuf::from("docs/generated/syu-report.md")),
+            output: Some(PathBuf::from("report.md")),
         };
 
         let result = run_report_command(&args).expect("report should succeed");
-        let report = fs::read_to_string(tempdir.path().join("docs/generated/syu-report.md"))
-            .expect("report should be written");
+        let report =
+            fs::read_to_string(tempdir.path().join("report.md")).expect("report should be written");
 
         assert_eq!(result, 0);
         assert!(!report.contains("# Coverage by requirement and feature"));
