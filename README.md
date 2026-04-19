@@ -675,7 +675,7 @@ checked-in `docs/` tree directly, and the published site is available at
 
 ```bash
 bash scripts/ci/install-docs-site-deps.sh
-npm run start
+npm --prefix website run start
 ```
 
 The install script removes `website/node_modules` first so repeated docs-site
