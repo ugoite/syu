@@ -1,5 +1,11 @@
-wrote report to /workspaces/syu-1/.worktrees/impl-441/docs/generated/syu-report.md
-ions
+# syu validation report
+
+## Status
+
+- Result: **PASS**
+- Workspace: `.`
+
+## Definitions
 
 - Philosophies: 3
 - Policies: 8
