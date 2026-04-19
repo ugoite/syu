@@ -47,6 +47,7 @@ fn starter_template_catalog() -> Vec<TemplateCatalogEntry> {
         StarterTemplate::Generic,
         StarterTemplate::RustOnly,
         StarterTemplate::PythonOnly,
+        StarterTemplate::GoOnly,
         StarterTemplate::Polyglot,
     ]
     .into_iter()
@@ -73,6 +74,12 @@ fn template_catalog_entry(template: StarterTemplate) -> TemplateCatalogEntry {
             description: "Starter for Python-first repos with Python-oriented IDs plus requirement and feature files.",
             relationship: TemplateRelationship::TemplateAndExample,
             related_example: Some("examples/python-only"),
+        },
+        StarterTemplate::GoOnly => TemplateCatalogEntry {
+            name: "go-only",
+            description: "Starter for Go-first repos with Go-oriented IDs plus minimal Go source and test files.",
+            relationship: TemplateRelationship::TemplateAndExample,
+            related_example: Some("examples/go-only"),
         },
         StarterTemplate::Polyglot => TemplateCatalogEntry {
             name: "polyglot",
@@ -120,11 +127,12 @@ mod tests {
     #[test]
     fn starter_template_catalog_lists_every_supported_template() {
         let templates = starter_template_catalog();
-        assert_eq!(templates.len(), 4);
+        assert_eq!(templates.len(), 5);
         assert_eq!(templates[0].name, "generic");
         assert_eq!(templates[1].name, "rust-only");
         assert_eq!(templates[2].name, "python-only");
-        assert_eq!(templates[3].name, "polyglot");
+        assert_eq!(templates[3].name, "go-only");
+        assert_eq!(templates[4].name, "polyglot");
     }
 
     #[test]
@@ -135,6 +143,7 @@ mod tests {
         assert_eq!(templates[0].related_example, None);
         assert_eq!(templates[1].related_example, Some("examples/rust-only"));
         assert_eq!(templates[2].related_example, Some("examples/python-only"));
-        assert_eq!(templates[3].related_example, Some("examples/polyglot"));
+        assert_eq!(templates[3].related_example, Some("examples/go-only"));
+        assert_eq!(templates[4].related_example, Some("examples/polyglot"));
     }
 }

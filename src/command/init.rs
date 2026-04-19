@@ -233,14 +233,14 @@ fn prompt_for_starter_template(
     prompt_io: &mut impl PromptIo,
     default: StarterTemplate,
 ) -> Result<StarterTemplate> {
-    let template_choices = "generic|rust-only|python-only|polyglot";
+    let template_choices = "generic|rust-only|python-only|go-only|polyglot";
     let label = format!("Starter template ({template_choices})");
     loop {
         let raw = prompt_with_default(prompt_io, &label, default.label())?;
         match parse_starter_template_prompt(&raw) {
             Some(template) => return Ok(template),
             None => eprintln!(
-                "Starter template must be one of: generic, rust-only, python-only, polyglot."
+                "Starter template must be one of: generic, rust-only, python-only, go-only, polyglot."
             ),
         }
     }
@@ -251,7 +251,8 @@ fn parse_starter_template_prompt(raw: &str) -> Option<StarterTemplate> {
         "generic" | "1" => Some(StarterTemplate::Generic),
         "rust" | "rust-only" | "2" => Some(StarterTemplate::RustOnly),
         "python" | "python-only" | "3" => Some(StarterTemplate::PythonOnly),
-        "polyglot" | "mixed" | "4" => Some(StarterTemplate::Polyglot),
+        "go" | "go-only" | "4" => Some(StarterTemplate::GoOnly),
+        "polyglot" | "mixed" | "5" => Some(StarterTemplate::Polyglot),
         _ => None,
     }
 }
@@ -425,6 +426,12 @@ fn default_id_prefixes(template: StarterTemplate) -> StarterIdPrefixes {
             requirement: "REQ-PY".to_string(),
             feature: "FEAT-PY".to_string(),
         },
+        StarterTemplate::GoOnly => StarterIdPrefixes {
+            philosophy: "PHIL-GO".to_string(),
+            policy: "POL-GO".to_string(),
+            requirement: "REQ-GO".to_string(),
+            feature: "FEAT-GO".to_string(),
+        },
         StarterTemplate::Polyglot => StarterIdPrefixes {
             philosophy: "PHIL-MIX".to_string(),
             policy: "POL-MIX".to_string(),
@@ -483,7 +490,7 @@ fn scaffold_files(
     id_prefixes: &StarterIdPrefixes,
     strict_validate_defaults: bool,
 ) -> Vec<(String, String)> {
-    vec![
+    let mut files = vec![
         (
             "syu.yaml".to_string(),
             render_default_config(spec_root, strict_validate_defaults)
@@ -509,7 +516,27 @@ fn scaffold_files(
             path_label(&spec_root.join(feature_document_path(template))),
             feature_template(project_name, template, id_prefixes),
         ),
-    ]
+    ];
+    files.extend(starter_source_files(template));
+    files
+}
+
+fn starter_source_files(template: StarterTemplate) -> Vec<(String, String)> {
+    match template {
+        StarterTemplate::GoOnly => vec![
+            (
+                "go/app.go".to_string(),
+                "package app\n\n// GoFeatureImpl implements FEAT-GO-001 in the starter workspace.\nfunc GoFeatureImpl() string {\n\treturn \"go-only starter\"\n}\n"
+                    .to_string(),
+            ),
+            (
+                "go/app_test.go".to_string(),
+                "package app\n\nimport \"testing\"\n\n// TestGoRequirement covers REQ-GO-001 in the starter workspace.\nfunc TestGoRequirement(t *testing.T) {\n\tif GoFeatureImpl() == \"\" {\n\t\tt.Fatal(\"GoFeatureImpl should return starter output\")\n\t}\n}\n"
+                    .to_string(),
+            ),
+        ],
+        _ => Vec::new(),
+    }
 }
 
 fn render_default_config(spec_root: &Path, strict_validate_defaults: bool) -> Result<String> {
@@ -538,6 +565,9 @@ fn philosophy_template(
         StarterTemplate::PythonOnly => format!(
             "category: Philosophy\nversion: 1\nlanguage: en\n\nphilosophies:\n  - id: {philosophy_id}\n    title: {project_name} should keep Python traces explicit\n    product_design_principle: |\n      The project should keep Python traceability small, reviewable, and easy\n      to understand from docstrings alone.\n    coding_guideline: |\n      Prefer stable IDs and clear docstrings on traced Python symbols from the\n      first requirement onward.\n    linked_policies:\n      - {policy_id}\n"
         ),
+        StarterTemplate::GoOnly => format!(
+            "category: Philosophy\nversion: 1\nlanguage: en\n\nphilosophies:\n  - id: {philosophy_id}\n    title: {project_name} should keep Go traces explicit from the first commit\n    product_design_principle: |\n      The project should prove that a Go-first repository can adopt `syu`\n      without waiting for a larger multi-language scaffold.\n    coding_guideline: |\n      Prefer stable IDs and small Go starter files whose traced symbols stay\n      obvious in review.\n    linked_policies:\n      - {policy_id}\n"
+        ),
         StarterTemplate::Polyglot => format!(
             "category: Philosophy\nversion: 1\nlanguage: en\n\nphilosophies:\n  - id: {philosophy_id}\n    title: {project_name} should keep polyglot traces coherent\n    product_design_principle: |\n      The project should prove that one specification can stay understandable\n      even when implementation and tests span multiple languages.\n    coding_guideline: |\n      Prefer stable IDs and short language-native docs on every traced symbol.\n    linked_policies:\n      - {policy_id}\n"
         ),
@@ -561,6 +591,9 @@ fn policy_template(
         ),
         StarterTemplate::PythonOnly => format!(
             "category: Policies\nversion: 1\nlanguage: en\n\npolicies:\n  - id: {policy_id}\n    title: Python requirement and feature traces must stay documented in {project_name}\n    summary: Start with a Python-first workflow that stays explicit in docstrings.\n    description: |\n      Python requirement and feature traces should point to symbols whose\n      docstrings carry both the stable ID and a short explanation.\n    linked_philosophies:\n      - {philosophy_id}\n    linked_requirements:\n      - {requirement_id}\n"
+        ),
+        StarterTemplate::GoOnly => format!(
+            "category: Policies\nversion: 1\nlanguage: en\n\npolicies:\n  - id: {policy_id}\n    title: Go requirement and feature traces must stay explicit in {project_name}\n    summary: Start with a Go-first workflow that keeps the first traced symbols easy to inspect.\n    description: |\n      The starter workspace should include real Go source and test files so the\n      first requirement and feature validate against code contributors can open immediately.\n    linked_philosophies:\n      - {philosophy_id}\n    linked_requirements:\n      - {requirement_id}\n"
         ),
         StarterTemplate::Polyglot => format!(
             "category: Policies\nversion: 1\nlanguage: en\n\npolicies:\n  - id: {policy_id}\n    title: Polyglot requirement and feature traces must stay verifiable in {project_name}\n    summary: Start with one specification flow that can grow across languages.\n    description: |\n      The starter workspace should make it obvious how one requirement and one\n      feature can stay linked even when implementation later spans Rust,\n      Python, and TypeScript.\n    linked_philosophies:\n      - {philosophy_id}\n    linked_requirements:\n      - {requirement_id}\n"
@@ -587,6 +620,10 @@ fn requirement_template(
         ),
         StarterTemplate::PythonOnly => format!(
             "category: Python Requirements\nprefix: {}\n\nrequirements:\n  - id: {requirement_id}\n    title: Bootstrap {project_name} with Python-first trace conventions\n    description: |\n      The project should start with a Python-oriented requirement that can later\n      claim documented Python test symbols without restructuring the workspace.\n    priority: high\n    status: planned\n    linked_policies:\n      - {policy_id}\n    linked_features:\n      - {feature_id}\n    tests: {{}}\n",
+            id_prefixes.requirement
+        ),
+        StarterTemplate::GoOnly => format!(
+            "category: Go Requirements\nprefix: {}\n\nrequirements:\n  - id: {requirement_id}\n    title: Bootstrap {project_name} with a Go-backed requirement trace\n    description: |\n      The project should start with one Go test symbol so the first requirement\n      already validates against a real `_test.go` file.\n    priority: high\n    status: implemented\n    linked_policies:\n      - {policy_id}\n    linked_features:\n      - {feature_id}\n    tests:\n      go:\n        - file: go/app_test.go\n          symbols:\n            - TestGoRequirement\n",
             id_prefixes.requirement
         ),
         StarterTemplate::Polyglot => format!(
@@ -625,6 +662,9 @@ fn feature_template(
         StarterTemplate::PythonOnly => format!(
             "category: Python Features\nversion: 1\n\nfeatures:\n  - id: {feature_id}\n    title: Bootstrap the {project_name} Python spec workspace\n    summary: Provide a Python-oriented starter structure that contributors can extend.\n    status: planned\n    linked_requirements:\n      - {requirement_id}\n    implementations: {{}}\n"
         ),
+        StarterTemplate::GoOnly => format!(
+            "category: Go Features\nversion: 1\n\nfeatures:\n  - id: {feature_id}\n    title: Bootstrap the {project_name} Go spec workspace\n    summary: Provide a Go-oriented starter structure with one traced implementation symbol.\n    status: implemented\n    linked_requirements:\n      - {requirement_id}\n    implementations:\n      go:\n        - file: go/app.go\n          symbols:\n            - GoFeatureImpl\n"
+        ),
         StarterTemplate::Polyglot => format!(
             "category: Polyglot Features\nversion: 1\n\nfeatures:\n  - id: {feature_id}\n    title: Bootstrap the {project_name} polyglot spec workspace\n    summary: Provide a starter structure that can grow across Rust, Python, and TypeScript.\n    status: planned\n    linked_requirements:\n      - {requirement_id}\n    implementations: {{}}\n"
         ),
@@ -636,6 +676,7 @@ fn requirement_document_path(template: StarterTemplate) -> &'static str {
         StarterTemplate::Generic => "requirements/core/core.yaml",
         StarterTemplate::RustOnly => "requirements/core/rust.yaml",
         StarterTemplate::PythonOnly => "requirements/core/python.yaml",
+        StarterTemplate::GoOnly => "requirements/core/go.yaml",
         StarterTemplate::Polyglot => "requirements/core/polyglot.yaml",
     }
 }
@@ -645,6 +686,7 @@ fn feature_document_path(template: StarterTemplate) -> &'static str {
         StarterTemplate::Generic => "features/core/core.yaml",
         StarterTemplate::RustOnly => "features/languages/rust.yaml",
         StarterTemplate::PythonOnly => "features/languages/python.yaml",
+        StarterTemplate::GoOnly => "features/languages/go.yaml",
         StarterTemplate::Polyglot => "features/languages/polyglot.yaml",
     }
 }
@@ -654,6 +696,7 @@ fn feature_kind(template: StarterTemplate) -> &'static str {
         StarterTemplate::Generic => "core",
         StarterTemplate::RustOnly => "rust",
         StarterTemplate::PythonOnly => "python",
+        StarterTemplate::GoOnly => "go",
         StarterTemplate::Polyglot => "polyglot",
     }
 }
@@ -1014,7 +1057,7 @@ mod tests {
     fn prompt_for_starter_template_retries_invalid_values() {
         let mut prompt_io = FakePromptIo {
             terminal: true,
-            lines: VecDeque::from(["unknown".to_string(), "4".to_string()]),
+            lines: VecDeque::from(["unknown".to_string(), "5".to_string()]),
             ..Default::default()
         };
 
@@ -1030,6 +1073,10 @@ mod tests {
         assert_eq!(
             parse_starter_template_prompt("python"),
             Some(StarterTemplate::PythonOnly)
+        );
+        assert_eq!(
+            parse_starter_template_prompt("go"),
+            Some(StarterTemplate::GoOnly)
         );
         assert_eq!(
             parse_starter_template_prompt("mixed"),

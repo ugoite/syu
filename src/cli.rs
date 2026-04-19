@@ -43,6 +43,7 @@ Examples:
   syu init . --interactive
   syu init . --id-prefix store
   syu init . --template rust-only
+  syu init . --template go-only
   syu init . --spec-root docs/spec
   syu init path/to/workspace --name my-project --spec-root spec/contracts --template polyglot --id-prefix store";
 
@@ -515,7 +516,9 @@ pub struct InitArgs {
     #[arg(long)]
     pub spec_root: Option<PathBuf>,
 
-    #[arg(help = "Starter layout to scaffold (generic, rust-only, python-only, or polyglot)")]
+    #[arg(
+        help = "Starter layout to scaffold (generic, rust-only, python-only, go-only, or polyglot)"
+    )]
     #[arg(long, value_enum, default_value_t = StarterTemplate::Generic)]
     pub template: StarterTemplate,
 
@@ -600,6 +603,7 @@ pub enum StarterTemplate {
     Generic,
     RustOnly,
     PythonOnly,
+    GoOnly,
     Polyglot,
 }
 
@@ -609,6 +613,7 @@ impl StarterTemplate {
             Self::Generic => "generic",
             Self::RustOnly => "rust-only",
             Self::PythonOnly => "python-only",
+            Self::GoOnly => "go-only",
             Self::Polyglot => "polyglot",
         }
     }

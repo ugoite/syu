@@ -8,8 +8,9 @@ one Go source file and one Go test file. The example uses pattern-based symbol
 matching for the real `.go` files, so `syu validate .` proves the Go-backed
 links directly.
 
-This workspace is reference-only: it does not correspond to a
-`syu init --template ...` starter.
+This workspace now matches the built-in `syu init --template go-only` starter,
+so you can either inspect the checked-in example first or generate the same
+shape directly in your own repository.
 
 ## Files
 

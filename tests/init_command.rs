@@ -109,6 +109,13 @@ fn init_command_bootstraps_language_templates_that_validate_accept() {
             "FEAT-PY-001",
         ),
         (
+            "go-only",
+            "docs/syu/requirements/core/go.yaml",
+            "docs/syu/features/languages/go.yaml",
+            "REQ-GO-001",
+            "FEAT-GO-001",
+        ),
+        (
             "polyglot",
             "docs/syu/requirements/core/polyglot.yaml",
             "docs/syu/features/languages/polyglot.yaml",
@@ -152,8 +159,20 @@ fn init_command_bootstraps_language_templates_that_validate_accept() {
             "missing {requirement_id}"
         );
         assert!(feature.contains(feature_id), "missing {feature_id}");
-        assert!(requirement.contains("status: planned"));
-        assert!(feature.contains("status: planned"));
+        if template == "go-only" {
+            assert!(workspace.join("go/app.go").exists(), "missing go/app.go");
+            assert!(
+                workspace.join("go/app_test.go").exists(),
+                "missing go/app_test.go"
+            );
+            assert!(requirement.contains("status: implemented"));
+            assert!(requirement.contains("TestGoRequirement"));
+            assert!(feature.contains("status: implemented"));
+            assert!(feature.contains("GoFeatureImpl"));
+        } else {
+            assert!(requirement.contains("status: planned"));
+            assert!(feature.contains("status: planned"));
+        }
 
         let validate = Command::cargo_bin("syu")
             .expect("binary should build")

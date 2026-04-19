@@ -29,7 +29,7 @@ description: "Generated reference for docs/syu/requirements/core/workspace.yaml"
       `syu init --spec-root` MUST support scaffolding the same layout into
       another repository-relative specification root while writing the matching
       `spec.root` value into `syu.yaml`, and `syu init --template` MUST support
-      small `rust-only`, `python-only`, and `polyglot` starter layouts so
+      small `rust-only`, `python-only`, `go-only`, and `polyglot` starter layouts so
       adopters can begin closer to their repository style without copying
       example files by hand. The CLI MUST also provide `syu templates` so users
       can discover the available starter layouts, short descriptions, and any
@@ -439,7 +439,7 @@ requirements:
       `syu init --spec-root` MUST support scaffolding the same layout into
       another repository-relative specification root while writing the matching
       `spec.root` value into `syu.yaml`, and `syu init --template` MUST support
-      small `rust-only`, `python-only`, and `polyglot` starter layouts so
+      small `rust-only`, `python-only`, `go-only`, and `polyglot` starter layouts so
       adopters can begin closer to their repository style without copying
       example files by hand. The CLI MUST also provide `syu templates` so users
       can discover the available starter layouts, short descriptions, and any
