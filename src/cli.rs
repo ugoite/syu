@@ -677,6 +677,7 @@ mod tests {
         assert_eq!(StarterTemplate::Generic.label(), "generic");
         assert_eq!(StarterTemplate::RustOnly.label(), "rust-only");
         assert_eq!(StarterTemplate::PythonOnly.label(), "python-only");
+        assert_eq!(StarterTemplate::GoOnly.label(), "go-only");
         assert_eq!(StarterTemplate::Polyglot.label(), "polyglot");
         assert_eq!(ValidationSeverityFilter::Error.as_str(), "error");
         assert_eq!(ValidationSeverityFilter::Warning.as_str(), "warning");
