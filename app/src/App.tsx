@@ -180,6 +180,9 @@ function App() {
       Math.min(REFRESH_POLL_MAX_MS, REFRESH_POLL_MIN_MS * 2 ** stablePollCount);
 
     const schedulePoll = (delay: number) => {
+      if (cancelled) {
+        return;
+      }
       if (timeoutId != null) {
         window.clearTimeout(timeoutId);
       }
@@ -227,6 +230,9 @@ function App() {
     };
 
     const handleVisibilityChange = () => {
+      if (cancelled) {
+        return;
+      }
       if (!document.hidden) {
         stablePollCount = 0;
         schedulePoll(REFRESH_POLL_MIN_MS);
@@ -241,6 +247,7 @@ function App() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       if (timeoutId != null) {
         window.clearTimeout(timeoutId);
+        timeoutId = null;
       }
     };
   }, [isRefreshing, loadWorkspace, snapshotVersion]);
