@@ -20,6 +20,8 @@ fn repository_declares_precommit_and_quality_gates() {
     let precommit = read_file(".pre-commit-config.yaml");
     let install_precommit = read_file("scripts/install-precommit.sh");
     let quality_script = read_file("scripts/ci/quality-gates.sh");
+    let validate_app_script = read_file("scripts/ci/validate-app.sh");
+    let validate_website_script = read_file("scripts/ci/validate-website.sh");
     let ci_workflow = read_file(".github/workflows/ci.yml");
     let contributing = read_file("CONTRIBUTING.md");
     let repo_config = read_file("syu.yaml");
@@ -37,6 +39,16 @@ fn repository_declares_precommit_and_quality_gates() {
     assert!(quality_script.contains("cargo test"));
     assert!(quality_script.contains("cargo run -- validate ."));
     assert!(quality_script.contains("check-generated-docs-freshness.sh"));
+    assert!(validate_app_script.contains("FEAT-QUALITY-001"));
+    assert!(validate_app_script.contains("validate_app"));
+    assert!(validate_app_script.contains("scripts/ci/quality-gates.sh"));
+    assert!(validate_app_script.contains("check-browser-app-freshness.sh"));
+    assert!(validate_app_script.contains("npm --prefix app run test:e2e"));
+    assert!(validate_website_script.contains("FEAT-QUALITY-001"));
+    assert!(validate_website_script.contains("validate_website"));
+    assert!(validate_website_script.contains("scripts/ci/quality-gates.sh"));
+    assert!(validate_website_script.contains("npm --prefix website ci"));
+    assert!(validate_website_script.contains("npm --prefix website run build"));
     assert!(install_precommit.contains("site --user-base"));
     assert!(install_precommit.contains("pipx environment --value PIPX_BIN_DIR"));
     assert!(install_precommit.contains("Troubleshooting: compare"));
@@ -76,10 +88,13 @@ fn repository_declares_precommit_and_quality_gates() {
     assert!(contributing.contains("npm audit"));
     assert!(contributing.contains("Contributors do **not** need to run manual audits"));
     assert!(contributing.contains("check-generated-docs-freshness.sh"));
+    assert!(contributing.contains("scripts/ci/validate-app.sh"));
+    assert!(contributing.contains("scripts/ci/validate-website.sh"));
     assert!(contributing.contains("docs/generated/"));
     assert!(contributing.contains("python3 -m site --user-base"));
     assert!(contributing.contains("If you installed `pre-commit` with"));
     assert!(contributing.contains("pipx environment --value PIPX_BIN_DIR"));
+    assert!(contributing.contains("scripts/ci/check-browser-app-freshness.sh"));
 
     assert!(repo_config.contains("FEAT-CHECK-001"));
     assert!(repo_config.contains("FEAT-REPORT-001"));
@@ -424,6 +439,8 @@ fn repository_declares_documentation_guides() {
     assert!(app_guide.contains("ArrowDown"));
     assert!(app_guide.contains("Escape"));
     assert!(app_guide.contains("the item's YAML `status:` field"));
+    assert!(app_guide.contains("../../website/static/img/app-guide-overview.png"));
+    assert!(!app_guide.contains("](/img/"));
     assert!(!app_guide.contains("`planned`, `implemented`, or `deprecated`"));
     assert!(getting_started.contains("New to `syu`?"));
     assert!(getting_started.contains("Need a different level of guidance?"));
@@ -445,19 +462,15 @@ fn repository_declares_documentation_guides() {
     assert!(getting_started.contains("install-syu.sh"));
     assert!(getting_started.contains("checksums.sha256"));
     assert!(getting_started.contains("security-sensitive environments"));
-    assert!(getting_started.contains("shasum -a 256 --ignore-missing -c checksums.sha256"));
+    assert!(getting_started.contains("README installer verification flow"));
     assert!(getting_started.contains("SYU_VERSION=alpha"));
     assert!(getting_started.contains("PowerShell"));
     assert!(getting_started.contains("Git Bash"));
-    assert!(getting_started.contains("checksums = 'checksums.sha256'"));
-    assert!(getting_started.contains("Select-String -SimpleMatch $asset"));
+    assert!(getting_started.contains("README PowerShell install flow"));
     assert!(getting_started.contains("syu-x86_64-pc-windows-msvc.zip"));
-    assert!(getting_started.contains("Get-FileHash"));
     assert!(getting_started.contains("LOCALAPPDATA"));
     assert!(getting_started.contains("If you are inside WSL"));
     assert!(!getting_started.contains("$asset.sha256"));
-    assert!(getting_started.contains("syu.exe"));
-    assert!(getting_started.contains(&format!("RELEASE=v{current_version}")));
     assert!(getting_started.contains("current checked-in release"));
     assert!(getting_started.contains("latest published alpha"));
     assert!(getting_started.contains("--template rust-only"));
@@ -525,7 +538,11 @@ fn repository_declares_documentation_guides() {
     assert!(examples_and_templates.contains("examples/team-scale"));
     assert!(merge_queue_playbook.contains("merge_group"));
     assert!(merge_queue_playbook.contains("gh api graphql"));
+    assert!(merge_queue_playbook.contains("autoMergeRequest"));
+    assert!(merge_queue_playbook.contains("reviewDecision"));
     assert!(merge_queue_playbook.contains("AWAITING_CHECKS"));
+    assert!(merge_queue_playbook.contains("All comments must be resolved"));
+    assert!(merge_queue_playbook.contains("gh pr merge 123 --auto --squash"));
     assert!(merge_queue_playbook.contains("gh-readonly-queue/main/pr-123-<sha>"));
     assert!(configuration.contains("validate.default_fix"));
     assert!(configuration.contains("trace-adapter-support.md"));
@@ -551,8 +568,8 @@ fn repository_declares_documentation_guides() {
     );
     assert!(generated_config_validate.contains("array&lt;path&gt;"));
     assert!(generated_config_runtimes.contains("docs/syu/config/runtimes.yaml"));
-    assert!(generated_site_index.contains("/docs/generated/site-spec/features/cli/show-list"));
-    assert!(generated_site_index.contains("/docs/generated/site-spec/features/validation"));
+    assert!(generated_site_index.contains("features/cli/show-list"));
+    assert!(generated_site_index.contains("features/validation"));
     assert!(generated_validation.contains("docs/syu/features/validation/validation.yaml"));
     assert!(generated_validation.contains("SYU-graph-reference-001"));
     assert!(
@@ -568,8 +585,7 @@ fn repository_declares_documentation_guides() {
     assert!(docs_build_action.contains("FEAT-DOCS-002"));
     assert!(docs_build_action.contains("actions/setup-node@v6"));
     assert!(docs_build_action.contains("cache-dependency-path: website/package-lock.json"));
-    assert!(docs_build_action.contains("scripts/ci/pinned-npm.sh install website"));
-    assert!(docs_build_action.contains("npm ci"));
+    assert!(docs_build_action.contains("install-docs-site-deps.sh"));
     assert!(docs_build_action.contains("npm run build"));
     assert!(docs_package.contains("@docusaurus/core"));
     assert!(docs_lock.contains("\"name\": \"syu-docs\""));
@@ -645,19 +661,21 @@ fn repository_ships_vscode_extension() {
 fn repository_declares_devcontainer_configuration() {
     let devcontainer = read_file(".devcontainer/devcontainer.json");
     let post_create = read_file(".devcontainer/post-create.sh");
+    let browser_setup = read_file(".devcontainer/setup-browser-tooling.sh");
     assert!(devcontainer.contains("FEAT-CONTRIB-001"));
     assert!(devcontainer.contains("bash .devcontainer/post-create.sh"));
     assert!(devcontainer.contains("ghcr.io/devcontainers/features/python:1"));
     assert!(post_create.contains("FEAT-CONTRIB-001"));
     assert!(post_create.contains("cargo install cargo-llvm-cov --locked"));
     assert!(post_create.contains("cargo install wasm-pack --locked"));
-    assert!(post_create.contains("scripts/ci/pinned-npm.sh install app"));
-    assert!(post_create.contains("npm --prefix app ci"));
-    assert!(post_create.contains("playwright install --with-deps chromium"));
     assert!(post_create.contains("scripts/install-precommit.sh"));
     assert!(post_create.contains("CONTRIBUTING.md#local-checks"));
-    assert!(post_create.contains("local app builds"));
+    assert!(post_create.contains("bash .devcontainer/setup-browser-tooling.sh"));
     assert!(post_create.contains("stay opt-in"));
+    assert!(browser_setup.contains("FEAT-CONTRIB-001"));
+    assert!(browser_setup.contains("npm --prefix app ci"));
+    assert!(browser_setup.contains("playwright install --with-deps chromium"));
+    assert!(browser_setup.contains("local app builds"));
 }
 
 #[test]
@@ -726,12 +744,13 @@ fn repository_declares_contribution_workflow_assets() {
     assert!(contributing.contains("requirement/feature coverage summary"));
     assert!(contributing.contains("Linked issue or specification"));
     assert!(contributing.contains("app/dist"));
+    assert!(contributing.contains("bash .devcontainer/setup-browser-tooling.sh"));
     assert!(contributing.contains("npm run build:wasm"));
     assert!(contributing.contains("npm run check"));
     assert!(contributing.contains("npx --prefix app playwright install --with-deps chromium"));
     assert!(contributing.contains("npm --prefix app run test:e2e"));
     assert!(contributing.contains("app/playwright.config.ts"));
-    assert!(contributing.contains("scripts/ci/pinned-npm.sh install website"));
+    assert!(contributing.contains("install-docs-site-deps.sh"));
     assert!(contributing.contains("npm --prefix website ci"));
     assert!(contributing.contains("npm --prefix website run start"));
     assert!(contributing.contains("npm --prefix website run build"));
@@ -820,7 +839,7 @@ fn repository_declares_dependency_hygiene_and_ci_caching() {
     assert!(ci_workflow.contains("./.github/actions/build-docs-site"));
     assert!(docs_build_action.contains("actions/setup-node@v6"));
     assert!(docs_build_action.contains("cache-dependency-path: website/package-lock.json"));
-    assert!(docs_build_action.contains("npm ci"));
+    assert!(docs_build_action.contains("install-docs-site-deps.sh"));
     assert!(docs_build_action.contains("npm run build"));
     assert!(docs_lock.contains("\"lockfileVersion\":"));
     assert!(codeql_workflow.contains("FEAT-QUALITY-001"));

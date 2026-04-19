@@ -1,11 +1,5 @@
-# syu validation report
-
-## Status
-
-- Result: **PASS**
-- Workspace: `.`
-
-## Definitions
+wrote report to /workspaces/syu-1/.worktrees/impl-441/docs/generated/syu-report.md
+ions
 
 - Philosophies: 3
 - Policies: 8
@@ -14,8 +8,8 @@
 
 ## Traceability
 
-- Requirement-to-test traceability: 96/96
-- Feature-to-implementation traceability: 109/109
+- Requirement-to-test traceability: 97/97
+- Feature-to-implementation traceability: 112/112
 
 ## Issues
 

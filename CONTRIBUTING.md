@@ -71,7 +71,22 @@ match your change:
 3. **Browser app, WASM, or checked-in `app/dist` bundle** (`app/src`,
    `app/wasm`, browser build config, or generated browser assets)
 
-   Install the browser app dependencies first:
+   For the CI-aligned happy path, run:
+
+   ```bash
+   scripts/ci/validate-app.sh
+   ```
+
+   `scripts/ci/validate-app.sh` starts with the shared repository gates and then
+   runs the browser-specific checks below. In the devcontainer or Codespaces,
+   install the browser tooling first with:
+
+   ```bash
+   bash .devcontainer/setup-browser-tooling.sh
+   ```
+
+   Outside the devcontainer, or when you only need the raw follow-up steps,
+   install the browser app dependencies with:
 
    ```bash
    scripts/ci/pinned-npm.sh install app
@@ -93,17 +108,41 @@ match your change:
    also install the local browser once and run the end-to-end suite:
 
    ```bash
+   scripts/ci/validate-app.sh --e2e
+   ```
+
+   The wrapper expands to:
+
+   ```bash
    npx --prefix app playwright install --with-deps chromium
    npm --prefix app run test:e2e
    ```
 
-   `npm run test:e2e` uses `app/playwright.config.ts` to launch
-   `cargo run -- app .` automatically, so run it after the shared Rust gates
-   pass.
+   `scripts/ci/validate-app.sh --e2e` also installs Playwright Chromium and runs
+   `npm --prefix app run test:e2e`, which uses `app/playwright.config.ts` to
+   launch `cargo run -- app .` automatically. The devcontainer/Codespaces
+   post-create step keeps this browser setup opt-in so docs-only or Rust-only
+   contributors do not pay for it by default.
 
 4. **Documentation site** (`website/`)
 
-   Install the docs-site dependencies first:
+   For the CI-aligned happy path, run:
+
+   ```bash
+   scripts/ci/validate-website.sh
+   ```
+
+   `scripts/ci/validate-website.sh` starts with the shared repository gates and
+   then runs the docs-site install/build sequence below. Install the docs-site
+   dependencies first when you need the raw follow-up steps only:
+
+   ```bash
+   bash scripts/ci/install-docs-site-deps.sh
+   ```
+
+   The script removes `website/node_modules` before reinstalling so repeated
+   runs stay deterministic across branch switches and reused worktrees. The raw
+   install step remains:
 
    ```bash
    scripts/ci/pinned-npm.sh install website
@@ -122,8 +161,8 @@ match your change:
    npm --prefix website run build
    ```
 
-   `npm run build` regenerates the checked-in site docs first, matching
-   `.github/actions/build-docs-site`.
+   After the shared gates, `scripts/ci/validate-website.sh` runs the same
+   install and build sequence as `.github/actions/build-docs-site`.
 
 5. **Docs-only edits outside `website/`, `app/`, or Rust logic**
 
@@ -198,7 +237,8 @@ it provisions. That script:
 
 Read the script output or this section when you want to map setup time to the
 checks it unlocks. It does **not** install `website/` docs-site dependencies,
-so run `npm --prefix website ci` yourself when you are working on the docs site.
+so run `bash scripts/ci/install-docs-site-deps.sh` yourself when you are working
+on the docs site.
 
 ## Dependency security
 
