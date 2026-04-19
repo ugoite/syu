@@ -71,7 +71,13 @@ match your change:
 3. **Browser app, WASM, or checked-in `app/dist` bundle** (`app/src`,
    `app/wasm`, browser build config, or generated browser assets)
 
-   Install the browser app dependencies first:
+   For the CI-aligned happy path, run:
+
+   ```bash
+   scripts/ci/validate-app.sh
+   ```
+
+   Install the browser app dependencies first when you need the raw steps:
 
    ```bash
    npm --prefix app ci
@@ -92,17 +98,30 @@ match your change:
    also install the local browser once and run the end-to-end suite:
 
    ```bash
+   scripts/ci/validate-app.sh --e2e
+   ```
+
+   The wrapper expands to:
+
+   ```bash
    npx --prefix app playwright install --with-deps chromium
    npm --prefix app run test:e2e
    ```
 
-   `npm run test:e2e` uses `app/playwright.config.ts` to launch
+   `scripts/ci/validate-app.sh --e2e` installs Playwright Chromium and runs
+   `npm --prefix app run test:e2e`, which uses `app/playwright.config.ts` to launch
    `cargo run -- app .` automatically, so run it after the shared Rust gates
    pass.
 
 4. **Documentation site** (`website/`)
 
-   Install the docs-site dependencies first:
+   For the CI-aligned happy path, run:
+
+   ```bash
+   scripts/ci/validate-website.sh
+   ```
+
+   Install the docs-site dependencies first when you need the raw steps:
 
    ```bash
    npm --prefix website ci
@@ -120,7 +139,7 @@ match your change:
    npm --prefix website run build
    ```
 
-   `npm run build` regenerates the checked-in site docs first, matching
+   `scripts/ci/validate-website.sh` runs the same install and build sequence as
    `.github/actions/build-docs-site`.
 
 5. **Docs-only edits outside `website/`, `app/`, or Rust logic**
