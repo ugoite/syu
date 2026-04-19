@@ -193,3 +193,26 @@ features:
     ]
   );
 });
+
+test('collectInlineNavigationTargets keeps wildcard and quoted trace symbols addressable', () => {
+  const targets = collectInlineNavigationTargets(`
+features:
+  - id: FEAT-TRACE-001
+    implementations:
+      rust:
+        - file: src/rust_feature.rs
+          symbols:
+            - "*"
+            - "example::run"
+`);
+
+  assert.deepEqual(
+    targets
+      .filter((target) => target.kind === 'traceSymbol')
+      .map((target) => [target.file, target.symbol]),
+    [
+      ['src/rust_feature.rs', '*'],
+      ['src/rust_feature.rs', 'example::run']
+    ]
+  );
+});

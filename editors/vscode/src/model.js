@@ -510,23 +510,44 @@ function collectInlineNavigationTargets(documentText) {
       continue
     }
 
-    const symbolMatch = /^(\s*)-\s*["']?([A-Za-z_][A-Za-z0-9_]*)["']?\s*$/u.exec(text)
-    if (!symbolMatch) {
+    const symbolValue = parseTraceSymbolEntry(text)
+    if (!symbolValue) {
       continue
     }
 
-    const startCharacter = text.indexOf(symbolMatch[2])
+    const startCharacter = text.indexOf(symbolValue)
     targets.push({
       kind: 'traceSymbol',
       file: activeTraceFile,
-      symbol: symbolMatch[2],
+      symbol: symbolValue,
       line,
       startCharacter,
-      endCharacter: startCharacter + symbolMatch[2].length
+      endCharacter: startCharacter + symbolValue.length
     })
   }
 
   return targets
+}
+
+function parseTraceSymbolEntry(text) {
+  const match = /^\s*-\s*(.+?)\s*$/u.exec(text)
+  if (!match) {
+    return null
+  }
+
+  const rawValue = match[1].replace(/\s+#.*$/u, '').trim()
+  if (!rawValue) {
+    return null
+  }
+
+  if (
+    (rawValue.startsWith('"') && rawValue.endsWith('"')) ||
+    (rawValue.startsWith("'") && rawValue.endsWith("'"))
+  ) {
+    return rawValue.slice(1, -1).trim() || null
+  }
+
+  return rawValue
 }
 
 function itemFromIssueSubject(issue, model) {
