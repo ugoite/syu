@@ -14,6 +14,19 @@ fn read_json(path: &str) -> Value {
     serde_json::from_str(&read_file(path)).expect("repository JSON should parse")
 }
 
+fn checked_in_example_configs() -> Vec<PathBuf> {
+    let mut configs: Vec<_> = fs::read_dir(repo_root().join("examples"))
+        .expect("examples directory should be readable")
+        .filter_map(|entry| {
+            let path = entry.expect("directory entry should exist").path();
+            let config = path.join("syu.yaml");
+            (path.is_dir() && config.is_file()).then_some(config)
+        })
+        .collect();
+    configs.sort();
+    configs
+}
+
 #[test]
 // REQ-CORE-005
 fn repository_declares_precommit_and_quality_gates() {
@@ -130,6 +143,16 @@ fn repository_declares_coverage_gate_at_one_hundred_percent() {
     assert!(spec_summary_script.contains("list\", \"--with-path\", \"--format\", \"json\""));
     assert!(spec_summary_script.contains("yaml.safe_load"));
     assert!(spec_summary_script.contains("Rust implementation coverage"));
+    assert!(
+        spec_summary_script.contains(
+            "items = run_syu_json(repo_root, \"list\", \"--with-path\", \"--format\", \"json\")"
+        ),
+        "expected the coverage summary to load workspace metadata with one `syu list --with-path --format json` call"
+    );
+    assert!(
+        !spec_summary_script.contains("\"show\","),
+        "coverage summary generation should not shell out through repeated `syu show` calls"
+    );
 
     assert!(ci_workflow.contains("coverage:"));
     assert!(ci_workflow.contains("scripts/ci/coverage.sh lcov"));
@@ -242,6 +265,12 @@ fn repository_declares_release_automation() {
     assert!(manifest.contains("\".\": \"0.0.0\""));
     assert!(readme.contains("gh attestation verify"));
     assert!(readme.contains("--repo ugoite/syu"));
+    assert!(readme.contains("gh release download"));
+    assert!(
+        readme.contains("--signer-workflow ugoite/syu/.github/workflows/release-artifacts.yml")
+    );
+    assert!(readme.contains("--source-ref \"refs/tags/${RELEASE}\""));
+    assert!(readme.contains("--format json"));
     assert!(
         !repo_root()
             .join("release-please-config.alpha.json")
@@ -481,6 +510,8 @@ fn repository_declares_documentation_guides() {
     assert!(getting_started.contains("compact command card"));
     assert!(getting_started.contains("install-syu.sh"));
     assert!(getting_started.contains("checksums.sha256"));
+    assert!(getting_started.contains("--signer-workflow"));
+    assert!(getting_started.contains("--source-ref"));
     assert!(getting_started.contains("security-sensitive environments"));
     assert!(getting_started.contains("README installer verification flow"));
     assert!(getting_started.contains("SYU_VERSION=alpha"));
@@ -726,21 +757,17 @@ fn repository_declares_devcontainer_configuration() {
 // REQ-CORE-012
 fn repository_ships_example_workspaces() {
     let current_version = env!("CARGO_PKG_VERSION");
+    let example_configs = checked_in_example_configs();
     let rust_example_requirement =
         read_file("examples/rust-only/docs/syu/requirements/core/rust.yaml");
-    let rust_example_config = read_file("examples/rust-only/syu.yaml");
-    let python_example_config = read_file("examples/python-only/syu.yaml");
     let python_example_requirement =
         read_file("examples/python-only/docs/syu/requirements/core/python.yaml");
     let csharp_fallback_requirement =
         read_file("examples/csharp-fallback/docs/syu/requirements/core/csharp.yaml");
-    let csharp_fallback_config = read_file("examples/csharp-fallback/syu.yaml");
     let csharp_fallback_readme = read_file("examples/csharp-fallback/README.md");
-    let docs_first_config = read_file("examples/docs-first/syu.yaml");
     let docs_first_requirement =
         read_file("examples/docs-first/docs/syu/requirements/core/docs.yaml");
     let docs_first_readme = read_file("examples/docs-first/README.md");
-    let go_example_config = read_file("examples/go-only/syu.yaml");
     let go_example_requirement = read_file("examples/go-only/docs/syu/requirements/core/go.yaml");
     let go_example_readme = read_file("examples/go-only/README.md");
     let java_example_config = read_file("examples/java-only/syu.yaml");
@@ -749,22 +776,29 @@ fn repository_ships_example_workspaces() {
     let java_example_readme = read_file("examples/java-only/README.md");
     let polyglot_config = read_file("examples/polyglot/syu.yaml");
     let polyglot_feature = read_file("examples/polyglot/docs/syu/features/languages/polyglot.yaml");
-    let team_scale_config = read_file("examples/team-scale/syu.yaml");
     let example_tests = read_file("tests/example_workspaces.rs");
 
+    assert!(!example_configs.is_empty());
+    for config in &example_configs {
+        let relative = config
+            .strip_prefix(repo_root())
+            .expect("example config should stay under the repository root");
+        let rendered = fs::read_to_string(config).expect("example config should be readable");
+        assert!(
+            rendered.contains(&format!("version: {current_version}")),
+            "{} should use the current CLI version",
+            relative.display()
+        );
+    }
+
     assert!(rust_example_requirement.contains("REQ-RUST-001"));
-    assert!(rust_example_config.contains(&format!("version: {current_version}")));
-    assert!(python_example_config.contains(&format!("version: {current_version}")));
     assert!(python_example_requirement.contains("REQ-PY-001"));
     assert!(csharp_fallback_requirement.contains("REQ-CSHARP-001"));
-    assert!(csharp_fallback_config.contains(&format!("version: {current_version}")));
     assert!(csharp_fallback_readme.contains("CsharpFallbackAcceptanceChecklist"));
     assert!(csharp_fallback_readme.contains("SYU-trace-language-001"));
-    assert!(docs_first_config.contains(&format!("version: {current_version}")));
     assert!(docs_first_requirement.contains("REQ-DOCS-001"));
     assert!(docs_first_requirement.contains("DocsFirstAcceptanceChecklist"));
     assert!(docs_first_readme.contains("syu init --template docs-first"));
-    assert!(go_example_config.contains(&format!("version: {current_version}")));
     assert!(go_example_requirement.contains("REQ-GO-001"));
     assert!(go_example_readme.contains("TestGoRequirement"));
     assert!(go_example_readme.contains("GoFeatureImpl"));
@@ -775,7 +809,6 @@ fn repository_ships_example_workspaces() {
     assert!(polyglot_config.contains(&format!("version: {current_version}")));
     assert!(polyglot_feature.contains("FEAT-MIX-001"));
     assert!(polyglot_feature.contains("status: implemented"));
-    assert!(team_scale_config.contains(&format!("version: {current_version}")));
     assert!(example_tests.contains("docs_first_example_validates"));
     assert!(example_tests.contains("csharp_fallback_example_validates"));
     assert!(example_tests.contains("rust_only_example_validates"));
