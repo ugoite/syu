@@ -1,5 +1,7 @@
 use assert_cmd::cargo::CommandCargoExt;
 use serde_yaml::Value;
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 use std::{fs, process::Command};
 use tempfile::tempdir;
 
@@ -173,6 +175,18 @@ fn init_command_bootstraps_language_templates_that_validate_accept() {
             assert!(requirement.contains("DocsFirstAcceptanceChecklist"));
             assert!(feature.contains("status: implemented"));
             assert!(feature.contains("publish_release_notes"));
+            #[cfg(unix)]
+            {
+                let mode = fs::metadata(workspace.join("scripts/publish-docs.sh"))
+                    .expect("script metadata should exist")
+                    .permissions()
+                    .mode();
+                assert_ne!(
+                    mode & 0o111,
+                    0,
+                    "docs-first starter script should be executable"
+                );
+            }
         } else if template == "go-only" {
             assert!(workspace.join("go.mod").exists(), "missing go.mod");
             assert!(workspace.join("go/app.go").exists(), "missing go/app.go");

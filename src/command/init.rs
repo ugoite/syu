@@ -6,6 +6,8 @@
 // FEAT-INIT-002
 
 use anyhow::{Result, bail};
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 use std::{
     fs,
     path::{Component, Path, PathBuf},
@@ -156,7 +158,7 @@ fn run_init_command_with_prompt_io(args: &InitArgs, prompt_io: &mut impl PromptI
             .parent()
             .expect("generated scaffold paths should always have a parent");
         fs::create_dir_all(parent)?;
-        fs::write(full_path, contents)?;
+        write_scaffold_file(&full_path, contents)?;
     }
 
     let created_paths: Vec<&str> = files.iter().map(|(path, _)| path.as_str()).collect();
@@ -216,6 +218,34 @@ fn run_init_command_with_prompt_io(args: &InitArgs, prompt_io: &mut impl PromptI
     }
 
     Ok(0)
+}
+
+fn write_scaffold_file(full_path: &Path, contents: &str) -> Result<()> {
+    fs::write(full_path, contents)?;
+    maybe_mark_scaffold_file_executable(full_path, contents)?;
+    Ok(())
+}
+
+#[cfg(unix)]
+fn maybe_mark_scaffold_file_executable(full_path: &Path, contents: &str) -> Result<()> {
+    if is_executable_shell_scaffold(full_path, contents) {
+        let mut permissions = fs::metadata(full_path)?.permissions();
+        permissions.set_mode(0o755);
+        fs::set_permissions(full_path, permissions)?;
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn maybe_mark_scaffold_file_executable(_full_path: &Path, _contents: &str) -> Result<()> {
+    Ok(())
+}
+
+fn is_executable_shell_scaffold(full_path: &Path, contents: &str) -> bool {
+    matches!(
+        full_path.extension().and_then(|ext| ext.to_str()),
+        Some("sh")
+    ) && contents.starts_with("#!")
 }
 
 fn resolve_init_options_with_prompt_io(
