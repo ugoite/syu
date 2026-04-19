@@ -149,11 +149,12 @@ Need stable project-specific starter IDs from the first command?
 syu init . --id-prefix store
 ```
 
-Need a closer starting point for a repository that is already Rust-first,
-Python-first, Go-first, or polyglot?
+Need a closer starting point for a repository that is already docs-first,
+Rust-first, Python-first, Go-first, or polyglot?
 
 ```bash
 syu templates
+syu init . --template docs-first
 syu init . --template rust-only
 syu init . --template go-only
 ```
@@ -206,9 +207,9 @@ TypeScript/JavaScript, plus lighter file/symbol ownership in `shell`, `yaml`,
 unsupported implementation language can still adopt `syu` today, but they
 should treat code-level mappings for those files as future work.
 
-Go and Java already have built-in pattern-based symbol validation and
-participate in strict `validate.require_symbol_trace_coverage` inventory, even
-though they do not support `doc_contains` checks yet. The
+Go and Java already have built-in symbol validation and participate in strict
+`validate.require_symbol_trace_coverage` inventory. Go now supports
+`doc_contains` checks as well, while Java still stops at symbol validation. The
 [trace adapter capability matrix](./trace-adapter-support.md) summarizes that
 language-by-language support.
 
@@ -247,13 +248,13 @@ What you should avoid for unsupported-language files today is adding
 language-specific `tests:` or `implementations:` entries such as `csharp:`.
 Those keys still fail validation before `doc_contains` support even becomes
 relevant. If you need code-level tracing immediately with `doc_contains`, stay
-with Rust, Python, or TypeScript/JavaScript for now. For unsupported-language
-repositories, use the
-[`examples/csharp-fallback` workspace on GitHub](https://github.com/ugoite/syu/tree/main/examples/csharp-fallback)
-to study the fallback pattern. For Go-first repositories, use
-[`examples/go-only` workspace on GitHub](https://github.com/ugoite/syu/tree/main/examples/go-only)
-or `syu init . --template go-only`: those use real Go files plus symbol-level
+with Rust, Python, Go, or TypeScript/JavaScript for now. For Go-first repositories,
+use [`examples/go-only` workspace on GitHub](https://github.com/ugoite/syu/tree/main/examples/go-only)
+or `syu init . --template go-only`: both use real Go files plus symbol-level
 trace mappings that validate today.
+For unsupported-language repositories, use the
+[`examples/csharp-fallback` workspace on GitHub](https://github.com/ugoite/syu/tree/main/examples/csharp-fallback)
+to study the fallback pattern.
 
 Keep this adoption path in mind for mixed-language repositories too: start with
 declared traces, keep `validate.require_symbol_trace_coverage: false`, then turn
@@ -328,7 +329,7 @@ an explicit registry because implementation claims should stay deliberate and
 reviewable. That registry is a short YAML list of feature documents:
 
 ```yaml
-version: 0.0.1-alpha.7
+version: 0.0.1-alpha.8
 files:
   - kind: core
     file: core/core.yaml
@@ -372,8 +373,8 @@ If checked-in YAML plus the symbol name already gives you enough traceability,
 you can omit `doc_contains` entirely and keep source files free of spec-ID
 bookkeeping.
 
-That richer `doc_contains` inspection is currently limited to Rust, Python, and
-TypeScript / JavaScript traces. The same built-in matrix also tells you which
+That richer `doc_contains` inspection is currently available for Rust, Python,
+Go, and TypeScript / JavaScript traces. The same built-in matrix also tells you which
 languages participate in strict `validate.require_symbol_trace_coverage`
 inventory and which ones stop at symbol-existence checks: see the [trace
 adapter capability matrix](./trace-adapter-support.md).
@@ -418,6 +419,20 @@ Use `syu list` when you want list-shaped output that can be narrowed to one
 layer or emitted as JSON for automation. Use `syu browse --non-interactive`
 when you want the browse snapshot instead: workspace metadata, per-layer
 counts, and the current validation errors in plain text.
+
+If you only remember the task and not the command name yet, use this chooser:
+
+| If you want to... | Start with... | Why |
+| --- | --- | --- |
+| check whether the workspace is healthy before deeper exploration | `syu validate .` | runs the validation pass first so you can fix structural problems before navigating the graph |
+| inspect the whole workspace interactively in a terminal | `syu browse .` | best first stop when you want the layered graph and current validation state together |
+| render one layer or emit machine-friendly lists | `syu list ...` | keeps the output list-shaped and scriptable |
+| open one exact definition by ID | `syu show ID` | jumps directly to the matched philosophy, policy, requirement, or feature |
+| search when you only know a keyword or partial ID | `syu search QUERY` | searches titles, summaries, descriptions, and IDs across the spec |
+| start from a traced file or symbol during review | `syu trace path --symbol name` | works code-first instead of spec-first |
+| inspect everything connected to one ID, file, or symbol | `syu relate TARGET` | expands nearby links, traced files, and symbols to show the surrounding context |
+| review change history for one requirement or feature | `syu log ID` | follows the checked-in definition plus traced evidence through Git history |
+| switch to a browser-first workflow | `syu app .` | shows the same workspace graph in the local browser UI |
 
 Use JSON when integrating with automation:
 
@@ -493,6 +508,9 @@ If one of those examples is already close to your repository, use the matching
 shape. `syu templates` prints the same mapping directly in the CLI, including
 which starter is template-only (`generic`) versus backed by a checked-in
 example.
+Use `syu init . --template docs-first` when your repository is documentation-led:
+it scaffolds the same markdown, shell, and YAML starter shape as the checked-in
+example without forcing a language-specific code scaffold first.
 Use `syu init . --template go-only` when your repository is Go-first today: it
 scaffolds the same minimal spec plus `go.mod`, `go/app.go`, and
 `go/app_test.go`, while the checked-in example shows the same shape in a
@@ -508,6 +526,7 @@ example-backed, or both, see the
 - Follow the [end-to-end tutorial](./tutorial.md) to build a complete four-layer spec from scratch
 - Read [syu concepts](./concepts.md) for the reasoning behind the four layers
 - Review [configuration](./configuration.md) before tightening validation in a real repository
+- Use the [reviewer workflow guide](./reviewer-workflow.md) when a PR already exists and you want one trace/relate/log loop to inspect it
 - Check the [trace adapter capability matrix](./trace-adapter-support.md) before depending on `doc_contains` or strict ownership coverage in a mixed-language codebase
 - Read the [syu app browser guide](./app.md) to learn how to navigate the browser UI
 - Check the [troubleshooting guide](./troubleshooting.md) when `syu validate` returns an unfamiliar error code

@@ -217,6 +217,8 @@ fn repository_declares_release_automation() {
     assert!(release_artifacts.contains("install-syu.sh"));
     assert!(release_artifacts.contains("release-notes:"));
     assert!(release_artifacts.contains("release-track-notes.sh"));
+    assert!(release_artifacts.contains("scripts/ci/pinned-npm.sh install app"));
+    assert!(release_artifacts.contains("npm --prefix app ci"));
     assert!(release_artifacts.contains("attestations: write"));
     assert!(release_artifacts.contains("id-token: write"));
     assert!(release_artifacts.contains("actions/attest-build-provenance@v4"));
@@ -374,6 +376,7 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("docs/guide/tutorial.md"));
     assert!(readme.contains("docs/guide/migration.md"));
     assert!(readme.contains("docs/guide/app.md"));
+    assert!(readme.contains("docs/guide/reviewer-workflow.md"));
     assert!(readme.contains("docs/guide/troubleshooting.md"));
     assert!(readme.contains("docs/guide/spec-antipatterns.md"));
     assert!(readme.contains("docs/guide/vscode-extension.md"));
@@ -382,6 +385,7 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("**Getting started**"));
     assert!(readme.contains("**Migration / upgrade**"));
     assert!(readme.contains("**Visual explorer**"));
+    assert!(readme.contains("**Reviewer workflow**"));
     assert!(readme.contains("new to `syu`"));
     assert!(readme.contains("already have a workspace"));
     assert!(readme.contains("10-15 minutes"));
@@ -399,6 +403,7 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("syu init ."));
     assert!(readme.contains("syu add"));
     assert!(readme.contains("--id-prefix"));
+    assert!(readme.contains("--template docs-first"));
     assert!(readme.contains("--template rust-only"));
     assert!(readme.contains("--template go-only"));
     assert!(readme.contains("syu templates"));
@@ -406,6 +411,10 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("syu validate"));
     assert!(readme.contains("syu browse"));
     assert!(readme.contains("syu list"));
+    assert!(readme.contains("### Command chooser"));
+    assert!(readme.contains("check whether your workspace currently validates"));
+    assert!(readme.contains("syu validate ."));
+    assert!(readme.contains("review what changed for one spec item in Git history"));
     assert!(readme.contains("list-shaped output"));
     assert!(readme.contains("workspace metadata, per-layer"));
     assert!(readme.contains("current validation errors in plain text"));
@@ -482,15 +491,23 @@ fn repository_declares_documentation_guides() {
     assert!(!getting_started.contains("$asset.sha256"));
     assert!(getting_started.contains("current checked-in release"));
     assert!(getting_started.contains("latest published alpha"));
+    assert!(getting_started.contains("--template docs-first"));
     assert!(getting_started.contains("--template rust-only"));
     assert!(getting_started.contains("--template go-only"));
     assert!(getting_started.contains("syu templates"));
     assert!(getting_started.contains("--id-prefix"));
     assert!(getting_started.contains("syu validate . --fix"));
     assert!(getting_started.contains("syu browse ."));
+    assert!(getting_started.contains("If you only remember the task and not the command name yet"));
+    assert!(
+        getting_started
+            .contains("check whether the workspace is healthy before deeper exploration")
+    );
+    assert!(getting_started.contains("syu validate ."));
     assert!(getting_started.contains("emitted as JSON for automation"));
     assert!(getting_started.contains("workspace metadata, per-layer"));
     assert!(getting_started.contains("current validation errors in plain text"));
+    assert!(getting_started.contains("review change history for one requirement or feature"));
     assert!(getting_started.contains("syu list feature"));
     assert!(getting_started.contains("syu show REQ-001"));
     assert!(getting_started.contains("syu app ."));
@@ -509,6 +526,7 @@ fn repository_declares_documentation_guides() {
     assert!(getting_started.contains("https://ugoite.github.io/syu/docs/generated/syu-report"));
     assert!(getting_started.contains("status: implemented"));
     assert!(getting_started.contains("Keep exploring"));
+    assert!(getting_started.contains("[reviewer workflow guide](./reviewer-workflow.md)"));
     assert!(getting_started.contains("examples/rust-only"));
     assert!(getting_started.contains("examples/python-only"));
     assert!(getting_started.contains("examples/csharp-fallback"));
@@ -532,9 +550,14 @@ fn repository_declares_documentation_guides() {
     let tutorial = read_file("docs/guide/tutorial.md");
     assert!(tutorial.contains("Want a different entry point?"));
     assert!(tutorial.contains("[getting started](./getting-started.md)"));
+    assert!(tutorial.contains("[reviewer workflow](./reviewer-workflow.md)"));
     assert!(tutorial.contains("[troubleshooting](./troubleshooting.md)"));
     assert!(tutorial.contains("starter registry entry"));
     assert!(tutorial.contains("Only add another `files` entry"));
+    let reviewer_workflow = read_file("docs/guide/reviewer-workflow.md");
+    assert!(reviewer_workflow.contains("currently traced"));
+    assert!(reviewer_workflow.contains("the whole PR diff is covered"));
+    assert!(reviewer_workflow.contains("too-small log result with the PR diff"));
     assert!(trace_adapter_support.contains("# Trace adapter capability matrix"));
     assert!(trace_adapter_support.contains("validate.require_symbol_trace_coverage"));
     assert!(trace_adapter_support.contains("TypeScript / JavaScript"));
@@ -544,6 +567,7 @@ fn repository_declares_documentation_guides() {
     assert!(examples_and_templates.contains("checked-in examples"));
     assert!(examples_and_templates.contains("examples/csharp-fallback"));
     assert!(examples_and_templates.contains("examples/docs-first"));
+    assert!(examples_and_templates.contains("`syu init . --template docs-first`"));
     assert!(examples_and_templates.contains("`syu init . --template rust-only`"));
     assert!(examples_and_templates.contains("`syu init . --template go-only`"));
     assert!(examples_and_templates.contains("examples/go-only"));
@@ -699,39 +723,52 @@ fn repository_ships_example_workspaces() {
     let rust_example_requirement =
         read_file("examples/rust-only/docs/syu/requirements/core/rust.yaml");
     let rust_example_config = read_file("examples/rust-only/syu.yaml");
+    let python_example_config = read_file("examples/python-only/syu.yaml");
     let python_example_requirement =
         read_file("examples/python-only/docs/syu/requirements/core/python.yaml");
     let csharp_fallback_requirement =
         read_file("examples/csharp-fallback/docs/syu/requirements/core/csharp.yaml");
     let csharp_fallback_config = read_file("examples/csharp-fallback/syu.yaml");
     let csharp_fallback_readme = read_file("examples/csharp-fallback/README.md");
+    let docs_first_config = read_file("examples/docs-first/syu.yaml");
     let docs_first_requirement =
         read_file("examples/docs-first/docs/syu/requirements/core/docs.yaml");
+    let docs_first_readme = read_file("examples/docs-first/README.md");
+    let go_example_config = read_file("examples/go-only/syu.yaml");
     let go_example_requirement = read_file("examples/go-only/docs/syu/requirements/core/go.yaml");
     let go_example_readme = read_file("examples/go-only/README.md");
+    let polyglot_config = read_file("examples/polyglot/syu.yaml");
     let polyglot_feature = read_file("examples/polyglot/docs/syu/features/languages/polyglot.yaml");
+    let team_scale_config = read_file("examples/team-scale/syu.yaml");
     let example_tests = read_file("tests/example_workspaces.rs");
 
     assert!(rust_example_requirement.contains("REQ-RUST-001"));
     assert!(rust_example_config.contains(&format!("version: {current_version}")));
+    assert!(python_example_config.contains(&format!("version: {current_version}")));
     assert!(python_example_requirement.contains("REQ-PY-001"));
     assert!(csharp_fallback_requirement.contains("REQ-CSHARP-001"));
     assert!(csharp_fallback_config.contains(&format!("version: {current_version}")));
     assert!(csharp_fallback_readme.contains("CsharpFallbackAcceptanceChecklist"));
     assert!(csharp_fallback_readme.contains("SYU-trace-language-001"));
+    assert!(docs_first_config.contains(&format!("version: {current_version}")));
     assert!(docs_first_requirement.contains("REQ-DOCS-001"));
     assert!(docs_first_requirement.contains("DocsFirstAcceptanceChecklist"));
+    assert!(docs_first_readme.contains("syu init --template docs-first"));
+    assert!(go_example_config.contains(&format!("version: {current_version}")));
     assert!(go_example_requirement.contains("REQ-GO-001"));
     assert!(go_example_readme.contains("TestGoRequirement"));
     assert!(go_example_readme.contains("GoFeatureImpl"));
+    assert!(polyglot_config.contains(&format!("version: {current_version}")));
     assert!(polyglot_feature.contains("FEAT-MIX-001"));
     assert!(polyglot_feature.contains("status: implemented"));
+    assert!(team_scale_config.contains(&format!("version: {current_version}")));
     assert!(example_tests.contains("docs_first_example_validates"));
     assert!(example_tests.contains("csharp_fallback_example_validates"));
     assert!(example_tests.contains("rust_only_example_validates"));
     assert!(example_tests.contains("python_only_example_validates"));
     assert!(example_tests.contains("go_only_example_validates"));
     assert!(example_tests.contains("polyglot_example_validates"));
+    assert!(example_tests.contains("team_scale_example_validates"));
 }
 
 #[test]
@@ -858,6 +895,7 @@ fn repository_declares_dependency_hygiene_and_ci_caching() {
     assert!(ci_workflow.contains("tool: cargo-llvm-cov"));
     assert!(ci_workflow.contains("tool: cargo-audit"));
     assert!(ci_workflow.contains("tool: wasm-pack"));
+    assert!(release_artifacts.contains("libc6-dev-arm64-cross"));
     assert!(ci_workflow.contains("merge_group:"));
     assert!(ci_workflow.contains("check-msrv:"));
     assert!(ci_workflow.contains("Set up Python with pip cache"));

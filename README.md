@@ -50,6 +50,10 @@ Pick the newcomer path that matches what you need next:
 - **Visual explorer**: start with [`docs/guide/app.md`](docs/guide/app.md) or run
   `syu app .` when you want graphical spec navigation before learning the full
   text-first CLI flow.
+- **Reviewer workflow**: open
+  [`docs/guide/reviewer-workflow.md`](docs/guide/reviewer-workflow.md) when a
+  PR already exists and you want one concrete loop for moving between spec IDs,
+  traced code, and recent Git history.
 - **Trace adapter matrix**: open
   [`docs/guide/trace-adapter-support.md`](docs/guide/trace-adapter-support.md)
   when you already have a workspace and need a capability reference for which
@@ -67,6 +71,7 @@ Keep the detailed guides close:
 - [`docs/guide/tutorial.md`](docs/guide/tutorial.md)
 - [`docs/guide/migration.md`](docs/guide/migration.md)
 - [`docs/guide/app.md`](docs/guide/app.md)
+- [`docs/guide/reviewer-workflow.md`](docs/guide/reviewer-workflow.md)
 - [`docs/guide/trace-adapter-support.md`](docs/guide/trace-adapter-support.md)
 - [`docs/guide/configuration.md`](docs/guide/configuration.md)
 - [`docs/guide/spec-antipatterns.md`](docs/guide/spec-antipatterns.md)
@@ -90,7 +95,7 @@ Each release publishes a `checksums.sha256` file alongside the installer.
 Download both files, verify the checksum, then run the local copy:
 
 ```bash
-RELEASE=v0.0.1-alpha.7
+RELEASE=v0.0.1-alpha.8
 curl -fsSL "https://github.com/ugoite/syu/releases/download/${RELEASE}/install-syu.sh" -o install-syu.sh
 curl -fsSL "https://github.com/ugoite/syu/releases/download/${RELEASE}/checksums.sha256" -o checksums.sha256
 sha256sum --ignore-missing -c checksums.sha256
@@ -106,7 +111,7 @@ and download the Windows archive directly. This avoids requiring Git Bash or
 WSL just to install `syu`.
 
 ```powershell
-$release = 'v0.0.1-alpha.7'
+$release = 'v0.0.1-alpha.8'
 $asset = 'syu-x86_64-pc-windows-msvc.zip'
 $checksums = 'checksums.sha256'
 Invoke-WebRequest "https://github.com/ugoite/syu/releases/download/$release/$asset" -OutFile $asset
@@ -157,7 +162,7 @@ If you jump straight to this section, set the checked-in release tag once before
 using any of these shortcuts:
 
 ```bash
-RELEASE=v0.0.1-alpha.7
+RELEASE=v0.0.1-alpha.8
 ```
 
 Current installer entrypoint:
@@ -277,10 +282,12 @@ That renders `PHIL-STORE-001`, `POL-STORE-001`, `REQ-STORE-001`, and
 `--feature-prefix`.
 
 Want a closer starting point for a repository that is already clearly
-Rust-first, Python-first, or polyglot? Start with a lightweight template:
+docs-first, Rust-first, Python-first, Go-first, or polyglot? Start with a
+lightweight template:
 
 ```bash
 syu templates
+syu init . --template docs-first
 syu init . --template rust-only
 syu init . --template go-only
 syu init . --template python-only
@@ -308,6 +315,7 @@ Bootstrap a new workspace:
 syu init .
 syu init path/to/workspace --name my-project
 syu init . --id-prefix store
+syu init . --template docs-first
 syu init . --template rust-only
 syu init . --template go-only
 syu init . --spec-root docs/spec
@@ -384,6 +392,22 @@ keeping error-bearing runs on exit code 1.
 
 For a plain-English guide to common validation errors, see the
 [troubleshooting guide](docs/guide/troubleshooting.md).
+
+### Command chooser
+
+Use this quick chooser when you know the task but not yet the subcommand:
+
+| If you want to... | Start with... | Why |
+| --- | --- | --- |
+| check whether your workspace currently validates | `syu validate .` | runs the full repository checks and points you to concrete errors before deeper browsing |
+| inspect the whole workspace interactively in a terminal | `syu browse .` | shows the layered graph plus current validation errors in one terminal-first view |
+| render one layer or emit automation-friendly lists | `syu list ...` | keeps the output list-shaped instead of opening the browser-style explorer |
+| open one specific philosophy, policy, requirement, or feature by ID | `syu show ID` | jumps straight to the matched definition |
+| look up IDs or keywords when you do not know the exact item yet | `syu search QUERY` | searches IDs, titles, summaries, and descriptions across layers |
+| start from code or a test file and walk back to the owning spec item | `syu trace path/to/file --symbol name` | begins from traced implementation or test evidence instead of from YAML |
+| inspect everything connected to one ID, symbol, or file | `syu relate TARGET` | expands upstream/downstream links plus traced files and symbols for review |
+| review what changed for one spec item in Git history | `syu log ID` | projects the traced definition and implementation paths onto checked-in commits |
+| prefer a browser-first view for demos or visual navigation | `syu app .` | serves the same workspace graph in the local browser UI |
 
 ### `syu browse`
 
@@ -545,7 +569,7 @@ See the full setup and command guide in
 `syu` looks for `syu.yaml` in the workspace root:
 
 ```yaml
-version: 0.0.1-alpha.7
+version: 0.0.1-alpha.8
 spec:
   root: docs/syu
 validate:
@@ -612,7 +636,7 @@ The `syu` repository itself enables `validate.require_non_orphaned_items`,
 documentation-style trace gaps that can be updated mechanically:
 
 - missing requirement / feature IDs in symbol documentation
-- missing `doc_contains` snippets for Rust, Python, and TypeScript symbols
+- missing `doc_contains` snippets for Rust, Python, Go, and TypeScript symbols
 
 It does **not** attempt speculative edits like renaming symbols or inventing
 missing files.
@@ -628,7 +652,8 @@ The repository ships working example projects:
 - [`examples/python-only`](examples/python-only)
 - [`examples/polyglot`](examples/polyglot)
 - [`examples/team-scale`](examples/team-scale)
-`rust-only`, `python-only`, `go-only`, and `polyglot` match
+
+`docs-first`, `rust-only`, `python-only`, `go-only`, and `polyglot` match
 `syu init --template ...` starters directly. `csharp-fallback` remains the
 reference-only example for repositories whose main implementation language is
 still unsupported, and `team-scale` remains a reference-only example for
