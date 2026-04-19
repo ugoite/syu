@@ -149,11 +149,12 @@ Need stable project-specific starter IDs from the first command?
 syu init . --id-prefix store
 ```
 
-Need a closer starting point for a repository that is already Rust-first,
-Python-first, Go-first, or polyglot?
+Need a closer starting point for a repository that is already docs-first,
+Rust-first, Python-first, Go-first, or polyglot?
 
 ```bash
 syu templates
+syu init . --template docs-first
 syu init . --template rust-only
 syu init . --template go-only
 ```
@@ -247,9 +248,12 @@ What you should avoid for unsupported-language files today is adding
 language-specific `tests:` or `implementations:` entries such as `csharp:`.
 Those keys still fail validation before `doc_contains` support even becomes
 relevant. If you need code-level tracing immediately with `doc_contains`, stay
-with Rust, Python, or TypeScript/JavaScript for now. For Go-first repositories,
-use [`examples/go-only` workspace on GitHub](https://github.com/ugoite/syu/tree/main/examples/go-only)
-or `syu init . --template go-only`: both use real Go files plus symbol-level
+with Rust, Python, or TypeScript/JavaScript for now. For unsupported-language
+repositories, use the
+[`examples/csharp-fallback` workspace on GitHub](https://github.com/ugoite/syu/tree/main/examples/csharp-fallback)
+to study the fallback pattern. For Go-first repositories, use
+[`examples/go-only` workspace on GitHub](https://github.com/ugoite/syu/tree/main/examples/go-only)
+or `syu init . --template go-only`: those use real Go files plus symbol-level
 trace mappings that validate today.
 
 Keep this adoption path in mind for mixed-language repositories too: start with
@@ -325,7 +329,7 @@ an explicit registry because implementation claims should stay deliberate and
 reviewable. That registry is a short YAML list of feature documents:
 
 ```yaml
-version: 0.0.1-alpha.7
+version: 0.0.1-alpha.8
 files:
   - kind: core
     file: core/core.yaml
@@ -490,6 +494,9 @@ If one of those examples is already close to your repository, use the matching
 shape. `syu templates` prints the same mapping directly in the CLI, including
 which starter is template-only (`generic`) versus backed by a checked-in
 example.
+Use `syu init . --template docs-first` when your repository is documentation-led:
+it scaffolds the same markdown, shell, and YAML starter shape as the checked-in
+example without forcing a language-specific code scaffold first.
 Use `syu init . --template go-only` when your repository is Go-first today: it
 scaffolds the same minimal spec plus `go.mod`, `go/app.go`, and
 `go/app_test.go`, while the checked-in example shows the same shape in a

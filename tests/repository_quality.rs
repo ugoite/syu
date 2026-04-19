@@ -22,6 +22,7 @@ fn repository_declares_precommit_and_quality_gates() {
     let quality_script = read_file("scripts/ci/quality-gates.sh");
     let validate_app_script = read_file("scripts/ci/validate-app.sh");
     let validate_website_script = read_file("scripts/ci/validate-website.sh");
+    let install_docs_site_deps_script = read_file("scripts/ci/install-docs-site-deps.sh");
     let ci_workflow = read_file(".github/workflows/ci.yml");
     let contributing = read_file("CONTRIBUTING.md");
     let repo_config = read_file("syu.yaml");
@@ -47,8 +48,12 @@ fn repository_declares_precommit_and_quality_gates() {
     assert!(validate_website_script.contains("FEAT-QUALITY-001"));
     assert!(validate_website_script.contains("validate_website"));
     assert!(validate_website_script.contains("scripts/ci/quality-gates.sh"));
-    assert!(validate_website_script.contains("npm --prefix website ci"));
+    assert!(validate_website_script.contains("install-docs-site-deps.sh"));
     assert!(validate_website_script.contains("npm --prefix website run build"));
+    assert!(install_docs_site_deps_script.contains("Branch switches can leave behind"));
+    assert!(install_docs_site_deps_script.contains("website/node_modules"));
+    assert!(install_docs_site_deps_script.contains("shutil.rmtree"));
+    assert!(install_docs_site_deps_script.contains("npm --prefix website ci"));
     assert!(install_precommit.contains("site --user-base"));
     assert!(install_precommit.contains("pipx environment --value PIPX_BIN_DIR"));
     assert!(install_precommit.contains("Troubleshooting: compare"));
@@ -212,6 +217,8 @@ fn repository_declares_release_automation() {
     assert!(release_artifacts.contains("install-syu.sh"));
     assert!(release_artifacts.contains("release-notes:"));
     assert!(release_artifacts.contains("release-track-notes.sh"));
+    assert!(release_artifacts.contains("scripts/ci/pinned-npm.sh install app"));
+    assert!(release_artifacts.contains("npm --prefix app ci"));
     assert!(release_artifacts.contains("attestations: write"));
     assert!(release_artifacts.contains("id-token: write"));
     assert!(release_artifacts.contains("actions/attest-build-provenance@v4"));
@@ -394,6 +401,7 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("syu init ."));
     assert!(readme.contains("syu add"));
     assert!(readme.contains("--id-prefix"));
+    assert!(readme.contains("--template docs-first"));
     assert!(readme.contains("--template rust-only"));
     assert!(readme.contains("--template go-only"));
     assert!(readme.contains("syu templates"));
@@ -408,6 +416,7 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("syu show REQ-001"));
     assert!(!readme.contains("syu show REQ-CORE-015"));
     assert!(readme.contains("syu app"));
+    assert!(readme.contains("examples/csharp-fallback"));
     assert!(readme.contains("examples/go-only"));
     assert!(readme.contains("examples/polyglot"));
     assert!(readme.contains("examples/team-scale"));
@@ -476,6 +485,7 @@ fn repository_declares_documentation_guides() {
     assert!(!getting_started.contains("$asset.sha256"));
     assert!(getting_started.contains("current checked-in release"));
     assert!(getting_started.contains("latest published alpha"));
+    assert!(getting_started.contains("--template docs-first"));
     assert!(getting_started.contains("--template rust-only"));
     assert!(getting_started.contains("--template go-only"));
     assert!(getting_started.contains("syu templates"));
@@ -505,6 +515,7 @@ fn repository_declares_documentation_guides() {
     assert!(getting_started.contains("Keep exploring"));
     assert!(getting_started.contains("examples/rust-only"));
     assert!(getting_started.contains("examples/python-only"));
+    assert!(getting_started.contains("examples/csharp-fallback"));
     assert!(getting_started.contains("examples/go-only"));
     assert!(getting_started.contains("examples/polyglot"));
     assert!(
@@ -535,7 +546,9 @@ fn repository_declares_documentation_guides() {
     assert!(trace_adapter_support.contains("| Go | `go`, `golang`, `gotest` / `.go` |"));
     assert!(examples_and_templates.contains("starter templates"));
     assert!(examples_and_templates.contains("checked-in examples"));
+    assert!(examples_and_templates.contains("examples/csharp-fallback"));
     assert!(examples_and_templates.contains("examples/docs-first"));
+    assert!(examples_and_templates.contains("`syu init . --template docs-first`"));
     assert!(examples_and_templates.contains("`syu init . --template rust-only`"));
     assert!(examples_and_templates.contains("`syu init . --template go-only`"));
     assert!(examples_and_templates.contains("examples/go-only"));
@@ -693,8 +706,13 @@ fn repository_ships_example_workspaces() {
     let rust_example_config = read_file("examples/rust-only/syu.yaml");
     let python_example_requirement =
         read_file("examples/python-only/docs/syu/requirements/core/python.yaml");
+    let csharp_fallback_requirement =
+        read_file("examples/csharp-fallback/docs/syu/requirements/core/csharp.yaml");
+    let csharp_fallback_config = read_file("examples/csharp-fallback/syu.yaml");
+    let csharp_fallback_readme = read_file("examples/csharp-fallback/README.md");
     let docs_first_requirement =
         read_file("examples/docs-first/docs/syu/requirements/core/docs.yaml");
+    let docs_first_readme = read_file("examples/docs-first/README.md");
     let go_example_requirement = read_file("examples/go-only/docs/syu/requirements/core/go.yaml");
     let go_example_readme = read_file("examples/go-only/README.md");
     let polyglot_feature = read_file("examples/polyglot/docs/syu/features/languages/polyglot.yaml");
@@ -703,14 +721,20 @@ fn repository_ships_example_workspaces() {
     assert!(rust_example_requirement.contains("REQ-RUST-001"));
     assert!(rust_example_config.contains(&format!("version: {current_version}")));
     assert!(python_example_requirement.contains("REQ-PY-001"));
+    assert!(csharp_fallback_requirement.contains("REQ-CSHARP-001"));
+    assert!(csharp_fallback_config.contains(&format!("version: {current_version}")));
+    assert!(csharp_fallback_readme.contains("CsharpFallbackAcceptanceChecklist"));
+    assert!(csharp_fallback_readme.contains("SYU-trace-language-001"));
     assert!(docs_first_requirement.contains("REQ-DOCS-001"));
     assert!(docs_first_requirement.contains("DocsFirstAcceptanceChecklist"));
+    assert!(docs_first_readme.contains("syu init --template docs-first"));
     assert!(go_example_requirement.contains("REQ-GO-001"));
     assert!(go_example_readme.contains("TestGoRequirement"));
     assert!(go_example_readme.contains("GoFeatureImpl"));
     assert!(polyglot_feature.contains("FEAT-MIX-001"));
     assert!(polyglot_feature.contains("status: implemented"));
     assert!(example_tests.contains("docs_first_example_validates"));
+    assert!(example_tests.contains("csharp_fallback_example_validates"));
     assert!(example_tests.contains("rust_only_example_validates"));
     assert!(example_tests.contains("python_only_example_validates"));
     assert!(example_tests.contains("go_only_example_validates"));
@@ -841,6 +865,7 @@ fn repository_declares_dependency_hygiene_and_ci_caching() {
     assert!(ci_workflow.contains("tool: cargo-llvm-cov"));
     assert!(ci_workflow.contains("tool: cargo-audit"));
     assert!(ci_workflow.contains("tool: wasm-pack"));
+    assert!(release_artifacts.contains("libc6-dev-arm64-cross"));
     assert!(ci_workflow.contains("merge_group:"));
     assert!(ci_workflow.contains("check-msrv:"));
     assert!(ci_workflow.contains("Set up Python with pip cache"));
@@ -954,12 +979,14 @@ fn repository_ships_browser_app() {
         )
     );
     assert!(build_script.contains("syu-app-dist"));
-    assert!(build_script.contains("npm ci"));
+    assert!(build_script.contains("scripts/ci/pinned-npm.sh install app"));
+    assert!(build_script.contains("browser app dependencies are not ready"));
     assert!(build_script.contains("build:wasm"));
     assert!(build_script.contains("--outDir"));
     assert!(build_script.contains("shared_core_dir"));
     assert!(build_script.contains("scripts"));
     assert!(build_script.contains("remove_dir_if_exists"));
+    assert!(!build_script.contains("install browser app dependencies with `npm ci`"));
     assert!(app_package.contains("\"packageManager\": \"npm@11.8.0\""));
     assert!(app_package.contains("\"vite-plus\""));
     assert!(app_package.contains("\"@playwright/test\""));
