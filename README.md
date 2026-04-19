@@ -394,6 +394,7 @@ Use this quick chooser when you know the task but not yet the subcommand:
 
 | If you want to... | Start with... | Why |
 | --- | --- | --- |
+| check whether your workspace currently validates | `syu validate .` | runs the full repository checks and points you to concrete errors before deeper browsing |
 | inspect the whole workspace interactively in a terminal | `syu browse .` | shows the layered graph plus current validation errors in one terminal-first view |
 | render one layer or emit automation-friendly lists | `syu list ...` | keeps the output list-shaped instead of opening the browser-style explorer |
 | open one specific philosophy, policy, requirement, or feature by ID | `syu show ID` | jumps straight to the matched definition |

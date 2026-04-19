@@ -424,6 +424,7 @@ If you only remember the task and not the command name yet, use this chooser:
 
 | If you want to... | Start with... | Why |
 | --- | --- | --- |
+| check whether the workspace is healthy before deeper exploration | `syu validate .` | runs the validation pass first so you can fix structural problems before navigating the graph |
 | inspect the whole workspace interactively in a terminal | `syu browse .` | best first stop when you want the layered graph and current validation state together |
 | render one layer or emit machine-friendly lists | `syu list ...` | keeps the output list-shaped and scriptable |
 | open one exact definition by ID | `syu show ID` | jumps directly to the matched philosophy, policy, requirement, or feature |
