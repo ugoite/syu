@@ -50,6 +50,12 @@ const journeys = [
     to: '/docs/guide/getting-started'
   },
   {
+    title: 'Explore the browser UI',
+    description:
+      'Take the visual-first path through `syu app` when you want tabs, trace links, and validation context in one browser view.',
+    to: '/docs/guide/app'
+  },
+  {
     title: 'Follow a full tutorial',
     description: 'Build a realistic four-layer example from scratch when you want the full repository story.',
     to: '/docs/guide/tutorial'
@@ -60,6 +66,12 @@ const journeys = [
     to: '/docs/guide/troubleshooting'
   },
   {
+    title: 'Upgrade an existing workspace',
+    description:
+      'Jump straight to the migration guide when a new alpha release changes config, validation defaults, or guide structure.',
+    to: '/docs/guide/migration'
+  },
+  {
     title: 'Stay in VS Code',
     description: 'Run the checked-in editor extension so diagnostics and trace links stay inside your editor.',
     to: '/docs/guide/vscode-extension'
@@ -68,6 +80,12 @@ const journeys = [
     title: 'Tune validation',
     description: 'Review config switches for autofix, planned work, orphan checks, and runtime behavior.',
     to: '/docs/guide/configuration'
+  },
+  {
+    title: 'Understand trace adapter support',
+    description:
+      'Compare which languages support rich inspection, which stay pattern-based, and where `doc_contains` is still unavailable.',
+    to: '/docs/guide/trace-adapter-support'
   },
   {
     title: 'Inspect the self-hosted spec',
@@ -99,6 +117,18 @@ export default function Home() {
           <div className="siteHeroActions">
             <Link className="button button--secondary button--lg" to="/docs/guide/getting-started">
               Get started
+            </Link>
+            <Link
+              className="button button--secondary button--lg"
+              to="https://github.com/ugoite/syu#quick-start"
+            >
+              Quick start on GitHub
+            </Link>
+            <Link
+              className="button button--outline button--lg siteHeroOutlineButton"
+              to="https://github.com/ugoite/syu/blob/main/README.md#quick-start"
+            >
+              Quick start for experienced users
             </Link>
             <Link
               className="button button--outline button--lg siteHeroOutlineButton"

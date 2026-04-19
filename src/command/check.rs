@@ -356,6 +356,11 @@ pub fn run_check_command(args: &CheckArgs) -> Result<i32> {
         ),
     };
     let overall_success = result.is_success();
+    let warning_only_success = overall_success
+        && result
+            .issues
+            .iter()
+            .any(|issue| issue.severity == Severity::Warning);
     let filters = IssueFilters::from_args(args);
     let (result, filtered_view) = filter_check_result(result, &filters);
 
@@ -395,7 +400,17 @@ pub fn run_check_command(args: &CheckArgs) -> Result<i32> {
         }
     }
 
-    Ok(if overall_success { 0 } else { 1 })
+    Ok(
+        match (
+            overall_success,
+            warning_only_success,
+            args.warning_exit_code,
+        ) {
+            (false, _, _) => 1,
+            (true, true, Some(code)) => i32::from(code.get()),
+            (true, _, _) => 0,
+        },
+    )
 }
 
 // FEAT-CHECK-001
@@ -771,6 +786,7 @@ fn render_text_report(
 ) -> String {
     let mut output = String::new();
     let status = if overall_success { "passed" } else { "failed" };
+    let quiet_success = quiet && overall_success && result.issues.is_empty();
     let filtered_suffix = if filtered_view.is_some() {
         " (filtered view)"
     } else {
@@ -779,65 +795,67 @@ fn render_text_report(
 
     writeln!(&mut output, "syu validate {status}{filtered_suffix}")
         .expect("writing to String must succeed");
-    writeln!(
-        &mut output,
-        "workspace: {}",
-        result.workspace_root.display()
-    )
-    .expect("writing to String must succeed");
-    writeln!(
-        &mut output,
-        "definitions: philosophies={} policies={} requirements={} features={}",
-        result.definition_counts.philosophies,
-        result.definition_counts.policies,
-        result.definition_counts.requirements,
-        result.definition_counts.features
-    )
-    .expect("writing to String must succeed");
-    if let Some(summary) = text_summary {
+    if !quiet_success {
         writeln!(
             &mut output,
-            "checks: {} built-in rules across {} workspace items ({})",
-            summary.checked_rule_count,
-            summary.workspace_item_count,
-            summary.checked_genres.join(", ")
+            "workspace: {}",
+            result.workspace_root.display()
         )
         .expect("writing to String must succeed");
-        if !summary.disabled_checks.is_empty() {
-            let disabled_rule_count: usize = summary
-                .disabled_checks
-                .iter()
-                .map(|notice| notice.rule_count)
-                .sum();
-            let noun = if disabled_rule_count == 1 {
-                "rule is"
-            } else {
-                "rules are"
-            };
-            let details = summary
-                .disabled_checks
-                .iter()
-                .map(DisabledRuleNotice::describe)
-                .collect::<Vec<_>>()
-                .join(", ");
+        writeln!(
+            &mut output,
+            "definitions: philosophies={} policies={} requirements={} features={}",
+            result.definition_counts.philosophies,
+            result.definition_counts.policies,
+            result.definition_counts.requirements,
+            result.definition_counts.features
+        )
+        .expect("writing to String must succeed");
+        if let Some(summary) = text_summary {
             writeln!(
                 &mut output,
-                "note: {disabled_rule_count} built-in {noun} disabled by current config ({details})"
+                "checks: {} built-in rules across {} workspace items ({})",
+                summary.checked_rule_count,
+                summary.workspace_item_count,
+                summary.checked_genres.join(", ")
             )
             .expect("writing to String must succeed");
+            if !summary.disabled_checks.is_empty() {
+                let disabled_rule_count: usize = summary
+                    .disabled_checks
+                    .iter()
+                    .map(|notice| notice.rule_count)
+                    .sum();
+                let noun = if disabled_rule_count == 1 {
+                    "rule is"
+                } else {
+                    "rules are"
+                };
+                let details = summary
+                    .disabled_checks
+                    .iter()
+                    .map(DisabledRuleNotice::describe)
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                writeln!(
+                    &mut output,
+                    "note: {disabled_rule_count} built-in {noun} disabled by current config ({details})"
+                )
+                .expect("writing to String must succeed");
+            }
         }
+        writeln!(
+            &mut output,
+            "traceability: requirements={}/{} traces validated; features={}/{} traces validated",
+            result.trace_summary.requirement_traces.validated,
+            result.trace_summary.requirement_traces.declared,
+            result.trace_summary.feature_traces.validated,
+            result.trace_summary.feature_traces.declared
+        )
+        .expect("writing to String must succeed");
     }
-    writeln!(
-        &mut output,
-        "traceability: requirements={}/{} traces validated; features={}/{} traces validated",
-        result.trace_summary.requirement_traces.validated,
-        result.trace_summary.requirement_traces.declared,
-        result.trace_summary.feature_traces.validated,
-        result.trace_summary.feature_traces.declared
-    )
-    .expect("writing to String must succeed");
 
-    if let Some(filtered_view) = filtered_view {
+    if !quiet_success && let Some(filtered_view) = filtered_view {
         writeln!(&mut output, "filters: {}", filtered_view.describe_filters())
             .expect("writing to String must succeed");
         writeln!(
@@ -856,7 +874,8 @@ fn render_text_report(
                 writeln!(&mut output, "{line}").expect("writing to String must succeed");
             }
         }
-    } else if let Some(filtered_view) = filtered_view
+    } else if !quiet_success
+        && let Some(filtered_view) = filtered_view
         && filtered_view.total_issue_count > 0
     {
         writeln!(&mut output).expect("writing to String must succeed");
@@ -2738,6 +2757,7 @@ mod tests {
             require_non_orphaned_items: None,
             require_reciprocal_links: None,
             require_symbol_trace_coverage: None,
+            warning_exit_code: None,
             quiet: false,
         })
         .expect("command should render load errors");
@@ -2804,6 +2824,7 @@ mod tests {
             require_non_orphaned_items: None,
             require_reciprocal_links: None,
             require_symbol_trace_coverage: None,
+            warning_exit_code: None,
             quiet: false,
         })
         .expect_err("autofix failures should bubble up");
@@ -2829,6 +2850,7 @@ mod tests {
             require_non_orphaned_items: None,
             require_reciprocal_links: None,
             require_symbol_trace_coverage: None,
+            warning_exit_code: None,
             quiet: false,
         })
         .expect("command should complete");
@@ -2989,6 +3011,37 @@ mod tests {
         assert!(report.contains("filters: severity=warning"));
         assert!(report.contains("showing 0 of 2 issues after filtering"));
         assert!(report.contains("no issues matched the active filters."));
+    }
+
+    #[test]
+    fn render_text_report_quiet_success_suppresses_filtered_footer() {
+        let result = crate::model::CheckResult {
+            workspace_root: PathBuf::from("."),
+            definition_counts: Default::default(),
+            trace_summary: Default::default(),
+            referenced_rules: Vec::new(),
+            issues: Vec::new(),
+        };
+        let filtered_view = FilteredIssueView {
+            severities: vec!["warning".to_string()],
+            genres: Vec::new(),
+            rules: Vec::new(),
+            ids: Vec::new(),
+            displayed_issue_count: 0,
+            total_issue_count: 2,
+            hidden_issue_count: 2,
+        };
+
+        let report = render_text_report(
+            true,
+            &result,
+            Path::new("."),
+            Some(&filtered_view),
+            None,
+            true,
+        );
+
+        assert_eq!(report.trim(), "syu validate passed (filtered view)");
     }
 
     #[test]

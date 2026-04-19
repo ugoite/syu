@@ -39,6 +39,7 @@ description: "Generated reference for docs/syu/requirements/core/repository.yaml
       - **file**: tests/repository_quality.rs
         - **symbols**:
           - repository_declares_precommit_and_quality_gates
+          - repository_keeps_node_majors_aligned_across_docs_packages_and_ci
 - **id**: REQ-CORE-006
   - **title**: Enforce 100 percent line coverage in CI
   - **description**:
@@ -56,6 +57,9 @@ description: "Generated reference for docs/syu/requirements/core/repository.yaml
       - **file**: tests/repository_quality.rs
         - **symbols**:
           - repository_declares_coverage_gate_at_one_hundred_percent
+      - **file**: tests/spec_coverage_summary_script.rs
+        - **symbols**:
+          - *
 - **id**: REQ-CORE-007
   - **title**: Automate releases with release-please and artifact packaging
   - **description**:
@@ -214,6 +218,7 @@ requirements:
         - file: tests/repository_quality.rs
           symbols:
             - repository_declares_precommit_and_quality_gates
+            - repository_keeps_node_majors_aligned_across_docs_packages_and_ci
   - id: REQ-CORE-006
     title: Enforce 100 percent line coverage in CI
     description: |
@@ -230,6 +235,9 @@ requirements:
         - file: tests/repository_quality.rs
           symbols:
             - repository_declares_coverage_gate_at_one_hundred_percent
+        - file: tests/spec_coverage_summary_script.rs
+          symbols:
+            - '*'
   - id: REQ-CORE-007
     title: Automate releases with release-please and artifact packaging
     description: |
