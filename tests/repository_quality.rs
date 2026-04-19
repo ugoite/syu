@@ -495,7 +495,9 @@ fn repository_declares_documentation_guides() {
     assert!(getting_started.contains("syu validate . --fix"));
     assert!(getting_started.contains("syu browse ."));
     assert!(getting_started.contains("If you only remember the task and not the command name yet"));
-    assert!(getting_started.contains("check whether the workspace is healthy before deeper exploration"));
+    assert!(
+        getting_started.contains("check whether the workspace is healthy before deeper exploration")
+    );
     assert!(getting_started.contains("syu validate ."));
     assert!(getting_started.contains("emitted as JSON for automation"));
     assert!(getting_started.contains("workspace metadata, per-layer"));
