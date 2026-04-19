@@ -17,13 +17,42 @@ These two states look close in the GitHub UI but mean different things:
 Check both before you assume the queue is doing work:
 
 ```bash
-gh pr view 123 --json state,mergeStateStatus,autoMergeRequest,reviewDecision,statusCheckRollup
+gh api graphql -f query='
+query($owner:String!,$repo:String!,$num:Int!) {
+  repository(owner:$owner,name:$repo) {
+    pullRequest(number:$num) {
+      state
+      reviewDecision
+      mergeStateStatus
+      autoMergeRequest {
+        enabledAt
+      }
+      isInMergeQueue
+      mergeQueueEntry {
+        position
+        state
+        estimatedTimeToMerge
+      }
+      commits(last:1) {
+        nodes {
+          commit {
+            statusCheckRollup {
+              state
+            }
+          }
+        }
+      }
+    }
+  }
+}' -F owner=ugoite -F repo=syu -F num=123
 ```
 
 - `autoMergeRequest != null` means auto-merge is enabled
+- `isInMergeQueue` plus `mergeQueueEntry` tell you whether GitHub actually
+  created a queue entry yet
 - `reviewDecision` tells you whether GitHub still sees a review requirement
-- `statusCheckRollup` tells you whether the PR-head checks are green enough to
-  enter the queue at all
+- `commits.nodes[0].commit.statusCheckRollup.state` tells you whether the
+  current PR-head checks are green enough to enter the queue at all
 
 ## Which workflows must react to `merge_group`
 
@@ -166,8 +195,8 @@ gh pr merge 123 --auto --squash
 ```
 
 Or use the GitHub UI to re-enable auto-merge. After that, re-run the GraphQL
-queue query above and confirm that `autoMergeRequest` or `mergeQueueEntry`
-became non-null again before walking away.
+queue query above and confirm that `isInMergeQueue` turned `true` or
+`mergeQueueEntry` became non-null before walking away.
 
 ## When to update repository docs or tests
 
