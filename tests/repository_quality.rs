@@ -50,9 +50,16 @@ fn repository_declares_precommit_and_quality_gates() {
     assert!(validate_website_script.contains("scripts/ci/quality-gates.sh"));
     assert!(validate_website_script.contains("install-docs-site-deps.sh"));
     assert!(validate_website_script.contains("npm --prefix website run build"));
+    assert!(install_docs_site_deps_script.contains("set -euo pipefail"));
+    assert!(install_docs_site_deps_script.contains("repo_root="));
+    assert!(install_docs_site_deps_script.contains("cd \"$repo_root\""));
     assert!(install_docs_site_deps_script.contains("Branch switches can leave behind"));
     assert!(install_docs_site_deps_script.contains("website/node_modules"));
+    assert!(install_docs_site_deps_script.contains("for attempt in range(5):"));
+    assert!(install_docs_site_deps_script.contains("if not node_modules.exists():"));
     assert!(install_docs_site_deps_script.contains("shutil.rmtree"));
+    assert!(install_docs_site_deps_script.contains("if attempt == 4:"));
+    assert!(install_docs_site_deps_script.contains("time.sleep(1)"));
     assert!(install_docs_site_deps_script.contains("npm --prefix website ci"));
     assert!(install_precommit.contains("site --user-base"));
     assert!(install_precommit.contains("pipx environment --value PIPX_BIN_DIR"));
