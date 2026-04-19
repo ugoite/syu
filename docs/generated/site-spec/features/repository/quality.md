@@ -40,6 +40,11 @@ description: "Generated reference for docs/syu/features/repository/quality.yaml"
       - **file**: scripts/ci/check-browser-app-freshness.sh
         - **symbols**:
           - check_browser_app_freshness
+      - **file**: scripts/ci/pinned-npm.sh
+        - **symbols**:
+          - FEAT-QUALITY-001
+          - check
+          - install
     - **yaml**:
       - **file**: .pre-commit-config.yaml
         - **symbols**:
@@ -59,6 +64,8 @@ description: "Generated reference for docs/syu/features/repository/quality.yaml"
           - tool: cargo-audit
           - Set up Python with pip cache
           - cache-dependency-path: app/package-lock.json
+          - scripts/ci/pinned-npm.sh install app
+          - scripts/ci/pinned-npm.sh install website
           - Build browser app bundle
           - Review dependency changes
       - **file**: .github/actions/setup-rust/action.yml
@@ -69,6 +76,7 @@ description: "Generated reference for docs/syu/features/repository/quality.yaml"
         - **symbols**:
           - actions/setup-node@v6
           - cache-dependency-path: website/package-lock.json
+          - scripts/ci/pinned-npm.sh install website
           - npm ci
       - **file**: .github/workflows/codeql.yml
         - **symbols**:
@@ -113,6 +121,11 @@ features:
         - file: scripts/ci/check-browser-app-freshness.sh
           symbols:
             - check_browser_app_freshness
+        - file: scripts/ci/pinned-npm.sh
+          symbols:
+            - FEAT-QUALITY-001
+            - check
+            - install
       yaml:
         - file: .pre-commit-config.yaml
           symbols:
@@ -132,6 +145,8 @@ features:
             - "tool: cargo-audit"
             - Set up Python with pip cache
             - "cache-dependency-path: app/package-lock.json"
+            - scripts/ci/pinned-npm.sh install app
+            - scripts/ci/pinned-npm.sh install website
             - Build browser app bundle
             - Review dependency changes
         - file: .github/actions/setup-rust/action.yml
@@ -142,6 +157,7 @@ features:
           symbols:
             - actions/setup-node@v6
             - "cache-dependency-path: website/package-lock.json"
+            - scripts/ci/pinned-npm.sh install website
             - npm ci
         - file: .github/workflows/codeql.yml
           symbols:

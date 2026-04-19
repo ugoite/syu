@@ -74,6 +74,7 @@ match your change:
    Install the browser app dependencies first:
 
    ```bash
+   scripts/ci/pinned-npm.sh install app
    npm --prefix app ci
    ```
 
@@ -105,6 +106,7 @@ match your change:
    Install the docs-site dependencies first:
 
    ```bash
+   scripts/ci/pinned-npm.sh install website
    npm --prefix website ci
    ```
 

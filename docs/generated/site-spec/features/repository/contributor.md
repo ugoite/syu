@@ -60,6 +60,8 @@ description: "Generated reference for docs/syu/features/repository/contributor.y
           - FEAT-CONTRIB-002
           - GitHub Flow
           - .worktrees/
+          - scripts/ci/pinned-npm.sh install app
+          - scripts/ci/pinned-npm.sh install website
           - scripts/ci/quality-gates.sh
       - **file**: .github/pull_request_template.md
         - **symbols**:
@@ -153,6 +155,8 @@ features:
             - FEAT-CONTRIB-002
             - GitHub Flow
             - .worktrees/
+            - scripts/ci/pinned-npm.sh install app
+            - scripts/ci/pinned-npm.sh install website
             - scripts/ci/quality-gates.sh
         - file: .github/pull_request_template.md
           symbols:

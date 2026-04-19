@@ -23,6 +23,7 @@ install_wasm_tooling() {
 
 install_browser_tooling() {
   log_step "Installing browser-app dependencies for local app builds, scripts/ci/check-browser-app-freshness.sh, and npm --prefix app run test:e2e."
+  scripts/ci/pinned-npm.sh install app
   npm --prefix app ci
 
   log_step "Installing Playwright Chromium for npm --prefix app run test:e2e."

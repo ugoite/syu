@@ -87,6 +87,7 @@ description: "Generated reference for docs/syu/features/documentation/docs.yaml"
         - **symbols**:
           - actions/setup-node@v6
           - cache-dependency-path: website/package-lock.json
+          - scripts/ci/pinned-npm.sh install website
           - npm ci
           - npm run build
       - **file**: .github/workflows/deploy-pages.yml
@@ -174,6 +175,7 @@ features:
           symbols:
             - actions/setup-node@v6
             - "cache-dependency-path: website/package-lock.json"
+            - scripts/ci/pinned-npm.sh install website
             - npm ci
             - npm run build
         - file: .github/workflows/deploy-pages.yml
