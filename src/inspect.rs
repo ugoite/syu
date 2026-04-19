@@ -1155,6 +1155,81 @@ mod external;
     }
 
     #[test]
+    fn go_inspection_covers_types_values_blocks_and_empty_docs() {
+        let type_source = "// REQ-TYPE\n type sample struct{}\n";
+        let type_inspected = inspect_symbol(
+            "go",
+            &SyuConfig::default(),
+            std::path::Path::new("go/sample.go"),
+            type_source,
+            "sample",
+        )
+        .expect("inspection should succeed")
+        .expect("type should exist");
+        assert!(type_inspected.docs.contains("REQ-TYPE"));
+
+        let value_source = "// REQ-VALUE\nconst sample = 1\n";
+        let value_inspected = inspect_symbol(
+            "go",
+            &SyuConfig::default(),
+            std::path::Path::new("go/sample.go"),
+            value_source,
+            "sample",
+        )
+        .expect("inspection should succeed")
+        .expect("value should exist");
+        assert!(value_inspected.docs.contains("REQ-VALUE"));
+
+        let block_source = "const (\n\tother = 1\n\t// REQ-BLOCK\n\tsample = 2\n)\n";
+        let block_inspected = inspect_symbol(
+            "go",
+            &SyuConfig::default(),
+            std::path::Path::new("go/sample.go"),
+            block_source,
+            "sample",
+        )
+        .expect("inspection should succeed")
+        .expect("block value should exist");
+        assert!(block_inspected.docs.contains("REQ-BLOCK"));
+
+        assert_eq!(
+            inspect_symbol(
+                "go",
+                &SyuConfig::default(),
+                std::path::Path::new("go/sample.go"),
+                block_source,
+                "missing",
+            )
+            .expect("inspection should succeed"),
+            None
+        );
+
+        let no_doc_source = "value := sampleFactory()\nfunc sample() {}\n";
+        let no_doc_inspected = inspect_symbol(
+            "go",
+            &SyuConfig::default(),
+            std::path::Path::new("go/sample.go"),
+            no_doc_source,
+            "sample",
+        )
+        .expect("inspection should succeed")
+        .expect("function should exist");
+        assert!(no_doc_inspected.docs.is_empty());
+
+        let broken_block_source = "*/\nfunc sample() {}\n";
+        let broken_block_inspected = inspect_symbol(
+            "go",
+            &SyuConfig::default(),
+            std::path::Path::new("go/sample.go"),
+            broken_block_source,
+            "sample",
+        )
+        .expect("inspection should succeed")
+        .expect("function should exist");
+        assert!(broken_block_inspected.docs.is_empty());
+    }
+
+    #[test]
     fn go_fix_inserts_missing_doc_lines() {
         let source = "func sample() string {\n\treturn \"ok\"\n}\n";
         let updated = apply_symbol_doc_fix(
@@ -1170,6 +1245,32 @@ mod external;
 
         assert!(updated.contains("// REQ-1"));
         assert!(updated.contains("// Explain sample"));
+
+        assert_eq!(
+            apply_symbol_doc_fix(
+                "go",
+                &SyuConfig::default(),
+                std::path::Path::new("go/sample.go"),
+                "// REQ-1\n// Explain sample\nfunc sample() string {\n\treturn \"ok\"\n}\n",
+                "sample",
+                &["REQ-1".to_string(), "Explain sample".to_string()],
+            )
+            .expect("fix should succeed"),
+            None
+        );
+
+        assert_eq!(
+            apply_symbol_doc_fix(
+                "go",
+                &SyuConfig::default(),
+                std::path::Path::new("go/sample.go"),
+                source,
+                "missing",
+                &["REQ-1".to_string()],
+            )
+            .expect("fix should succeed"),
+            None
+        );
     }
 
     #[test]
