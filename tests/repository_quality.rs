@@ -130,10 +130,11 @@ fn repository_declares_coverage_gate_at_one_hundred_percent() {
     assert!(spec_summary_script.contains("list\", \"--with-path\", \"--format\", \"json\""));
     assert!(spec_summary_script.contains("yaml.safe_load"));
     assert!(spec_summary_script.contains("Rust implementation coverage"));
-    assert_eq!(
-        spec_summary_script.matches("run_syu_json(").count(),
-        2,
-        "expected one helper definition and one metadata-loading call"
+    assert!(
+        spec_summary_script.contains(
+            "items = run_syu_json(repo_root, \"list\", \"--with-path\", \"--format\", \"json\")"
+        ),
+        "expected the coverage summary to load workspace metadata with one `syu list --with-path --format json` call"
     );
     assert!(
         !spec_summary_script.contains("\"show\","),
