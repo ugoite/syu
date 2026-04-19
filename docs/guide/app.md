@@ -177,7 +177,8 @@ becomes a recovery checklist instead of a passive summary:
    description.
 5. After you edit the workspace, keep the tab visible or switch back to it so
    the app refreshes the snapshot and the issue count drops as the workspace
-   recovers.
+   recovers. If a refresh fails, the stale-snapshot banner can stay visible
+   until the next successful refresh even after you fix the underlying issue.
 
 That workflow lets you move from a red validation state to the exact item that
 needs attention without losing the broader workspace context.
