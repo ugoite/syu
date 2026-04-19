@@ -56,6 +56,9 @@ description: "Generated reference for docs/syu/requirements/core/repository.yaml
       - **file**: tests/repository_quality.rs
         - **symbols**:
           - repository_declares_coverage_gate_at_one_hundred_percent
+      - **file**: tests/spec_coverage_summary_script.rs
+        - **symbols**:
+          - *
 - **id**: REQ-CORE-007
   - **title**: Automate releases with release-please and artifact packaging
   - **description**:
@@ -230,6 +233,9 @@ requirements:
         - file: tests/repository_quality.rs
           symbols:
             - repository_declares_coverage_gate_at_one_hundred_percent
+        - file: tests/spec_coverage_summary_script.rs
+          symbols:
+            - '*'
   - id: REQ-CORE-007
     title: Automate releases with release-please and artifact packaging
     description: |
