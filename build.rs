@@ -94,7 +94,12 @@ fn package_manager_for(package_json: &Path) -> Result<String, String> {
     }
 
     String::from_utf8(output.stdout)
-        .map_err(|error| format!("failed to decode {} packageManager: {error}", package_json.display()))
+        .map_err(|error| {
+            format!(
+                "failed to decode {} packageManager: {error}",
+                package_json.display()
+            )
+        })
         .map(|stdout| stdout.trim().to_owned())
 }
 
