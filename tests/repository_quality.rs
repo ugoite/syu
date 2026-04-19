@@ -1052,6 +1052,21 @@ fn repository_ships_browser_app() {
 }
 
 #[test]
+// REQ-CORE-004
+fn repository_generates_spec_coverage_without_relaunching_the_cli() {
+    let report_command = read_file("src/command/report.rs");
+
+    assert!(report_command.contains("FEAT-REPORT-001"));
+    assert!(report_command.contains("load_workspace(&args.workspace)"));
+    assert!(report_command.contains("collect_check_result_from_workspace(&workspace)"));
+    assert!(report_command.contains("render_spec_coverage_summary(&workspace"));
+    assert!(!report_command.contains("cargo run -- list"));
+    assert!(!report_command.contains("cargo run -- show"));
+    assert!(!report_command.contains("run_syu_json"));
+    assert!(!report_command.contains("Command::new"));
+}
+
+#[test]
 // REQ-CORE-016
 fn repository_ships_agent_skill() {
     let readme = read_file("README.md");
