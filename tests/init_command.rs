@@ -160,11 +160,15 @@ fn init_command_bootstraps_language_templates_that_validate_accept() {
         );
         assert!(feature.contains(feature_id), "missing {feature_id}");
         if template == "go-only" {
+            assert!(workspace.join("go.mod").exists(), "missing go.mod");
             assert!(workspace.join("go/app.go").exists(), "missing go/app.go");
             assert!(
                 workspace.join("go/app_test.go").exists(),
                 "missing go/app_test.go"
             );
+            let go_mod = fs::read_to_string(workspace.join("go.mod")).expect("go.mod should exist");
+            assert!(go_mod.contains("module example.com/go-only"));
+            assert!(go_mod.contains("go 1.19"));
             assert!(requirement.contains("status: implemented"));
             assert!(requirement.contains("TestGoRequirement"));
             assert!(feature.contains("status: implemented"));

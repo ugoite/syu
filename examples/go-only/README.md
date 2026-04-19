@@ -4,7 +4,7 @@ This example demonstrates a minimal Go-first workspace using the built-in Go
 trace adapter.
 
 It contains one philosophy, one policy, one requirement, and one feature, plus
-one Go source file and one Go test file. The example uses pattern-based symbol
+one `go.mod`, one Go source file, and one Go test file. The example uses pattern-based symbol
 matching for the real `.go` files, so `syu validate .` proves the Go-backed
 links directly.
 
@@ -20,6 +20,7 @@ shape directly in your own repository.
 | `docs/syu/policies/policies.yaml` | `POL-GO-001` linked to `PHIL-GO-001` |
 | `docs/syu/requirements/core/go.yaml` | `REQ-GO-001` with a Go test trace |
 | `docs/syu/features/languages/go.yaml` | `FEAT-GO-001` with a Go implementation trace |
+| `go.mod` | Minimal module metadata so `go test ./...` works immediately |
 | `go/app.go` | Go source file containing `GoFeatureImpl` |
 | `go/app_test.go` | Go test file containing `TestGoRequirement` |
 | `README.md` | Explains what the Go adapter validates today |
@@ -28,6 +29,7 @@ shape directly in your own repository.
 
 ```bash
 cd examples/go-only
+go test ./...
 syu validate .
 syu list requirement
 syu show REQ-GO-001

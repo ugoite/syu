@@ -31,7 +31,7 @@ fn templates_command_lists_all_supported_templates_in_text_output() {
     ));
     assert!(
         stdout.contains(
-            "go-only\ttemplate-and-example\texamples/go-only\tStarter for Go-first repos"
+            "go-only\ttemplate-and-example\texamples/go-only\tStarter for Go-first repos with Go-oriented IDs plus a minimal go.mod, source, and test files."
         )
     );
     assert!(stdout.contains(

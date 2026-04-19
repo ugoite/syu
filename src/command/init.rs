@@ -517,13 +517,14 @@ fn scaffold_files(
             feature_template(project_name, template, id_prefixes),
         ),
     ];
-    files.extend(starter_source_files(template));
+    files.extend(starter_source_files(project_name, template));
     files
 }
 
-fn starter_source_files(template: StarterTemplate) -> Vec<(String, String)> {
+fn starter_source_files(project_name: &str, template: StarterTemplate) -> Vec<(String, String)> {
     match template {
         StarterTemplate::GoOnly => vec![
+            ("go.mod".to_string(), render_go_module_file(project_name)),
             (
                 "go/app.go".to_string(),
                 "package app\n\n// GoFeatureImpl implements FEAT-GO-001 in the starter workspace.\nfunc GoFeatureImpl() string {\n\treturn \"go-only starter\"\n}\n"
@@ -537,6 +538,42 @@ fn starter_source_files(template: StarterTemplate) -> Vec<(String, String)> {
         ],
         _ => Vec::new(),
     }
+}
+
+fn render_go_module_file(project_name: &str) -> String {
+    format!("module {}\n\ngo 1.19\n", go_module_path(project_name))
+}
+
+fn go_module_path(project_name: &str) -> String {
+    let mut segment = String::new();
+    let mut last_was_dash = false;
+
+    for ch in project_name.chars() {
+        if ch.is_ascii_alphanumeric() {
+            segment.push(ch.to_ascii_lowercase());
+            last_was_dash = false;
+        } else if matches!(ch, '-' | '_' | '.') {
+            if !segment.is_empty() {
+                segment.push(ch);
+                last_was_dash = ch == '-';
+            }
+        } else if (ch.is_whitespace() || matches!(ch, '/' | '\\'))
+            && !segment.is_empty()
+            && !last_was_dash
+        {
+            segment.push('-');
+            last_was_dash = true;
+        }
+    }
+
+    let segment = segment.trim_matches(|c| matches!(c, '-' | '_' | '.'));
+    let segment = if segment.is_empty() {
+        "project"
+    } else {
+        segment
+    };
+
+    format!("example.com/{segment}")
 }
 
 fn render_default_config(spec_root: &Path, strict_validate_defaults: bool) -> Result<String> {
@@ -716,8 +753,8 @@ mod tests {
 
     use super::{
         DEFAULT_SPEC_ROOT, GENERATED_PATHS, INIT_INTERACTIVE_JSON_MESSAGE, default_id_prefixes,
-        ensure_writable_targets, feature_document_path, feature_kind, infer_project_name,
-        parse_starter_template_prompt, path_label, prompt_for_spec_root,
+        ensure_writable_targets, feature_document_path, feature_kind, go_module_path,
+        infer_project_name, parse_starter_template_prompt, path_label, prompt_for_spec_root,
         prompt_for_starter_template, requirement_document_path, resolve_init_id_prefixes,
         resolve_init_spec_root, resolve_interactive_id_prefixes, run_init_command,
         run_init_command_with_prompt_io, scaffold_files,
@@ -753,6 +790,16 @@ mod tests {
     }
 
     #[test]
+    fn go_module_path_normalizes_project_names() {
+        assert_eq!(go_module_path("Go Only Demo"), "example.com/go-only-demo");
+        assert_eq!(go_module_path("..."), "example.com/project");
+        assert_eq!(
+            go_module_path("Client/API Workspace"),
+            "example.com/client-api-workspace"
+        );
+    }
+
+    #[test]
     fn scaffold_files_include_all_expected_templates() {
         let files = scaffold_files(
             "demo",
@@ -766,6 +813,23 @@ mod tests {
         for expected in GENERATED_PATHS {
             assert!(paths.iter().any(|path| path == expected));
         }
+    }
+
+    #[test]
+    fn go_only_scaffold_includes_a_go_module_file() {
+        let files = scaffold_files(
+            "Go Only Demo",
+            std::path::Path::new(DEFAULT_SPEC_ROOT),
+            StarterTemplate::GoOnly,
+            &default_id_prefixes(StarterTemplate::GoOnly),
+            false,
+        );
+        let go_mod = files
+            .into_iter()
+            .find(|(path, _)| path == "go.mod")
+            .expect("go-only scaffold should include go.mod");
+
+        assert_eq!(go_mod.1, "module example.com/go-only-demo\n\ngo 1.19\n");
     }
 
     #[test]

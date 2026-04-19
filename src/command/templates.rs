@@ -77,7 +77,7 @@ fn template_catalog_entry(template: StarterTemplate) -> TemplateCatalogEntry {
         },
         StarterTemplate::GoOnly => TemplateCatalogEntry {
             name: "go-only",
-            description: "Starter for Go-first repos with Go-oriented IDs plus minimal Go source and test files.",
+            description: "Starter for Go-first repos with Go-oriented IDs plus a minimal go.mod, source, and test files.",
             relationship: TemplateRelationship::TemplateAndExample,
             related_example: Some("examples/go-only"),
         },
