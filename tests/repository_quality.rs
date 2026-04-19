@@ -698,6 +698,7 @@ fn repository_ships_example_workspaces() {
         read_file("examples/python-only/docs/syu/requirements/core/python.yaml");
     let csharp_fallback_requirement =
         read_file("examples/csharp-fallback/docs/syu/requirements/core/csharp.yaml");
+    let csharp_fallback_config = read_file("examples/csharp-fallback/syu.yaml");
     let csharp_fallback_readme = read_file("examples/csharp-fallback/README.md");
     let docs_first_requirement =
         read_file("examples/docs-first/docs/syu/requirements/core/docs.yaml");
@@ -710,6 +711,7 @@ fn repository_ships_example_workspaces() {
     assert!(rust_example_config.contains(&format!("version: {current_version}")));
     assert!(python_example_requirement.contains("REQ-PY-001"));
     assert!(csharp_fallback_requirement.contains("REQ-CSHARP-001"));
+    assert!(csharp_fallback_config.contains(&format!("version: {current_version}")));
     assert!(csharp_fallback_readme.contains("CsharpFallbackAcceptanceChecklist"));
     assert!(csharp_fallback_readme.contains("SYU-trace-language-001"));
     assert!(docs_first_requirement.contains("REQ-DOCS-001"));
