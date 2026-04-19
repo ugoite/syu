@@ -714,6 +714,7 @@ fn repository_ships_example_workspaces() {
     let go_example_requirement = read_file("examples/go-only/docs/syu/requirements/core/go.yaml");
     let go_example_readme = read_file("examples/go-only/README.md");
     let polyglot_feature = read_file("examples/polyglot/docs/syu/features/languages/polyglot.yaml");
+    let team_scale_config = read_file("examples/team-scale/syu.yaml");
     let example_tests = read_file("tests/example_workspaces.rs");
 
     assert!(rust_example_requirement.contains("REQ-RUST-001"));
@@ -731,12 +732,14 @@ fn repository_ships_example_workspaces() {
     assert!(go_example_readme.contains("GoFeatureImpl"));
     assert!(polyglot_feature.contains("FEAT-MIX-001"));
     assert!(polyglot_feature.contains("status: implemented"));
+    assert!(team_scale_config.contains(&format!("version: {current_version}")));
     assert!(example_tests.contains("docs_first_example_validates"));
     assert!(example_tests.contains("csharp_fallback_example_validates"));
     assert!(example_tests.contains("rust_only_example_validates"));
     assert!(example_tests.contains("python_only_example_validates"));
     assert!(example_tests.contains("go_only_example_validates"));
     assert!(example_tests.contains("polyglot_example_validates"));
+    assert!(example_tests.contains("team_scale_example_validates"));
 }
 
 #[test]
