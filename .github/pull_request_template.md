@@ -6,8 +6,11 @@ Describe the user-visible change and the repository surfaces it touches.
 
 ## Linked issue or specification
 
-- Issue:
+- Closing keyword issue: `Closes #123` / `Fixes #123` / `Resolves #123`
 - Requirement / feature IDs:
+
+Use a GitHub closing keyword when this PR implements an issue so the issue closes
+automatically after the merge queue lands the change on `main`.
 
 If you list requirement or feature IDs here, include the same IDs in the PR title so the squash commit headline preserves them in `git log`.
 

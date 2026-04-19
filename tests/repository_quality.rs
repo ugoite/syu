@@ -717,6 +717,8 @@ fn repository_declares_contribution_workflow_assets() {
     assert!(contributing.contains("GitHub uses the PR title as the squash commit headline"));
     assert!(contributing.contains("requirement/feature coverage summary"));
     assert!(contributing.contains("Linked issue or specification"));
+    assert!(contributing.contains("Closes #123"));
+    assert!(contributing.contains("merge queue lands the PR on `main`"));
     assert!(contributing.contains("app/dist"));
     assert!(contributing.contains("npm run build:wasm"));
     assert!(contributing.contains("npm run check"));
@@ -745,6 +747,8 @@ fn repository_declares_contribution_workflow_assets() {
     assert!(pr_template.contains("requirement or feature IDs"));
     assert!(pr_template.contains("include the same IDs in the PR title"));
     assert!(pr_template.contains("preserves them in `git log`"));
+    assert!(pr_template.contains("Closes #123"));
+    assert!(pr_template.contains("automatically after the merge queue lands the change on `main`"));
 
     assert!(squash_title_script.contains("FEAT-CONTRIB-002"));
     assert!(squash_title_script.contains("GitHub squash merges use the PR title"));

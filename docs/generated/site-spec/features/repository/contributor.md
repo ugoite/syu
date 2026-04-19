@@ -64,6 +64,7 @@ description: "Generated reference for docs/syu/features/repository/contributor.y
       - **file**: .github/pull_request_template.md
         - **symbols**:
           - FEAT-CONTRIB-002
+          - Closes
           - scripts/ci/quality-gates.sh
           - cargo run -- validate .
     - **yaml**:
@@ -157,6 +158,7 @@ features:
         - file: .github/pull_request_template.md
           symbols:
             - FEAT-CONTRIB-002
+            - Closes #123
             - scripts/ci/quality-gates.sh
             - cargo run -- validate .
       yaml:

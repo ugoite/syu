@@ -35,6 +35,10 @@ If the pull request changes `docs/syu/`, fill in the PR template's
 or one or more spec IDs such as `REQ-CORE-001` / `FEAT-CHECK-001`. CI checks
 that self-spec changes stay anchored to explicit intent.
 
+When a PR implements an issue, use a GitHub closing keyword in that same section
+(`Closes #123`, `Fixes #123`, or `Resolves #123`) so the issue closes
+automatically once the merge queue lands the PR on `main`.
+
 Local helper worktrees under `.worktrees/` are treated as contributor-local
 state and ignored by the repository so `git status` stays focused on the main
 checkout.
