@@ -247,6 +247,22 @@ fn init_command_bootstraps_language_templates_that_validate_accept() {
             String::from_utf8_lossy(&validate.stdout),
             String::from_utf8_lossy(&validate.stderr)
         );
+
+        if template == "java-only" {
+            let smoke = Command::new("mvn")
+                .arg("test")
+                .arg("-q")
+                .current_dir(&workspace)
+                .output()
+                .expect("java-only template smoke test should run");
+
+            assert!(
+                smoke.status.success(),
+                "template={template}\nstdout:\n{}\nstderr:\n{}",
+                String::from_utf8_lossy(&smoke.stdout),
+                String::from_utf8_lossy(&smoke.stderr)
+            );
+        }
     }
 }
 
