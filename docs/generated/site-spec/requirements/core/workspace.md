@@ -37,13 +37,13 @@ description: "Generated reference for docs/syu/requirements/core/workspace.yaml"
       closely related `syu init` guidance MUST surface that discovery command
       alongside `syu init` without sending newcomers to docs first.
       `syu init --id-prefix` MUST support seeding a
-      shared project-specific stem into the starter philosophy, policy,
-      requirement, and feature IDs, and the per-layer `--philosophy-prefix`,
-      `--policy-prefix`, `--requirement-prefix`, and `--feature-prefix` flags
-      MUST allow narrower overrides when one shared stem is not enough.
-      `syu init --interactive` MUST guide first-run users through the starter
-      template, `spec.root`, shared ID stem, and stricter validation defaults
-      in a terminal while still writing the same checked-in scaffold.
+       shared project-specific stem into the starter philosophy, policy,
+       requirement, and feature IDs, and the per-layer `--philosophy-prefix`,
+       `--policy-prefix`, `--requirement-prefix`, and `--feature-prefix` flags
+       MUST allow narrower overrides when one shared stem is not enough.
+       `syu init --interactive` MUST guide first-run users through the starter
+       template, `spec.root`, shared ID stem, and stricter validation defaults
+       in a terminal while still writing the same checked-in scaffold.
   - **priority**: high
   - **status**: implemented
   - **linked_policies**:
@@ -447,13 +447,13 @@ requirements:
       closely related `syu init` guidance MUST surface that discovery command
       alongside `syu init` without sending newcomers to docs first.
       `syu init --id-prefix` MUST support seeding a
-      shared project-specific stem into the starter philosophy, policy,
-      requirement, and feature IDs, and the per-layer `--philosophy-prefix`,
-      `--policy-prefix`, `--requirement-prefix`, and `--feature-prefix` flags
-      MUST allow narrower overrides when one shared stem is not enough.
-      `syu init --interactive` MUST guide first-run users through the starter
-      template, `spec.root`, shared ID stem, and stricter validation defaults
-      in a terminal while still writing the same checked-in scaffold.
+       shared project-specific stem into the starter philosophy, policy,
+       requirement, and feature IDs, and the per-layer `--philosophy-prefix`,
+       `--policy-prefix`, `--requirement-prefix`, and `--feature-prefix` flags
+       MUST allow narrower overrides when one shared stem is not enough.
+       `syu init --interactive` MUST guide first-run users through the starter
+       template, `spec.root`, shared ID stem, and stricter validation defaults
+       in a terminal while still writing the same checked-in scaffold.
     priority: high
     status: implemented
     linked_policies:

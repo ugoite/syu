@@ -66,7 +66,10 @@ scaffold wholesale.
 2. **I already know the repo is Rust-first / Python-first / Go-first / polyglot**: start
    with the matching template, then compare against the matching example when
    you want a fuller repository story.
-3. **I am still deciding whether `syu` fits my repo**: read the example first so
+3. **I am Go-first and want to inspect native Go tracing before I scaffold
+   anything**: open `examples/go-only` first, then copy the shape you need into
+   your own repository.
+4. **I am still deciding whether `syu` fits my repo**: read the example first so
    you can inspect a working shape without creating files locally yet.
 
 ## Continue with these pages

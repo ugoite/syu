@@ -30,6 +30,13 @@ description: "Generated reference for docs/syu/features/repository/quality.yaml"
       - **file**: scripts/ci/quality-gates.sh
         - **symbols**:
           - run_quality_gates
+      - **file**: scripts/ci/validate-app.sh
+        - **symbols**:
+          - run_optional_e2e
+          - validate_app
+      - **file**: scripts/ci/validate-website.sh
+        - **symbols**:
+          - validate_website
       - **file**: scripts/ci/coverage.sh
         - **symbols**:
           - configure_llvm_tools
@@ -69,7 +76,7 @@ description: "Generated reference for docs/syu/features/repository/quality.yaml"
         - **symbols**:
           - actions/setup-node@v6
           - cache-dependency-path: website/package-lock.json
-          - npm ci
+          - install-docs-site-deps.sh
       - **file**: .github/workflows/codeql.yml
         - **symbols**:
           - merge_group
@@ -103,6 +110,13 @@ features:
         - file: scripts/ci/quality-gates.sh
           symbols:
             - run_quality_gates
+        - file: scripts/ci/validate-app.sh
+          symbols:
+            - run_optional_e2e
+            - validate_app
+        - file: scripts/ci/validate-website.sh
+          symbols:
+            - validate_website
         - file: scripts/ci/coverage.sh
           symbols:
             - configure_llvm_tools
@@ -142,7 +156,7 @@ features:
           symbols:
             - actions/setup-node@v6
             - "cache-dependency-path: website/package-lock.json"
-            - npm ci
+            - install-docs-site-deps.sh
         - file: .github/workflows/codeql.yml
           symbols:
             - merge_group

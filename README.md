@@ -40,6 +40,10 @@ Pick the newcomer path that matches what you need next:
 - **Tutorial**: follow [`docs/guide/tutorial.md`](docs/guide/tutorial.md) when you
   learn best from a realistic repository story, want more narrative context than
   Quick start, and do not mind a longer walkthrough.
+- **Editor-first path**: start with
+  [`docs/guide/vscode-extension.md`](docs/guide/vscode-extension.md) when you
+  want diagnostics, spec navigation, and trace lookups inside VS Code before
+  you memorize the CLI or browser flows.
 - **Migration / upgrade**: open [`docs/guide/migration.md`](docs/guide/migration.md)
   when you already have a `syu` workspace and want the release-specific steps
   for moving between alpha versions safely.
@@ -149,10 +153,16 @@ documentation version. Use `SYU_VERSION=alpha`, `stable`, or an explicit
 version selector when you want that installer to fetch a different published
 package track after it starts.
 
-Current installer entrypoint:
+If you jump straight to this section, set the checked-in release tag once before
+using any of these shortcuts:
 
 ```bash
 RELEASE=v0.0.1-alpha.7
+```
+
+Current installer entrypoint:
+
+```bash
 curl -fsSL "https://github.com/ugoite/syu/releases/download/${RELEASE}/install-syu.sh" | bash
 ```
 
@@ -160,21 +170,18 @@ During the alpha phase, prefer the `alpha` track selector so the same installer
 entrypoint always resolves to the latest published alpha:
 
 ```bash
-RELEASE=v0.0.1-alpha.7
 curl -fsSL "https://github.com/ugoite/syu/releases/download/${RELEASE}/install-syu.sh" | env SYU_VERSION=alpha bash
 ```
 
 Install to a custom directory:
 
 ```bash
-RELEASE=v0.0.1-alpha.7
 curl -fsSL "https://github.com/ugoite/syu/releases/download/${RELEASE}/install-syu.sh" | env SYU_INSTALL_DIR=$HOME/bin bash
 ```
 
 Install a specific prerelease:
 
 ```bash
-RELEASE=v0.0.1-alpha.7
 curl -fsSL "https://github.com/ugoite/syu/releases/download/${RELEASE}/install-syu.sh" | env SYU_VERSION="$RELEASE" bash
 ```
 
@@ -314,6 +321,21 @@ starter IDs from the first command, and the per-layer `--*-prefix` flags when a
 single shared stem is not enough. Use `--spec-root` to scaffold into a
 repository-relative spec tree without moving the generated files by hand later.
 
+### `syu templates`
+
+List starter templates and their related checked-in examples before you
+scaffold:
+
+```bash
+syu templates
+syu templates --format json
+```
+
+Use this command when you want a quick discovery view. Each row shows the
+template name, whether it is starter-only or backed by both a template and a
+checked-in example, the related example path when one exists, and a short
+description of the starter shape.
+
 ### `syu add`
 
 Scaffold a new YAML stub after the initial workspace exists:
@@ -409,20 +431,21 @@ syu search FEAT-CHECK-001 --format json
 
 ### `syu log`
 
-Project one traced requirement or feature onto checked-in Git history:
+Project one philosophy, policy, requirement, or feature onto checked-in Git history:
 
 ```bash
 syu log REQ-CORE-002
+syu log POL-004 --kind definition
 syu log FEAT-CHECK-001 --kind implementation --path src/command
 syu log REQ-CORE-019 --format json
 ```
 
-`syu log` works from the current trace graph. It looks up the checked-in
-definition path plus the traced test or implementation files for one requirement
-or feature, then shows the commits that touched those paths and why each commit
-matched. Use `--kind` when you only want definition, test, or implementation
-history, and `--path` when you want to narrow the traced paths to one
-repository-relative file or directory prefix.
+`syu log` works from the current trace graph. It always includes the checked-in
+definition path, and for requirements or features it also includes traced test
+or implementation files. Then it shows the commits that touched those paths and
+why each commit matched. Use `--kind` when you only want definition, test, or
+implementation history, and `--path` when you want to narrow the traced paths
+to one repository-relative file or directory prefix.
 ### `syu relate`
 
 Inspect the connected graph around one definition, repository path, or traced
@@ -466,6 +489,8 @@ The browser app serves a VitePlus / React / Tailwind UI and uses Rust plus
 WebAssembly to build the layered browser view from the live workspace data.
 When `syu.yaml` defines `app.bind` or `app.port`, `syu app` uses those defaults
 unless the CLI flags override them.
+Choose `syu app` when you want a browser-first view of the same workspace graph
+that `syu browse` shows in the terminal.
 
 ### `syu report`
 
@@ -486,24 +511,18 @@ with `scripts/ci/check-generated-docs-freshness.sh`.
 
 ## Browser app
 
-The installed CLI can launch a local browser app for richer spec exploration:
+Use [`syu app`](#syu-app) when you want a local browser UI for searching the
+four-layer graph, following links across related documents, and sharing the
+same live workspace data that `syu browse` exposes in the terminal.
 
 ```bash
 syu app .
 syu app . --bind 127.0.0.1 --port 3000
 ```
 
-The repository keeps the source UI in `app/` and generates the embedded
-production bundle during Rust builds, so `syu app` still works from installed
-binaries without checking `app/dist/` into `main`.
-
-When contributors change browser app sources or build inputs, they should run
-`scripts/ci/check-browser-app-freshness.sh`. That flow regenerates the local
-`app/src/wasm` bridge, typechecks the browser app, and builds a fresh local
-`app/dist/` artifact the same way CI does before uploading it.
-
-Want the visual tour first? See the [browser UI guide with annotated
-screenshots](docs/guide/app.md).
+For a visual tour with annotated screenshots, see the
+[browser UI guide](docs/guide/app.md). Contributor-only implementation and
+build details live under [Browser app development](#browser-app-development).
 
 ## VS Code extension
 
@@ -659,6 +678,15 @@ If you prefer to install `pre-commit` manually, `pipx install pre-commit` or
 
 ### Browser app development
 
+The repository keeps the source UI in `app/` and generates the embedded
+production bundle during Rust builds, so `syu app` still works from installed
+binaries without checking `app/dist/` into `main`.
+
+When contributors change browser app sources or build inputs, they should run
+`scripts/ci/check-browser-app-freshness.sh`. That flow regenerates the local
+`app/src/wasm` bridge, typechecks the browser app, and builds a fresh local
+`app/dist/` artifact the same way CI does before uploading it.
+
 ```bash
 cd app
 npm install
@@ -675,10 +703,12 @@ checked-in `docs/` tree directly, and the published site is available at
 `https://ugoite.github.io/syu/`.
 
 ```bash
-cd website
-npm install
-npm run start
+bash scripts/ci/install-docs-site-deps.sh
+npm --prefix website run start
 ```
+
+The install script removes `website/node_modules` first so repeated docs-site
+setup stays deterministic across branch switches and reused worktrees.
 
 The landing page links the core guides, the self-hosted specification reference,
 the latest checked-in validation report, and the published site is deployed
