@@ -148,6 +148,7 @@ and pin the verification to this repository's release workflow plus the tag you
 selected:
 
 ```bash
+RELEASE="$(git describe --tags --abbrev=0)"
 gh release download "${RELEASE}" --repo ugoite/syu --pattern 'syu-x86_64-unknown-linux-gnu.tar.gz'
 gh attestation verify syu-x86_64-unknown-linux-gnu.tar.gz \
   --repo ugoite/syu \
