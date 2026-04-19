@@ -20,7 +20,7 @@ enable strict coverage in a mixed-language repository.
 | --- | --- | --- | --- | --- |
 | Rust | `rust`, `rs` / `.rs` | ✅ Rich symbol inspection plus declaration matching | ✅ | ✅ |
 | Python | `python`, `py`, `pytest`, `unittest` / `.py` | ✅ Rich symbol inspection plus pattern fallback | ✅ | ✅ |
-| Go | `go`, `golang`, `gotest` / `.go` | ✅ Pattern-based symbol matching | ❌ | ✅ |
+| Go | `go`, `golang`, `gotest` / `.go` | ✅ Rich doc-comment inspection plus pattern fallback | ✅ | ✅ |
 | Java | `java`, `junit` / `.java` | ✅ Pattern-based symbol matching | ❌ | ✅ |
 | TypeScript / JavaScript | `typescript`, `ts`, `tsx`, `javascript`, `js`, `jsx`, `vitest`, `bun`, `bun-test` / `.ts`, `.tsx`, `.js`, `.jsx` | ✅ Rich symbol inspection plus pattern fallback | ✅ | ✅ |
 | Shell | `shell`, `sh`, `bash`, `zsh` / `.sh`, `.bash`, `.zsh` | ✅ Pattern-based symbol matching | ❌ | ❌ |
@@ -51,7 +51,7 @@ they do **not** participate in the repository-wide strict ownership scan.
 
 ## How to choose the right promises
 
-- Need `doc_contains`? Use Rust, Python, or TypeScript / JavaScript traces.
+- Need `doc_contains`? Rust, Python, Go, and TypeScript / JavaScript traces all support it today.
 - Need strict ownership coverage? Rust, Python, Go, Java, and
   TypeScript / JavaScript all participate today.
 - Using Shell, YAML, JSON, Markdown, or Gitignore traces? Keep the mapping to
@@ -74,5 +74,5 @@ language-specific code traces once adapter support lands.
 If you need a Go-first starting point today, study the
 [`examples/go-only` workspace on GitHub](https://github.com/ugoite/syu/tree/main/examples/go-only)
 or scaffold `syu init . --template go-only`. Both keep real Go files in the
-repository while relying on symbol checks and coverage ownership rather than
-`doc_contains`.
+repository while validating explicit symbol mappings, and Go traces can now add
+`doc_contains` when reviewers want comment-level evidence too.

@@ -156,8 +156,8 @@ For an experimental strict run, use `syu validate . --require-symbol-trace-cover
 If part of the repository still depends on a language without a built-in
 adapter, keep strict coverage off there and borrow the starter shape from the
 [`examples/go-only` workspace on GitHub](https://github.com/ugoite/syu/tree/main/examples/go-only)
-or `syu init . --template go-only` as a reminder that Go currently supports
-symbol checks and coverage ownership, but not `doc_contains`.
+or `syu init . --template go-only` as a reminder that Go now supports
+symbol checks, coverage ownership, and `doc_contains`.
 
 ### `app.bind`
 
