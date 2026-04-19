@@ -25,6 +25,15 @@ later.
 
 ## Running from source
 
+Use the checked-in Node 20 version from `editors/vscode/.nvmrc` and the pinned
+npm release from `editors/vscode/package.json`, then install dependencies from
+the repository root:
+
+```bash
+scripts/ci/pinned-npm.sh install editors/vscode
+npm --prefix editors/vscode ci
+```
+
 1. Open `editors/vscode/` in VS Code.
 2. Press `F5` to start an Extension Development Host.
 3. Open a repository that contains `syu.yaml` or `docs/syu/features/features.yaml`.
