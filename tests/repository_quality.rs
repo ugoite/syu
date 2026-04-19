@@ -47,7 +47,7 @@ fn repository_declares_precommit_and_quality_gates() {
     assert!(validate_website_script.contains("FEAT-QUALITY-001"));
     assert!(validate_website_script.contains("validate_website"));
     assert!(validate_website_script.contains("scripts/ci/quality-gates.sh"));
-    assert!(validate_website_script.contains("npm --prefix website ci"));
+    assert!(validate_website_script.contains("install-docs-site-deps.sh"));
     assert!(validate_website_script.contains("npm --prefix website run build"));
     assert!(install_precommit.contains("site --user-base"));
     assert!(install_precommit.contains("pipx environment --value PIPX_BIN_DIR"));
