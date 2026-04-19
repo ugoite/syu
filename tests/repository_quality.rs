@@ -718,7 +718,7 @@ fn repository_declares_contribution_workflow_assets() {
     assert!(contributing.contains("requirement/feature coverage summary"));
     assert!(contributing.contains("Linked issue or specification"));
     assert!(contributing.contains("Closes #123"));
-    assert!(contributing.contains("merge queue lands the PR on `main`"));
+    assert!(contributing.contains("merge queue lands the change on `main`"));
     assert!(contributing.contains("app/dist"));
     assert!(contributing.contains("npm run build:wasm"));
     assert!(contributing.contains("npm run check"));
