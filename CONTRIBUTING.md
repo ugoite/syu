@@ -77,20 +77,20 @@ match your change:
    scripts/ci/validate-app.sh
    ```
 
-    `scripts/ci/validate-app.sh` starts with the shared repository gates and then
-    runs the browser-specific checks below. In the devcontainer or Codespaces,
-    install the browser tooling first with:
+   `scripts/ci/validate-app.sh` starts with the shared repository gates and then
+   runs the browser-specific checks below. In the devcontainer or Codespaces,
+   install the browser tooling first with:
 
-    ```bash
-    bash .devcontainer/setup-browser-tooling.sh
-    ```
+   ```bash
+   bash .devcontainer/setup-browser-tooling.sh
+   ```
 
-    Outside the devcontainer, or when you only need the raw follow-up steps,
-    install the browser app dependencies with:
+   Outside the devcontainer, or when you only need the raw follow-up steps,
+   install the browser app dependencies with:
 
-    ```bash
-    npm --prefix app ci
-    ```
+   ```bash
+   npm --prefix app ci
+   ```
 
    Then run the same freshness flow CI uses:
 
@@ -117,11 +117,11 @@ match your change:
    npm --prefix app run test:e2e
    ```
 
-    `scripts/ci/validate-app.sh --e2e` also installs Playwright Chromium and runs
-    `npm --prefix app run test:e2e`, which uses `app/playwright.config.ts` to
-    launch `cargo run -- app .` automatically. The devcontainer/Codespaces
-    post-create step keeps this browser setup opt-in so docs-only or Rust-only
-    contributors do not pay for it by default.
+   `scripts/ci/validate-app.sh --e2e` also installs Playwright Chromium and runs
+   `npm --prefix app run test:e2e`, which uses `app/playwright.config.ts` to
+   launch `cargo run -- app .` automatically. The devcontainer/Codespaces
+   post-create step keeps this browser setup opt-in so docs-only or Rust-only
+   contributors do not pay for it by default.
 
 4. **Documentation site** (`website/`)
 
