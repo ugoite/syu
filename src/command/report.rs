@@ -580,6 +580,30 @@ mod tests {
     }
 
     #[test]
+    fn report_command_appends_spec_coverage_summary_to_stdout_output() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        copy_dir_recursive(&fixture_path("passing"), tempdir.path());
+        fs::create_dir_all(tempdir.path().join("target/coverage"))
+            .expect("coverage directory should exist");
+        fs::write(
+            tempdir.path().join("target/coverage/lcov.info"),
+            format!(
+                "SF:{}\nDA:1,1\nend_of_record\n",
+                tempdir.path().join("src/rust_feature.rs").display()
+            ),
+        )
+        .expect("lcov file should exist");
+
+        let args = ReportArgs {
+            workspace: tempdir.path().to_path_buf(),
+            output: None,
+        };
+
+        let result = run_report_command(&args).expect("report should render");
+        assert_eq!(result, 1);
+    }
+
+    #[test]
     fn report_command_skips_spec_coverage_summary_for_configured_report_outputs() {
         let tempdir = tempdir().expect("tempdir should exist");
         copy_dir_recursive(&fixture_path("passing"), tempdir.path());
