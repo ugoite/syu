@@ -35,7 +35,7 @@ description: "Generated reference for docs/syu/features/cli/init.yaml"
           - current_cli_version
 - **id**: FEAT-INIT-002
   - **title**: Post-init next-step guidance
-  - **summary**: After successful init, print created file list and actionable next steps; support --format json to emit created_files for CI integrations.
+  - **summary**: After successful init, print created file list and actionable next steps, including a short `syu templates` follow-up when users want to compare starters before scaffolding another workspace; support --format json to emit created_files for CI integrations.
   - **status**: implemented
   - **linked_requirements**:
     - REQ-CORE-009
@@ -100,7 +100,7 @@ description: "Generated reference for docs/syu/features/cli/init.yaml"
           - InitArgs
 - **id**: FEAT-INIT-006
   - **title**: Starter template discovery command
-  - **summary**: Allow `syu templates` to list starter template names, short descriptions, and any matching checked-in example paths before users scaffold a workspace.
+  - **summary**: Allow `syu templates` to list starter template names, short descriptions, and any matching checked-in example paths before users scaffold a workspace, and surface that discovery path from newcomer-oriented root and init help.
   - **status**: implemented
   - **linked_requirements**:
     - REQ-CORE-009
@@ -114,6 +114,33 @@ description: "Generated reference for docs/syu/features/cli/init.yaml"
         - **symbols**:
           - TemplatesArgs
           - Commands
+- **id**: FEAT-INIT-007
+  - **title**: Interactive first-run init
+  - **summary**: Allow `syu init --interactive` to guide starter template, spec root, shared ID stem, and stricter validation defaults in a terminal while still writing plain checked-in files.
+  - **status**: implemented
+  - **linked_requirements**:
+    - REQ-CORE-009
+  - **implementations**:
+    - **rust**:
+      - **file**: src/command/init.rs
+        - **symbols**:
+          - run_init_command
+          - run_init_command_with_prompt_io
+          - resolve_init_options_with_prompt_io
+          - prompt_for_starter_template
+          - prompt_for_spec_root
+          - render_default_config
+      - **file**: src/command/prompt.rs
+        - **symbols**:
+          - PromptIo
+          - ensure_prompt_terminal
+          - prompt_bool
+          - prompt_optional_with_default
+          - prompt_with_default
+      - **file**: src/cli.rs
+        - **symbols**:
+          - InitArgs
+          - StarterTemplate
 
 ## Source YAML
 
@@ -140,7 +167,7 @@ features:
             - current_cli_version
   - id: FEAT-INIT-002
     title: Post-init next-step guidance
-    summary: After successful init, print created file list and actionable next steps; support --format json to emit created_files for CI integrations.
+    summary: After successful init, print created file list and actionable next steps, including a short `syu templates` follow-up when users want to compare starters before scaffolding another workspace; support --format json to emit created_files for CI integrations.
     status: implemented
     linked_requirements:
       - REQ-CORE-009
@@ -205,7 +232,7 @@ features:
             - InitArgs
   - id: FEAT-INIT-006
     title: Starter template discovery command
-    summary: Allow `syu templates` to list starter template names, short descriptions, and any matching checked-in example paths before users scaffold a workspace.
+    summary: Allow `syu templates` to list starter template names, short descriptions, and any matching checked-in example paths before users scaffold a workspace, and surface that discovery path from newcomer-oriented root and init help.
     status: implemented
     linked_requirements:
       - REQ-CORE-009
@@ -219,4 +246,31 @@ features:
           symbols:
             - TemplatesArgs
             - Commands
+  - id: FEAT-INIT-007
+    title: Interactive first-run init
+    summary: Allow `syu init --interactive` to guide starter template, spec root, shared ID stem, and stricter validation defaults in a terminal while still writing plain checked-in files.
+    status: implemented
+    linked_requirements:
+      - REQ-CORE-009
+    implementations:
+      rust:
+        - file: src/command/init.rs
+          symbols:
+            - run_init_command
+            - run_init_command_with_prompt_io
+            - resolve_init_options_with_prompt_io
+            - prompt_for_starter_template
+            - prompt_for_spec_root
+            - render_default_config
+        - file: src/command/prompt.rs
+          symbols:
+            - PromptIo
+            - ensure_prompt_terminal
+            - prompt_bool
+            - prompt_optional_with_default
+            - prompt_with_default
+        - file: src/cli.rs
+          symbols:
+            - InitArgs
+            - StarterTemplate
 ```

@@ -19,7 +19,7 @@ description: "Generated reference for docs/syu/features/browser/app.yaml"
 
 - **id**: FEAT-APP-001
   - **title**: Local browser workspace app powered by Rust and WebAssembly
-  - **summary**: Start `syu app` to inspect the current workspace in a browser with clear startup guidance, a minimal header, layered navigation, section-aware drilldown, discoverable keyboard search shortcuts, linked definitions, and the current validation state.
+  - **summary**: Start `syu app` from the workspace root or any child directory to inspect the current workspace in a browser with clear startup guidance, the resolved workspace root, a minimal header, layered navigation, section-aware drilldown, discoverable keyboard search shortcuts, linked definitions, and the current validation state.
   - **status**: implemented
   - **linked_requirements**:
     - REQ-CORE-017
@@ -31,6 +31,11 @@ description: "Generated reference for docs/syu/features/browser/app.yaml"
       - **file**: src/command/app.rs
         - **symbols**:
           - *
+      - **file**: build.rs
+        - **symbols**:
+          - build_browser_bundle
+          - ensure_app_dependencies
+          - main
       - **file**: src/config.rs
         - **symbols**:
           - AppConfig
@@ -65,7 +70,7 @@ version: 1
 features:
   - id: FEAT-APP-001
     title: Local browser workspace app powered by Rust and WebAssembly
-    summary: Start `syu app` to inspect the current workspace in a browser with clear startup guidance, a minimal header, layered navigation, section-aware drilldown, discoverable keyboard search shortcuts, linked definitions, and the current validation state.
+    summary: Start `syu app` from the workspace root or any child directory to inspect the current workspace in a browser with clear startup guidance, the resolved workspace root, a minimal header, layered navigation, section-aware drilldown, discoverable keyboard search shortcuts, linked definitions, and the current validation state.
     status: implemented
     linked_requirements:
       - REQ-CORE-017
@@ -77,6 +82,11 @@ features:
         - file: src/command/app.rs
           symbols:
             - "*"
+        - file: build.rs
+          symbols:
+            - build_browser_bundle
+            - ensure_app_dependencies
+            - main
         - file: src/config.rs
           symbols:
             - AppConfig

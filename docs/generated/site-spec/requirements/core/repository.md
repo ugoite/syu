@@ -39,6 +39,7 @@ description: "Generated reference for docs/syu/requirements/core/repository.yaml
       - **file**: tests/repository_quality.rs
         - **symbols**:
           - repository_declares_precommit_and_quality_gates
+          - repository_keeps_node_majors_aligned_across_docs_packages_and_ci
 - **id**: REQ-CORE-006
   - **title**: Enforce 100 percent line coverage in CI
   - **description**:
@@ -122,8 +123,8 @@ description: "Generated reference for docs/syu/requirements/core/repository.yaml
   - **description**:
     - |
       The repository MUST include example projects for Rust-only, Python-only,
-      and polyglot workflows and MUST validate them in the automated test suite
-      so contributors can learn from working patterns.
+      Go-first workaround, and polyglot workflows and MUST validate them in the
+      automated test suite so contributors can learn from working patterns.
   - **priority**: medium
   - **status**: implemented
   - **linked_policies**:
@@ -163,6 +164,9 @@ description: "Generated reference for docs/syu/requirements/core/repository.yaml
       - **file**: tests/repository_quality.rs
         - **symbols**:
           - repository_declares_contribution_workflow_assets
+      - **file**: tests/install_precommit_script.rs
+        - **symbols**:
+          - install_precommit_reports_lookup_paths_when_hook_bootstrap_fails
 - **id**: REQ-CORE-014
   - **title**: Keep dependency hygiene and CI execution current
   - **description**:
@@ -211,6 +215,7 @@ requirements:
         - file: tests/repository_quality.rs
           symbols:
             - repository_declares_precommit_and_quality_gates
+            - repository_keeps_node_majors_aligned_across_docs_packages_and_ci
   - id: REQ-CORE-006
     title: Enforce 100 percent line coverage in CI
     description: |
@@ -289,8 +294,8 @@ requirements:
     title: Ship curated example workspaces and validate them in tests
     description: |
       The repository MUST include example projects for Rust-only, Python-only,
-      and polyglot workflows and MUST validate them in the automated test suite
-      so contributors can learn from working patterns.
+      Go-first workaround, and polyglot workflows and MUST validate them in the
+      automated test suite so contributors can learn from working patterns.
     priority: medium
     status: implemented
     linked_policies:
@@ -329,6 +334,9 @@ requirements:
         - file: tests/repository_quality.rs
           symbols:
             - repository_declares_contribution_workflow_assets
+        - file: tests/install_precommit_script.rs
+          symbols:
+            - install_precommit_reports_lookup_paths_when_hook_bootstrap_fails
   - id: REQ-CORE-014
     title: Keep dependency hygiene and CI execution current
     description: |

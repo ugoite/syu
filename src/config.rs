@@ -77,6 +77,19 @@ pub struct ValidateConfig {
     pub require_reciprocal_links: bool,
     #[serde(default)]
     pub require_symbol_trace_coverage: bool,
+    #[serde(default)]
+    pub trace_ownership_mode: TraceOwnershipMode,
+    #[serde(default = "default_symbol_trace_coverage_ignored_paths")]
+    pub symbol_trace_coverage_ignored_paths: Vec<PathBuf>,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum TraceOwnershipMode {
+    #[default]
+    Mapping,
+    Inline,
+    Sidecar,
 }
 
 impl Default for ValidateConfig {
@@ -87,6 +100,8 @@ impl Default for ValidateConfig {
             require_non_orphaned_items: default_require_non_orphaned_items(),
             require_reciprocal_links: default_require_reciprocal_links(),
             require_symbol_trace_coverage: false,
+            trace_ownership_mode: TraceOwnershipMode::Mapping,
+            symbol_trace_coverage_ignored_paths: default_symbol_trace_coverage_ignored_paths(),
         }
     }
 }
@@ -194,6 +209,23 @@ fn default_require_reciprocal_links() -> bool {
 
 fn default_spec_root() -> PathBuf {
     PathBuf::from("docs/syu")
+}
+
+fn default_symbol_trace_coverage_ignored_paths() -> Vec<PathBuf> {
+    [
+        "build",
+        "coverage",
+        "dist",
+        "target",
+        "app/build",
+        "app/coverage",
+        "app/dist",
+        "app/target",
+        "tests/fixtures/workspaces",
+    ]
+    .into_iter()
+    .map(PathBuf::from)
+    .collect()
 }
 
 fn default_app_bind() -> String {
@@ -304,8 +336,8 @@ mod tests {
     use tempfile::tempdir;
 
     use super::{
-        CONFIG_FILE_NAME, RuntimeConfig, SyuConfig, config_path, current_cli_version, load_config,
-        render_config, resolve_spec_root,
+        CONFIG_FILE_NAME, RuntimeConfig, SyuConfig, TraceOwnershipMode, config_path,
+        current_cli_version, load_config, render_config, resolve_spec_root,
     };
 
     #[test]
@@ -325,6 +357,24 @@ mod tests {
         assert!(loaded.config.validate.require_non_orphaned_items);
         assert!(loaded.config.validate.require_reciprocal_links);
         assert!(!loaded.config.validate.require_symbol_trace_coverage);
+        assert_eq!(
+            loaded.config.validate.trace_ownership_mode,
+            TraceOwnershipMode::Mapping
+        );
+        assert_eq!(
+            loaded.config.validate.symbol_trace_coverage_ignored_paths,
+            vec![
+                std::path::PathBuf::from("build"),
+                std::path::PathBuf::from("coverage"),
+                std::path::PathBuf::from("dist"),
+                std::path::PathBuf::from("target"),
+                std::path::PathBuf::from("app/build"),
+                std::path::PathBuf::from("app/coverage"),
+                std::path::PathBuf::from("app/dist"),
+                std::path::PathBuf::from("app/target"),
+                std::path::PathBuf::from("tests/fixtures/workspaces"),
+            ]
+        );
         assert_eq!(loaded.config.report.output, None);
         assert_eq!(loaded.config.app.bind, "127.0.0.1");
         assert_eq!(loaded.config.app.port, 3000);
@@ -336,7 +386,7 @@ mod tests {
         fs::write(
             tempdir.path().join(CONFIG_FILE_NAME),
             format!(
-                "version: {version}\nspec:\n  root: spec/contracts\nvalidate:\n  default_fix: true\n  allow_planned: false\n  require_non_orphaned_items: false\n  require_reciprocal_links: false\n  require_symbol_trace_coverage: true\nreport:\n  output: docs/generated/syu-report.md\napp:\n  bind: 0.0.0.0\n  port: 4321\nruntimes:\n  python:\n    command: python3\n  node:\n    command: node\n",
+                "version: {version}\nspec:\n  root: spec/contracts\nvalidate:\n  default_fix: true\n  allow_planned: false\n  require_non_orphaned_items: false\n  require_reciprocal_links: false\n  require_symbol_trace_coverage: true\n  trace_ownership_mode: sidecar\nreport:\n  output: docs/generated/syu-report.md\napp:\n  bind: 0.0.0.0\n  port: 4321\nruntimes:\n  python:\n    command: python3\n  node:\n    command: node\n",
                 version = current_cli_version()
             ),
         )
@@ -354,12 +404,52 @@ mod tests {
         assert!(!loaded.config.validate.require_reciprocal_links);
         assert!(loaded.config.validate.require_symbol_trace_coverage);
         assert_eq!(
+            loaded.config.validate.trace_ownership_mode,
+            TraceOwnershipMode::Sidecar
+        );
+        assert_eq!(
+            loaded.config.validate.symbol_trace_coverage_ignored_paths,
+            vec![
+                std::path::PathBuf::from("build"),
+                std::path::PathBuf::from("coverage"),
+                std::path::PathBuf::from("dist"),
+                std::path::PathBuf::from("target"),
+                std::path::PathBuf::from("app/build"),
+                std::path::PathBuf::from("app/coverage"),
+                std::path::PathBuf::from("app/dist"),
+                std::path::PathBuf::from("app/target"),
+                std::path::PathBuf::from("tests/fixtures/workspaces"),
+            ]
+        );
+        assert_eq!(
             loaded.config.report.output,
             Some(std::path::PathBuf::from("docs/generated/syu-report.md"))
         );
         assert_eq!(loaded.config.app.bind, "0.0.0.0");
         assert_eq!(loaded.config.app.port, 4321);
         assert_eq!(loaded.config.runtimes.python.command, "python3");
+    }
+
+    #[test]
+    fn load_config_allows_empty_symbol_trace_coverage_ignore_paths() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        fs::write(
+            tempdir.path().join(CONFIG_FILE_NAME),
+            format!(
+                "version: {version}\nvalidate:\n  symbol_trace_coverage_ignored_paths: []\n",
+                version = current_cli_version()
+            ),
+        )
+        .expect("config should be written");
+
+        let loaded = load_config(tempdir.path()).expect("config should parse");
+        assert!(
+            loaded
+                .config
+                .validate
+                .symbol_trace_coverage_ignored_paths
+                .is_empty()
+        );
     }
 
     #[test]
@@ -371,6 +461,11 @@ mod tests {
         assert!(rendered.contains("require_non_orphaned_items: true"));
         assert!(rendered.contains("require_reciprocal_links: true"));
         assert!(rendered.contains("require_symbol_trace_coverage: false"));
+        assert!(rendered.contains("trace_ownership_mode: mapping"));
+        assert!(rendered.contains("symbol_trace_coverage_ignored_paths:"));
+        assert!(rendered.contains("- build"));
+        assert!(rendered.contains("- app/dist"));
+        assert!(rendered.contains("- tests/fixtures/workspaces"));
         assert!(!rendered.contains("report:"));
         assert!(rendered.contains("bind: 127.0.0.1"));
         assert!(rendered.contains("port: 3000"));

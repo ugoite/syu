@@ -31,22 +31,43 @@ verified.
 
 Pick the newcomer path that matches what you need next:
 
-- **Quick start**: stay in this README when you want the shortest path from install
-  to `syu validate .` and only need a short layer refresher before the first
-  commands.
+- **Getting started**: choose this if you are new to `syu`, want a guided first
+  run, and do **not** already know the four-layer model. Expect the most
+  hand-holding and roughly 10-15 minutes for the first workspace setup.
+- **Quick start**: stay in this README when you want a compact, self-contained
+  reference card, are happy with a short layer refresher, and want the fastest
+  install-to-`syu validate .` path in about 5 minutes.
 - **Tutorial**: follow [`docs/guide/tutorial.md`](docs/guide/tutorial.md) when you
-  want a realistic end-to-end repository story instead of a short scaffold flow.
+  learn best from a realistic repository story, want more narrative context than
+  Quick start, and do not mind a longer walkthrough.
+- **Migration / upgrade**: open [`docs/guide/migration.md`](docs/guide/migration.md)
+  when you already have a `syu` workspace and want the release-specific steps
+  for moving between alpha versions safely.
+- **Visual explorer**: start with [`docs/guide/app.md`](docs/guide/app.md) or run
+  `syu app .` when you want graphical spec navigation before learning the full
+  text-first CLI flow.
+- **Trace adapter matrix**: open
+  [`docs/guide/trace-adapter-support.md`](docs/guide/trace-adapter-support.md)
+  when you already have a workspace and need a capability reference for which
+  built-in languages support symbol validation only versus richer
+  `doc_contains` and strict coverage checks.
 - **Troubleshooting**: jump to
   [`docs/guide/troubleshooting.md`](docs/guide/troubleshooting.md) when validation
-  or traceability errors are already blocking you.
+  or traceability errors are already blocking you and you want the shortest path
+  to unblocking an existing workspace instead of following the onboarding flow.
 
 Keep the detailed guides close:
 
 - [`docs/guide/concepts.md`](docs/guide/concepts.md)
 - [`docs/guide/getting-started.md`](docs/guide/getting-started.md)
 - [`docs/guide/tutorial.md`](docs/guide/tutorial.md)
+- [`docs/guide/migration.md`](docs/guide/migration.md)
+- [`docs/guide/app.md`](docs/guide/app.md)
+- [`docs/guide/trace-adapter-support.md`](docs/guide/trace-adapter-support.md)
 - [`docs/guide/configuration.md`](docs/guide/configuration.md)
+- [`docs/guide/spec-antipatterns.md`](docs/guide/spec-antipatterns.md)
 - [`docs/guide/troubleshooting.md`](docs/guide/troubleshooting.md)
+- [`docs/guide/vscode-extension.md`](docs/guide/vscode-extension.md)
 - [`CONTRIBUTING.md`](CONTRIBUTING.md)
 
 ## Install from published releases
@@ -166,15 +187,19 @@ below. The rest of this section assumes you installed the published CLI.
 Stay in this README for the shortest install-to-validate path. If you skipped
 [`docs/guide/concepts.md`](docs/guide/concepts.md), use the
 [Why four layers?](#why-four-layers) section above as the refresher on
-`philosophy`, `policy`, `requirements`, and `features`.
+`philosophy`, `policy`, `requirements`, and `features`. There is no other
+required pre-read before the commands below.
+If you want the same flow narrated step by step with more context around the
+manual edits, switch to
+[`docs/guide/getting-started.md`](docs/guide/getting-started.md) instead.
 
 The first manual edit in this quick start happens in the generated requirement
 YAML: add `linked_policies:` and `linked_features:` there, then update the
 adjacent policy and feature YAML so they add the reciprocal
 `linked_requirements:` entry back to the new requirement.
 
-Read [`docs/guide/concepts.md`](docs/guide/concepts.md) first if you want the
-fuller rationale and authoring guidance before continuing.
+Read [`docs/guide/concepts.md`](docs/guide/concepts.md) first only when you want
+the fuller rationale and authoring guidance before continuing.
 
 Step 0: required — run `syu init .` before any of the other commands in a new repository.
 
@@ -210,6 +235,9 @@ syu add feature FEAT-AUTH-LOGIN-001 --kind auth
 syu list requirement
 syu show REQ-001
 syu search traceability --kind requirement
+syu log REQ-CORE-002
+syu relate REQ-001
+syu trace src/command/check.rs --symbol run_check_command
 syu app .
 syu report . --output reports/syu.md
 ```
@@ -251,8 +279,9 @@ syu init . --template python-only
 syu init . --template polyglot
 ```
 
-Use `syu templates` first when you want the built-in starter names, short
-descriptions, and related checked-in example paths in one command.
+Run `syu templates` first if you want the starter names, one-line descriptions,
+matching checked-in example paths, and whether a starter is example-backed or
+starter-only before choosing a scaffold.
 
 You can combine both flags when you want a custom spec root and a closer
 starter layout:
@@ -327,6 +356,7 @@ syu validate . --format json
 syu validate . --severity error --genre trace
 syu validate . --rule SYU-trace-file-002
 syu validate . --id REQ-001
+syu validate . --warning-exit-code 3
 syu validate . --fix
 syu validate . --no-fix
 syu validate . --allow-planned=false
@@ -339,6 +369,9 @@ Use `--severity`, `--genre`, `--rule`, and `--id` to narrow the rendered issue l
 without changing the underlying validation result or exit code.
 Use the validate override flags for one-off stricter or looser runs without
 editing `syu.yaml`.
+By default, warning-only runs still exit 0. Add `--warning-exit-code <CODE>` when
+CI or shell automation needs a distinct non-zero status for warnings while
+keeping error-bearing runs on exit code 1.
 
 For a plain-English guide to common validation errors, see the
 [troubleshooting guide](docs/guide/troubleshooting.md).
@@ -387,6 +420,49 @@ syu search traceability --kind requirement
 syu search FEAT-CHECK-001 --format json
 ```
 
+### `syu log`
+
+Project one traced requirement or feature onto checked-in Git history:
+
+```bash
+syu log REQ-CORE-002
+syu log FEAT-CHECK-001 --kind implementation --path src/command
+syu log REQ-CORE-019 --format json
+```
+
+`syu log` works from the current trace graph. It looks up the checked-in
+definition path plus the traced test or implementation files for one requirement
+or feature, then shows the commits that touched those paths and why each commit
+matched. Use `--kind` when you only want definition, test, or implementation
+history, and `--path` when you want to narrow the traced paths to one
+repository-relative file or directory prefix.
+### `syu relate`
+
+Inspect the connected graph around one definition, repository path, or traced
+source symbol:
+
+```bash
+syu relate REQ-001
+syu relate src/command/search.rs
+syu relate run_search_command
+syu relate FEAT-SEARCH-001 --format json
+```
+
+`syu relate` walks upstream and downstream across philosophy, policy,
+requirement, and feature links, includes traced files and symbols for connected
+requirements and features, and calls out sparse or suspicious gaps such as
+missing adjacent links or missing evidence.
+
+### `syu trace`
+
+Start from a traced file path and optional symbol when review or refactoring
+begins in code instead of from a spec ID:
+
+```bash
+syu trace src/command/check.rs --symbol run_check_command
+syu trace tests/report_command.rs path/to/workspace --format json
+```
+
 ### `syu app`
 
 Start a local browser app for the current workspace:
@@ -430,16 +506,33 @@ syu app .
 syu app . --bind 127.0.0.1 --port 3000
 ```
 
-The repository keeps the source UI in `app/`, checks in the generated
-production bundle in `app/dist/`, and serves that bundle directly from the
-`syu app` command, so end users do not need a separate frontend build step.
+The repository keeps the source UI in `app/` and generates the embedded
+production bundle during Rust builds, so `syu app` still works from installed
+binaries without checking `app/dist/` into `main`.
 
 When contributors change browser app sources or build inputs, they should run
-`scripts/ci/check-app-dist-freshness.sh`. CI rebuilds the browser app the same
-way and fails if the checked-in `app/dist` bundle is stale.
+`scripts/ci/check-browser-app-freshness.sh`. That flow regenerates the local
+`app/src/wasm` bridge, typechecks the browser app, and builds a fresh local
+`app/dist/` artifact the same way CI does before uploading it.
 
 Want the visual tour first? See the [browser UI guide with annotated
 screenshots](docs/guide/app.md).
+
+## VS Code extension
+
+The repository now ships an editor-first extension scaffold under
+[`editors/vscode/`](editors/vscode/).
+
+It refreshes `syu validate --format json` diagnostics into the Problems panel,
+adds a **syu Context** explorer view for the active file, opens YAML documents
+from spec IDs, and jumps from a requirement or feature to its traced files.
+
+To try it from source, open `editors/vscode/` in VS Code and press `F5` to
+start an Extension Development Host. If `syu` is not already on your `PATH`,
+set the extension's `syu.binaryPath` setting first.
+
+See the full setup and command guide in
+[`docs/guide/vscode-extension.md`](docs/guide/vscode-extension.md).
 
 ## Configuration
 
@@ -473,7 +566,7 @@ Key behaviors:
 - `validate.allow_planned` controls whether `planned` requirements and features are allowed at all
 - `validate.require_non_orphaned_items` turns isolated layered definitions into validation errors
 - `validate.require_reciprocal_links` keeps adjacent-layer backlinks mandatory by default while still allowing phased migration when disabled
-- `validate.require_symbol_trace_coverage` opt-in checks that public Rust, Python, and TypeScript/JavaScript symbols belong to features and tests belong to requirements
+- `validate.require_symbol_trace_coverage` opt-in checks that public Rust, Python, Go, Java, and TypeScript/JavaScript symbols belong to features and tests belong to requirements, while still skipping configured repository-relative generated paths
 - `report.output` sets the default `syu report` destination while `--output` still takes precedence
 - `app.bind` and `app.port` define the default local browser-app address and port unless `--bind` / `--port` override them
 - `report.output` sets the default `syu report` destination while `--output` still takes precedence
@@ -522,11 +615,20 @@ missing files.
 
 The repository ships working example projects:
 
+- [`examples/docs-first`](examples/docs-first)
+- [`examples/go-only`](examples/go-only)
 - [`examples/rust-only`](examples/rust-only)
 - [`examples/python-only`](examples/python-only)
 - [`examples/polyglot`](examples/polyglot)
+- [`examples/team-scale`](examples/team-scale)
+`rust-only`, `python-only`, and `polyglot` match `syu init --template ...`
+starters directly. `go-only` is a reference-only workaround example for an
+unsupported implementation language, and `team-scale` is a reference-only
+example for studying a larger split-by-area repository shape.
 
-Each one is validated in the automated test suite.
+Each one is validated in the automated test suite. If you are deciding between a
+checked-in example and a scaffold template, start with
+[`docs/guide/examples-and-templates.md`](docs/guide/examples-and-templates.md).
 
 ## Contributing and local development
 

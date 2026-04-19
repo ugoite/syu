@@ -45,12 +45,14 @@ description: "Generated reference for docs/syu/requirements/core/documentation.y
           - init_help_mentions_custom_spec_roots
           - init_help_mentions_id_prefix_options
           - validate_help_lists_temporary_config_overrides
+          - validate_help_mentions_warning_exit_code_for_automation
       - **file**: tests/repository_quality.rs
         - **symbols**:
           - repository_declares_documentation_guides
       - **file**: tests/site_docs_generator.rs
         - **symbols**:
           - site_docs_generator_accepts_absolute_spec_roots_outside_repo
+          - site_docs_generator_escapes_angle_brackets_in_parsed_scalars
 - **id**: REQ-CORE-016
   - **title**: Ship an agent skill for maintaining syu-driven repositories
   - **description**:
@@ -107,12 +109,14 @@ requirements:
             - init_help_mentions_custom_spec_roots
             - init_help_mentions_id_prefix_options
             - validate_help_lists_temporary_config_overrides
+            - validate_help_mentions_warning_exit_code_for_automation
         - file: tests/repository_quality.rs
           symbols:
             - repository_declares_documentation_guides
         - file: tests/site_docs_generator.rs
           symbols:
             - site_docs_generator_accepts_absolute_spec_roots_outside_repo
+            - site_docs_generator_escapes_angle_brackets_in_parsed_scalars
   - id: REQ-CORE-016
     title: Ship an agent skill for maintaining syu-driven repositories
     description: |

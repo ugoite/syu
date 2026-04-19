@@ -19,10 +19,19 @@ fn templates_command_lists_all_supported_templates_in_text_output() {
     );
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("generic\tstarter-only\t-\tMinimal four-layer starter"));
-    assert!(stdout.contains("rust-only\ttemplate-and-example\texamples/rust-only"));
-    assert!(stdout.contains("python-only\ttemplate-and-example\texamples/python-only"));
-    assert!(stdout.contains("polyglot\ttemplate-and-example\texamples/polyglot"));
+    assert!(stdout.starts_with("name\trelationship\trelated_example\tdescription\n"));
+    assert!(stdout.contains(
+        "generic\tstarter-only\t-\tStarter with minimal four-layer files, neutral IDs, and core file names."
+    ));
+    assert!(stdout.contains(
+        "rust-only\ttemplate-and-example\texamples/rust-only\tStarter for Rust-first repos"
+    ));
+    assert!(stdout.contains(
+        "python-only\ttemplate-and-example\texamples/python-only\tStarter for Python-first repos"
+    ));
+    assert!(stdout.contains(
+        "polyglot\ttemplate-and-example\texamples/polyglot\tStarter for mixed-language repos"
+    ));
 }
 
 #[test]

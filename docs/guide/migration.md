@@ -1,8 +1,9 @@
 # Migration guide
 
-This page documents breaking changes and upgrade steps for each `syu` alpha
-release. When `syu validate .` starts failing after an upgrade, check the
-section for the version you just installed.
+Start here when you are upgrading an existing `syu` workspace between alpha
+releases. This page documents breaking changes and release-specific upgrade
+steps. When `syu validate .` starts failing after an upgrade, check the section
+for the version you just installed.
 
 > **Note:** `syu` is in alpha. The config schema, YAML spec format, and CLI
 > flags may change in any alpha release. This guide is updated with every
@@ -115,9 +116,18 @@ for the full contribution workflow.
 
 ## Version compatibility summary
 
+This guide only has release-by-release notes starting at `alpha.5`. The earlier
+`alpha.1`-`alpha.4` builds shipped before the current migration notes and docs
+layout stabilized, so this repository does **not** maintain step-by-step upgrade
+instructions for those versions. If you are upgrading from one of those early
+alphas, treat `alpha.5` as the first supported landing point: compare your
+workspace against a freshly generated scaffold from the version you are
+upgrading to, make the required `spec.root` and validation-config updates, then
+run `syu validate .` until the workspace is green.
+
 | syu version | `spec.root` default | `require_reciprocal_links` | `report.output` |
 |---|---|---|---|
-| alpha.1–alpha.4 | — (not yet documented) | — | — |
+| alpha.1–alpha.4 | pre-`alpha.5`; migrate manually to the `alpha.5+` layout first | not yet documented | not yet documented |
 | alpha.5 | `docs/spec` | not present | not present |
 | alpha.6 | `docs/syu` | not present | not present |
 | alpha.7 | `docs/syu` | `true` | stdout when unset; otherwise configured path |

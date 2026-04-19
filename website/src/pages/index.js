@@ -28,9 +28,32 @@ const layers = [
 
 const journeys = [
   {
+    title: 'Decide repository fit',
+    description: 'Read the repository-fit guide before installing when you are still deciding whether syu is the right adoption step.',
+    to: '/docs/guide/getting-started#is-syu-right-for-this-repository'
+  },
+  {
+    title: 'Avoid spec anti-patterns',
+    description:
+      'Learn the common bad-but-valid four-layer shapes before a green spec turns into a painful rewrite.',
+    to: '/docs/guide/spec-antipatterns'
+  },
+  {
+    title: 'Adopt an existing repository',
+    description:
+      'Phase syu into a repo that already has code, tests, and docs instead of translating the greenfield flow by hand.',
+    to: '/docs/guide/existing-repository'
+  },
+  {
     title: 'Start a workspace',
     description: 'Scaffold a project, fill in the layered spec, and run validate without guessing the layout.',
     to: '/docs/guide/getting-started'
+  },
+  {
+    title: 'Explore the browser UI',
+    description:
+      'Take the visual-first path through `syu app` when you want tabs, trace links, and validation context in one browser view.',
+    to: '/docs/guide/app'
   },
   {
     title: 'Follow a full tutorial',
@@ -43,9 +66,26 @@ const journeys = [
     to: '/docs/guide/troubleshooting'
   },
   {
+    title: 'Upgrade an existing workspace',
+    description:
+      'Jump straight to the migration guide when a new alpha release changes config, validation defaults, or guide structure.',
+    to: '/docs/guide/migration'
+  },
+  {
+    title: 'Stay in VS Code',
+    description: 'Run the checked-in editor extension so diagnostics and trace links stay inside your editor.',
+    to: '/docs/guide/vscode-extension'
+  },
+  {
     title: 'Tune validation',
     description: 'Review config switches for autofix, planned work, orphan checks, and runtime behavior.',
     to: '/docs/guide/configuration'
+  },
+  {
+    title: 'Understand trace adapter support',
+    description:
+      'Compare which languages support rich inspection, which stay pattern-based, and where `doc_contains` is still unavailable.',
+    to: '/docs/guide/trace-adapter-support'
   },
   {
     title: 'Inspect the self-hosted spec',
@@ -70,12 +110,25 @@ export default function Home() {
           <p className="siteHeroEyebrow">Specification-driven development for real repositories</p>
           <h1 className="siteHeroTitle">Keep the spec close to the repository</h1>
           <p className="siteHeroLead">
-            Browse the four specification layers, follow common contributor journeys,
-            and inspect the self-hosted specification and validation report in one place.
+            Decide whether repository-native traceability fits your repo, then browse
+            the four specification layers, common contributor journeys, and self-hosted
+            validation output in one place.
           </p>
           <div className="siteHeroActions">
             <Link className="button button--secondary button--lg" to="/docs/guide/getting-started">
               Get started
+            </Link>
+            <Link
+              className="button button--secondary button--lg"
+              to="https://github.com/ugoite/syu#quick-start"
+            >
+              Quick start on GitHub
+            </Link>
+            <Link
+              className="button button--outline button--lg siteHeroOutlineButton"
+              to="https://github.com/ugoite/syu/blob/main/README.md#quick-start"
+            >
+              Quick start for experienced users
             </Link>
             <Link
               className="button button--outline button--lg siteHeroOutlineButton"
