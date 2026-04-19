@@ -35,6 +35,8 @@ type SearchResult = {
 
 const SECTION_ORDER: SectionKind[] = ["philosophy", "policies", "requirements", "features"];
 const SEARCH_RESULTS_LIST_ID = "spec-search-results-list";
+const REFRESH_POLL_MIN_MS = 2_000;
+const REFRESH_POLL_MAX_MS = 10_000;
 
 const SECTION_COPY: Record<SectionKind, string> = {
   philosophy: "Project intent and enduring values.",
@@ -70,6 +72,7 @@ function App() {
 
   const applyWorkspace = useCallback((browserWorkspace: BrowserWorkspace) => {
     setWorkspace(browserWorkspace);
+    setShowOnboarding(shouldShowOnboarding(browserWorkspace.workspace_root));
 
     const hash = window.location.hash.replace(/^#\/?/, "");
     const hashParts = hash.split("/");
@@ -171,8 +174,30 @@ function App() {
     }
 
     let cancelled = false;
-    const intervalId = window.setInterval(async () => {
+    let stablePollCount = 0;
+    let timeoutId: number | null = null;
+
+    const currentDelay = () =>
+      Math.min(REFRESH_POLL_MAX_MS, REFRESH_POLL_MIN_MS * 2 ** stablePollCount);
+
+    const schedulePoll = (delay: number) => {
+      if (cancelled) {
+        return;
+      }
+      if (timeoutId != null) {
+        window.clearTimeout(timeoutId);
+      }
+      timeoutId = window.setTimeout(() => {
+        void pollVersion();
+      }, delay);
+    };
+
+    const pollVersion = async () => {
+      if (cancelled) {
+        return;
+      }
       if (document.hidden || isRefreshing) {
+        schedulePoll(currentDelay());
         return;
       }
 
@@ -186,20 +211,45 @@ function App() {
           setRefreshError(null);
         }
         if (!cancelled && nextVersion.snapshot !== snapshotVersion) {
+          stablePollCount = 0;
           await loadWorkspace("refresh");
+          schedulePoll(REFRESH_POLL_MIN_MS);
+          return;
         }
+
+        stablePollCount = Math.min(stablePollCount + 1, 3);
+        schedulePoll(currentDelay());
       } catch (pollError) {
+        stablePollCount = 0;
         if (!cancelled) {
           // eslint-disable-next-line no-console
           console.error("Failed to poll app version for refresh", pollError);
           setRefreshError(formatRefreshFailure("check for workspace updates", pollError));
         }
+        schedulePoll(REFRESH_POLL_MIN_MS);
       }
-    }, 2000);
+    };
+
+    const handleVisibilityChange = () => {
+      if (cancelled) {
+        return;
+      }
+      if (!document.hidden) {
+        stablePollCount = 0;
+        schedulePoll(REFRESH_POLL_MIN_MS);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    schedulePoll(REFRESH_POLL_MIN_MS);
 
     return () => {
       cancelled = true;
-      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      if (timeoutId != null) {
+        window.clearTimeout(timeoutId);
+        timeoutId = null;
+      }
     };
   }, [isRefreshing, loadWorkspace, snapshotVersion]);
 
@@ -490,7 +540,7 @@ function App() {
 
   const dismissOnboarding = () => {
     setShowOnboarding(false);
-    persistOnboardingDismissal();
+    persistOnboardingDismissal(workspace?.workspace_root);
   };
 
   const goBack = () => {
@@ -1190,26 +1240,36 @@ function ratio(validated: number, declared: number): number {
   return Math.max(0, Math.min(1, validated / declared));
 }
 
-function shouldShowOnboarding(): boolean {
+function onboardingStorageKey(workspaceRoot: string | null | undefined): string {
+  const normalizedRoot = workspaceRoot?.trim();
+
+  if (!normalizedRoot) {
+    return ONBOARDING_STORAGE_KEY;
+  }
+
+  return `${ONBOARDING_STORAGE_KEY}:${normalizedRoot}`;
+}
+
+function shouldShowOnboarding(workspaceRoot?: string): boolean {
   if (typeof window === "undefined") {
     return true;
   }
 
   try {
-    return window.sessionStorage.getItem(ONBOARDING_STORAGE_KEY) !== "true";
+    return window.sessionStorage.getItem(onboardingStorageKey(workspaceRoot)) !== "true";
   } catch (error) {
     console.warn("syu app could not read onboarding dismissal state from sessionStorage.", error);
     return true;
   }
 }
 
-function persistOnboardingDismissal() {
+function persistOnboardingDismissal(workspaceRoot?: string) {
   if (typeof window === "undefined") {
     return;
   }
 
   try {
-    window.sessionStorage.setItem(ONBOARDING_STORAGE_KEY, "true");
+    window.sessionStorage.setItem(onboardingStorageKey(workspaceRoot), "true");
   } catch (error) {
     console.warn("syu app could not persist onboarding dismissal in sessionStorage.", error);
   }
