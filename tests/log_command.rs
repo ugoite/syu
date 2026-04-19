@@ -528,6 +528,28 @@ fn log_command_renders_philosophy_definition_history() {
 }
 
 #[test]
+fn log_command_renders_policy_definition_history() {
+    let workspace = write_history_workspace();
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .args([
+            "log",
+            "POL-HIST-001",
+            workspace.path().to_str().expect("utf8 path"),
+        ])
+        .output()
+        .expect("command should run");
+
+    assert!(output.status.success());
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("History: policy POL-HIST-001"));
+    assert!(stdout.contains("definition\tdocs/syu/policies/policies.yaml"));
+    assert!(stdout.contains("chore: initial history fixture"));
+    assert!(!stdout.contains("feat: update traced implementation"));
+}
+
+#[test]
 fn log_command_rejects_incompatible_requirement_kinds() {
     let workspace = write_history_workspace();
     let output = Command::cargo_bin("syu")
