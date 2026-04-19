@@ -607,6 +607,25 @@ fn log_command_rejects_incompatible_policy_kinds() {
 }
 
 #[test]
+fn log_command_rejects_incompatible_philosophy_kinds() {
+    let workspace = write_history_workspace();
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .args([
+            "log",
+            "PHIL-HIST-001",
+            workspace.path().to_str().expect("utf8 path"),
+            "--kind",
+            "test",
+        ])
+        .output()
+        .expect("command should run");
+
+    assert_eq!(output.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("--kind test"));
+}
+
+#[test]
 fn log_command_rejects_empty_path_selections() {
     let workspace = write_history_workspace();
     let output = Command::cargo_bin("syu")
