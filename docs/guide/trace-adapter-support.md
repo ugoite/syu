@@ -76,3 +76,8 @@ If you need a Go-first starting point today, study the
 or scaffold `syu init . --template go-only`. Both keep real Go files in the
 repository while validating explicit symbol mappings, and Go traces can now add
 `doc_contains` when reviewers want comment-level evidence too.
+If you need a concrete fallback shape today, study the
+[`examples/csharp-fallback` workspace on GitHub](https://github.com/ugoite/syu/tree/main/examples/csharp-fallback).
+It keeps real C# files in the repository while validating supported shell and
+markdown evidence around them instead of inventing unsupported `csharp:` trace
+keys.

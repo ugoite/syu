@@ -251,6 +251,9 @@ with Rust, Python, Go, or TypeScript/JavaScript for now. For Go-first repositori
 use [`examples/go-only` workspace on GitHub](https://github.com/ugoite/syu/tree/main/examples/go-only)
 or `syu init . --template go-only`: both use real Go files plus symbol-level
 trace mappings that validate today.
+For unsupported-language repositories, use the
+[`examples/csharp-fallback` workspace on GitHub](https://github.com/ugoite/syu/tree/main/examples/csharp-fallback)
+to study the fallback pattern.
 
 Keep this adoption path in mind for mixed-language repositories too: start with
 declared traces, keep `validate.require_symbol_trace_coverage: false`, then turn
