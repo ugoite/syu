@@ -149,8 +149,12 @@ documentation version. Use `SYU_VERSION=alpha`, `stable`, or an explicit
 version selector when you want that installer to fetch a different published
 package track after it starts.
 
-Reuse the `RELEASE` value from the verified flow above, or set it once in your
-shell before any of these shortcuts.
+If you jump straight to this section, set the checked-in release tag once before
+using any of these shortcuts:
+
+```bash
+RELEASE=v0.0.1-alpha.7
+```
 
 Current installer entrypoint:
 
