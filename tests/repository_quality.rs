@@ -371,6 +371,7 @@ fn repository_declares_documentation_guides() {
     let examples_and_templates = read_file("docs/guide/examples-and-templates.md");
     let merge_queue_playbook = read_file("docs/guide/merge-queue-playbook.md");
     let getting_started = read_file("docs/guide/getting-started.md");
+    let command_card = read_file("docs/guide/command-card.md");
     let trace_adapter_support = read_file("docs/guide/trace-adapter-support.md");
     let vscode_guide = read_file("docs/guide/vscode-extension.md");
     let configuration = read_file("docs/guide/configuration.md");
@@ -493,6 +494,7 @@ fn repository_declares_documentation_guides() {
     assert!(!app_guide.contains("`planned`, `implemented`, or `deprecated`"));
     assert!(getting_started.contains("New to `syu`?"));
     assert!(getting_started.contains("Need a different level of guidance?"));
+    assert!(getting_started.contains("[command card](./command-card.md)"));
     assert!(getting_started.contains("README quick start"));
     assert!(
         getting_started.contains("[trace adapter capability matrix](./trace-adapter-support.md)")
@@ -578,6 +580,13 @@ fn repository_declares_documentation_guides() {
     );
     assert!(getting_started.contains("[troubleshooting](./troubleshooting.md)"));
     assert!(getting_started.contains("live [validation report]"));
+    assert!(command_card.contains("# syu command card"));
+    assert!(command_card.contains("| Task | Command | Choose it when |"));
+    assert!(command_card.contains("syu templates"));
+    assert!(command_card.contains("syu validate . --id FEAT-CHECK-001"));
+    assert!(command_card.contains("syu app ."));
+    assert!(command_card.contains("[reviewer workflow](./reviewer-workflow.md)"));
+    assert!(command_card.contains("[configuration](./configuration.md)"));
     assert!(vscode_guide.contains("syu Context"));
     assert!(vscode_guide.contains("syu validate . --format json"));
     assert!(vscode_guide.contains("Trace active file"));
@@ -590,6 +599,7 @@ fn repository_declares_documentation_guides() {
     assert!(tutorial.contains("starter registry entry"));
     assert!(tutorial.contains("Only add another `files` entry"));
     let reviewer_workflow = read_file("docs/guide/reviewer-workflow.md");
+    assert!(reviewer_workflow.contains("[command card](./command-card.md)"));
     assert!(reviewer_workflow.contains("currently traced"));
     assert!(reviewer_workflow.contains("the whole PR diff is covered"));
     assert!(reviewer_workflow.contains("too-small log result with the PR diff"));
