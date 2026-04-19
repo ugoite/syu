@@ -72,7 +72,7 @@ const journeys = [
   {
     title: 'Understand trace adapter support',
     description:
-      'Check which languages support rich inspection, which stay pattern-based, and how unsupported-language adoption works today.',
+      'Compare which languages support rich inspection, which stay pattern-based, and where `doc_contains` is still unavailable.',
     to: '/docs/guide/trace-adapter-support'
   },
   {
