@@ -486,13 +486,18 @@ with `scripts/ci/check-generated-docs-freshness.sh`.
 
 ## Browser app
 
-Start with [`syu app`](#syu-app) when you want richer browser-based exploration
-than the terminal-first `syu browse` flow. For a visual tour with annotated
-screenshots, see the [browser UI guide](docs/guide/app.md).
+Use [`syu app`](#syu-app) when you want a local browser UI for searching the
+four-layer graph, following links across related documents, and sharing the
+same live workspace data that `syu browse` exposes in the terminal.
 
-If you are deciding whether to use the browser UI or only need the CLI command,
-this section is the overview. The implementation and contributor build details
-live under [Browser app development](#browser-app-development).
+```bash
+syu app .
+syu app . --bind 127.0.0.1 --port 3000
+```
+
+For a visual tour with annotated screenshots, see the
+[browser UI guide](docs/guide/app.md). Contributor-only implementation and
+build details live under [Browser app development](#browser-app-development).
 
 ## VS Code extension
 
