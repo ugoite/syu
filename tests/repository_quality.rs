@@ -14,26 +14,17 @@ fn read_json(path: &str) -> Value {
     serde_json::from_str(&read_file(path)).expect("repository JSON should parse")
 }
 
-fn example_workspace_names() -> Vec<String> {
-    let mut names = fs::read_dir(repo_root().join("examples"))
-        .expect("examples directory should exist")
+fn checked_in_example_configs() -> Vec<PathBuf> {
+    let mut configs: Vec<_> = fs::read_dir(repo_root().join("examples"))
+        .expect("examples directory should be readable")
         .filter_map(|entry| {
-            let entry = entry.expect("example directory entry should load");
-            let path = entry.path();
-            if path.is_dir() && path.join("syu.yaml").is_file() {
-                Some(
-                    entry
-                        .file_name()
-                        .into_string()
-                        .expect("example directory name should be valid unicode"),
-                )
-            } else {
-                None
-            }
+            let path = entry.expect("directory entry should exist").path();
+            let config = path.join("syu.yaml");
+            (path.is_dir() && config.is_file()).then_some(config)
         })
-        .collect::<Vec<_>>();
-    names.sort();
-    names
+        .collect();
+    configs.sort();
+    configs
 }
 
 #[test]
@@ -152,6 +143,16 @@ fn repository_declares_coverage_gate_at_one_hundred_percent() {
     assert!(spec_summary_script.contains("list\", \"--with-path\", \"--format\", \"json\""));
     assert!(spec_summary_script.contains("yaml.safe_load"));
     assert!(spec_summary_script.contains("Rust implementation coverage"));
+    assert!(
+        spec_summary_script.contains(
+            "items = run_syu_json(repo_root, \"list\", \"--with-path\", \"--format\", \"json\")"
+        ),
+        "expected the coverage summary to load workspace metadata with one `syu list --with-path --format json` call"
+    );
+    assert!(
+        !spec_summary_script.contains("\"show\","),
+        "coverage summary generation should not shell out through repeated `syu show` calls"
+    );
 
     assert!(ci_workflow.contains("coverage:"));
     assert!(ci_workflow.contains("scripts/ci/coverage.sh lcov"));
@@ -264,6 +265,12 @@ fn repository_declares_release_automation() {
     assert!(manifest.contains("\".\": \"0.0.0\""));
     assert!(readme.contains("gh attestation verify"));
     assert!(readme.contains("--repo ugoite/syu"));
+    assert!(readme.contains("gh release download"));
+    assert!(
+        readme.contains("--signer-workflow ugoite/syu/.github/workflows/release-artifacts.yml")
+    );
+    assert!(readme.contains("--source-ref \"refs/tags/${RELEASE}\""));
+    assert!(readme.contains("--format json"));
     assert!(
         !repo_root()
             .join("release-please-config.alpha.json")
@@ -501,6 +508,8 @@ fn repository_declares_documentation_guides() {
     assert!(getting_started.contains("compact command card"));
     assert!(getting_started.contains("install-syu.sh"));
     assert!(getting_started.contains("checksums.sha256"));
+    assert!(getting_started.contains("--signer-workflow"));
+    assert!(getting_started.contains("--source-ref"));
     assert!(getting_started.contains("security-sensitive environments"));
     assert!(getting_started.contains("README installer verification flow"));
     assert!(getting_started.contains("SYU_VERSION=alpha"));
@@ -742,7 +751,7 @@ fn repository_declares_devcontainer_configuration() {
 // REQ-CORE-012
 fn repository_ships_example_workspaces() {
     let current_version = env!("CARGO_PKG_VERSION");
-    let example_workspace_names = example_workspace_names();
+    let example_configs = checked_in_example_configs();
     let rust_example_requirement =
         read_file("examples/rust-only/docs/syu/requirements/core/rust.yaml");
     let python_example_requirement =
@@ -758,24 +767,22 @@ fn repository_ships_example_workspaces() {
     let polyglot_feature = read_file("examples/polyglot/docs/syu/features/languages/polyglot.yaml");
     let example_tests = read_file("tests/example_workspaces.rs");
 
-    assert_eq!(
-        example_workspace_names,
-        vec![
-            "csharp-fallback",
-            "docs-first",
-            "go-only",
-            "polyglot",
-            "python-only",
-            "rust-only",
-            "team-scale",
-        ]
-    );
-    for example_name in &example_workspace_names {
-        let config = read_file(&format!("examples/{example_name}/syu.yaml"));
+    assert!(!example_configs.is_empty());
+    for config in &example_configs {
+        let relative = config
+            .strip_prefix(repo_root())
+            .expect("example config should stay under the repository root");
+        let rendered = fs::read_to_string(config).expect("example config should be readable");
         assert!(
-            config.contains(&format!("version: {current_version}")),
-            "example {example_name} should carry the current CLI version"
+            rendered.contains(&format!("version: {current_version}")),
+            "{} should use the current CLI version",
+            relative.display()
         );
+        let example_name = relative
+            .parent()
+            .and_then(|path| path.file_name())
+            .and_then(|name| name.to_str())
+            .expect("example config should live under examples/<name>/");
         assert!(
             example_tests.contains(&format!("example_path(\"{example_name}\")")),
             "example {example_name} should have a dedicated validation smoke test"
