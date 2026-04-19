@@ -36,8 +36,11 @@ description: "Generated reference for docs/syu/features/repository/contributor.y
           - FEAT-CONTRIB-001
           - install_coverage_tooling
           - install_wasm_tooling
-          - install_browser_tooling
           - install_precommit_tooling
+          - main
+      - **file**: .devcontainer/setup-browser-tooling.sh
+        - **symbols**:
+          - FEAT-CONTRIB-001
           - main
     - **rust**:
       - **file**: tests/example_workspaces.rs
@@ -61,6 +64,8 @@ description: "Generated reference for docs/syu/features/repository/contributor.y
           - GitHub Flow
           - .worktrees/
           - scripts/ci/quality-gates.sh
+          - scripts/ci/validate-app.sh
+          - scripts/ci/validate-website.sh
       - **file**: .github/pull_request_template.md
         - **symbols**:
           - FEAT-CONTRIB-002
@@ -128,8 +133,11 @@ features:
             - FEAT-CONTRIB-001
             - install_coverage_tooling
             - install_wasm_tooling
-            - install_browser_tooling
             - install_precommit_tooling
+            - main
+        - file: .devcontainer/setup-browser-tooling.sh
+          symbols:
+            - FEAT-CONTRIB-001
             - main
       rust:
         - file: tests/example_workspaces.rs
@@ -154,6 +162,8 @@ features:
             - GitHub Flow
             - .worktrees/
             - scripts/ci/quality-gates.sh
+            - scripts/ci/validate-app.sh
+            - scripts/ci/validate-website.sh
         - file: .github/pull_request_template.md
           symbols:
             - FEAT-CONTRIB-002
