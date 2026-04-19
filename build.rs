@@ -301,7 +301,11 @@ fn default_wasm_target_dir_from_common_dir(
     configured_target_dir: Option<&Path>,
 ) -> PathBuf {
     if let Some(configured_target_dir) = configured_target_dir {
-        return configured_target_dir.to_path_buf();
+        return if configured_target_dir.is_absolute() {
+            configured_target_dir.to_path_buf()
+        } else {
+            manifest_dir.join(configured_target_dir)
+        };
     }
 
     if let Some(repo_root) = git_common_dir.and_then(Path::parent) {
@@ -344,6 +348,18 @@ mod tests {
                 Some(Path::new("/shared/target"))
             ),
             Path::new("/shared/target")
+        );
+    }
+
+    #[test]
+    fn default_wasm_target_dir_resolves_relative_configured_target_dir_from_manifest_dir() {
+        assert_eq!(
+            default_wasm_target_dir_from_common_dir(
+                Path::new("/repo/.worktrees/impl"),
+                Some(Path::new("/repo/.git")),
+                Some(Path::new("target"))
+            ),
+            Path::new("/repo/.worktrees/impl/target")
         );
     }
 
