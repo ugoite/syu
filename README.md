@@ -712,7 +712,9 @@ binaries without checking `app/dist/` into `main`.
 
 Use the checked-in Node 25 version from `app/package.json` and `app/.nvmrc`
 when working in `app/`; that is the local contributor expectation, not only a
-CI matrix detail.
+CI matrix detail. Before you run the install commands below, switch your shell
+to that Node major with a version manager such as `nvm`, `fnm`, or `Volta`
+using the checked-in `app/.nvmrc`.
 Before you run Cargo commands that embed the browser app, provision the app
 dependencies intentionally from the repository root:
 
