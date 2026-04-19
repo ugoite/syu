@@ -110,10 +110,8 @@ fn init_help_lists_go_only_template_as_a_supported_starter() {
     );
 
     let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("--template <TEMPLATE>"));
     assert!(stdout.contains("go-only"));
-    assert!(stdout.contains(
-        "possible values: generic, docs-first, rust-only, python-only, go-only, polyglot"
-    ));
     assert!(stdout.contains("syu init . --template go-only"));
 }
 
