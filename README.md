@@ -658,8 +658,8 @@ If you prefer to install `pre-commit` manually, `pipx install pre-commit` or
 
 ### Browser app development
 
-CI currently validates the browser app with Node 25 and lockfile-driven npm
-installs:
+Use Node 25 when working in `app/`; that is the checked-in expectation in
+`app/package.json`, and CI validates the same lockfile-driven npm flow:
 
 ```bash
 cd app
@@ -676,8 +676,9 @@ The repository ships a Docusaurus site rooted at `website/` that renders the
 checked-in `docs/` tree directly, and the published site is available at
 `https://ugoite.github.io/syu/`.
 
-CI currently validates the docs site with Node 20 and lockfile-driven npm
-installs:
+Use Node 20 when working in `website/`; that is the checked-in expectation in
+`website/package.json` and `.nvmrc`, and CI validates the same lockfile-driven
+npm flow:
 
 ```bash
 cd website
