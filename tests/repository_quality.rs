@@ -772,13 +772,12 @@ fn repository_ships_example_workspaces() {
     );
     for example_name in &example_workspace_names {
         let config = read_file(&format!("examples/{example_name}/syu.yaml"));
-        let validate_test_name = format!("{}_example_validates", example_name.replace('-', "_"));
         assert!(
             config.contains(&format!("version: {current_version}")),
             "example {example_name} should carry the current CLI version"
         );
         assert!(
-            example_tests.contains(&validate_test_name),
+            example_tests.contains(&format!("example_path(\"{example_name}\")")),
             "example {example_name} should have a dedicated validation smoke test"
         );
     }
