@@ -110,7 +110,7 @@ syu log REQ-CORE-017 --kind test
 
 ## 5. Close the loop with a focused validation pass
 
-If the PR changes spec files, traced paths, or link structure, run a narrower
+If the PR changes spec files, traced paths, or link structure, run a focused
 validation pass before the full repository check:
 
 ```bash
@@ -120,7 +120,9 @@ syu validate . --id FEAT-CHECK-001
 
 Use `--genre trace` when you want trace-specific failures first. Use `--id`
 when the review is anchored on one concrete requirement or feature and you want
-the smallest relevant validation slice before expanding outward.
+the output filtered down to that item after the full workspace validation run.
+It is a review-focused view over the collected result, not a smaller or faster
+validation scope.
 
 ## Fast reviewer playbook
 
