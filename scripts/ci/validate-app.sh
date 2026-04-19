@@ -25,6 +25,7 @@ validate_app() {
     exit 1
   fi
 
+  bash scripts/ci/quality-gates.sh
   npm --prefix app ci
   bash scripts/ci/check-browser-app-freshness.sh
 

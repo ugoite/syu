@@ -41,10 +41,12 @@ fn repository_declares_precommit_and_quality_gates() {
     assert!(quality_script.contains("check-generated-docs-freshness.sh"));
     assert!(validate_app_script.contains("FEAT-QUALITY-001"));
     assert!(validate_app_script.contains("validate_app"));
+    assert!(validate_app_script.contains("scripts/ci/quality-gates.sh"));
     assert!(validate_app_script.contains("check-browser-app-freshness.sh"));
     assert!(validate_app_script.contains("npm --prefix app run test:e2e"));
     assert!(validate_website_script.contains("FEAT-QUALITY-001"));
     assert!(validate_website_script.contains("validate_website"));
+    assert!(validate_website_script.contains("scripts/ci/quality-gates.sh"));
     assert!(validate_website_script.contains("npm --prefix website ci"));
     assert!(validate_website_script.contains("npm --prefix website run build"));
     assert!(install_precommit.contains("site --user-base"));

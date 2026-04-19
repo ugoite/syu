@@ -77,7 +77,9 @@ match your change:
    scripts/ci/validate-app.sh
    ```
 
-   Install the browser app dependencies first when you need the raw steps:
+   `scripts/ci/validate-app.sh` starts with the shared repository gates and then
+   runs the browser-specific checks below. Install the browser app dependencies
+   first when you need the raw follow-up steps only:
 
    ```bash
    npm --prefix app ci
@@ -108,10 +110,9 @@ match your change:
    npm --prefix app run test:e2e
    ```
 
-   `scripts/ci/validate-app.sh --e2e` installs Playwright Chromium and runs
-   `npm --prefix app run test:e2e`, which uses `app/playwright.config.ts` to launch
-   `cargo run -- app .` automatically, so run it after the shared Rust gates
-   pass.
+   `scripts/ci/validate-app.sh --e2e` also installs Playwright Chromium and runs
+   `npm --prefix app run test:e2e`, which uses `app/playwright.config.ts` to
+   launch `cargo run -- app .` automatically.
 
 4. **Documentation site** (`website/`)
 
@@ -121,7 +122,9 @@ match your change:
    scripts/ci/validate-website.sh
    ```
 
-   Install the docs-site dependencies first when you need the raw steps:
+   `scripts/ci/validate-website.sh` starts with the shared repository gates and
+   then runs the docs-site install/build sequence below. Install the docs-site
+   dependencies first when you need the raw follow-up steps only:
 
    ```bash
    npm --prefix website ci
@@ -139,8 +142,8 @@ match your change:
    npm --prefix website run build
    ```
 
-   `scripts/ci/validate-website.sh` runs the same install and build sequence as
-   `.github/actions/build-docs-site`.
+   After the shared gates, `scripts/ci/validate-website.sh` runs the same
+   install and build sequence as `.github/actions/build-docs-site`.
 
 5. **Docs-only edits outside `website/`, `app/`, or Rust logic**
 
