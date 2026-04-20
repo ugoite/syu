@@ -40,6 +40,12 @@ features:
             - render_watchdog_report
             - check_merge_queue_health
             - main
+        - file: scripts/ci/requeue-dropped-merge-queue-prs.sh
+          symbols:
+            - requeue_dropped_merge_queue_prs
+            - fetch_pull_request_queue_state
+            - select_requeue_candidates
+            - reenroll_candidates
         - file: scripts/ci/pinned-npm.sh
           symbols:
             - FEAT-QUALITY-001
@@ -87,6 +93,12 @@ features:
             - schedule
             - workflow_dispatch
             - scripts/ci/check-merge-queue-health.sh
+        - file: .github/workflows/merge-queue-reenroll.yml
+          symbols:
+            - workflow_dispatch
+            - schedule
+            - reenroll
+            - Re-enroll dropped merge queue PRs
         - file: .github/dependabot.yml
           symbols:
             - FEAT-QUALITY-001

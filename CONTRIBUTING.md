@@ -279,6 +279,10 @@ Maintainers triaging stuck merge-queue entries should use the
 `merge_group` runs, queue state, required workflow coverage, and the scheduled
 merge-queue watchdog.
 
+When queue enrollment disappears for a clean PR, prefer the checked-in
+`scripts/ci/requeue-dropped-merge-queue-prs.sh` workflow path before manually
+toggling auto-merge in the UI so the recovery flow stays auditable.
+
 When maintainers intentionally rename merge-queue check contexts or add/remove
 `merge_group` workflows, update `.github/merge-queue-checks.json` and the
 repository-quality assertions in the same change.

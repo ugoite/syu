@@ -43,6 +43,7 @@ Examples:
   syu init . --interactive
   syu init . --id-prefix store
   syu init . --template rust-only
+  syu init . --template ruby-only
   syu init . --template typescript-only
   syu init . --template go-only
   syu init . --template java-only
@@ -204,6 +205,8 @@ pub enum Commands {
         after_help = ADD_AFTER_HELP
     )]
     Add(AddArgs),
+    #[command(about = "Start LSP server for editor integrations (JSON-RPC 2.0 over stdio)")]
+    Lsp,
 }
 
 #[derive(Debug, Clone, Args)]
@@ -556,7 +559,7 @@ pub struct InitArgs {
     pub spec_root: Option<PathBuf>,
 
     #[arg(
-        help = "Starter layout to scaffold (generic, docs-first, rust-only, python-only, go-only, java-only, or polyglot)"
+        help = "Starter layout to scaffold (generic, docs-first, rust-only, python-only, ruby-only, go-only, java-only, or polyglot)"
     )]
     #[arg(long, value_enum, default_value_t = StarterTemplate::Generic)]
     pub template: StarterTemplate,
@@ -643,6 +646,7 @@ pub enum StarterTemplate {
     DocsFirst,
     RustOnly,
     PythonOnly,
+    RubyOnly,
     GoOnly,
     JavaOnly,
     #[value(name = "typescript-only")]
@@ -657,6 +661,7 @@ impl StarterTemplate {
             Self::DocsFirst => "docs-first",
             Self::RustOnly => "rust-only",
             Self::PythonOnly => "python-only",
+            Self::RubyOnly => "ruby-only",
             Self::GoOnly => "go-only",
             Self::JavaOnly => "java-only",
             Self::TypeScriptOnly => "typescript-only",
@@ -724,6 +729,7 @@ mod tests {
         assert_eq!(StarterTemplate::DocsFirst.label(), "docs-first");
         assert_eq!(StarterTemplate::RustOnly.label(), "rust-only");
         assert_eq!(StarterTemplate::PythonOnly.label(), "python-only");
+        assert_eq!(StarterTemplate::RubyOnly.label(), "ruby-only");
         assert_eq!(StarterTemplate::GoOnly.label(), "go-only");
         assert_eq!(StarterTemplate::JavaOnly.label(), "java-only");
         assert_eq!(StarterTemplate::TypeScriptOnly.label(), "typescript-only");
