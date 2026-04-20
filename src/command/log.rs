@@ -1194,6 +1194,57 @@ mod tests {
     }
 
     #[test]
+    fn collect_related_tracked_paths_excludes_selected_definition_from_related_set() {
+        let workspace_root = tempdir().expect("tempdir should exist");
+        write_related_workspace_fixture(workspace_root.path());
+        let workspace =
+            crate::workspace::load_workspace(workspace_root.path()).expect("workspace should load");
+
+        let tracked = super::collect_related_tracked_paths(
+            &workspace,
+            "REQ-HIST-001",
+            HistoryKind::Definition,
+            None,
+        )
+        .expect("related tracked paths should resolve");
+        assert!(tracked.iter().any(|entry| {
+            entry.owner_id == "FEAT-HIST-001"
+                && entry.owner_kind == "feature"
+                && entry.kind == "definition"
+                && entry.source == "related"
+        }));
+        assert!(
+            !tracked
+                .iter()
+                .any(|entry| entry.owner_id == "REQ-HIST-001" && entry.source == "related")
+        );
+    }
+
+    #[test]
+    fn run_log_command_supports_related_surface_and_merge_base_scope() {
+        let _lock = PATH_LOCK.lock().unwrap_or_else(|err| err.into_inner());
+        let workspace_root = tempdir().expect("tempdir should exist");
+        write_related_workspace_fixture(workspace_root.path());
+        init_test_git_repository(workspace_root.path());
+        git(workspace_root.path(), &["branch", "review-base", "HEAD"]);
+
+        let exit = super::run_log_command(&crate::cli::LogArgs {
+            id: "REQ-HIST-001".to_string(),
+            workspace: workspace_root.path().to_path_buf(),
+            kind: HistoryKind::Test,
+            path: Some(PathBuf::from("src")),
+            include_related: true,
+            merge_base_ref: Some("review-base".to_string()),
+            range: None,
+            limit: 5,
+            format: crate::cli::OutputFormat::Json,
+        })
+        .expect("log command should succeed");
+
+        assert_eq!(exit, 0);
+    }
+
+    #[test]
     fn order_commits_by_repository_history_uses_candidate_ancestry() {
         let _lock = PATH_LOCK.lock().unwrap_or_else(|err| err.into_inner());
         let repo = tempdir().expect("tempdir should exist");
@@ -1718,6 +1769,58 @@ mod tests {
             }],
         );
         traces
+    }
+
+    fn write_related_workspace_fixture(root: &Path) {
+        fs::create_dir_all(root.join("docs/syu/philosophy")).expect("philosophy dir");
+        fs::create_dir_all(root.join("docs/syu/policies")).expect("policies dir");
+        fs::create_dir_all(root.join("docs/syu/requirements")).expect("requirements dir");
+        fs::create_dir_all(root.join("docs/syu/features/cli")).expect("features dir");
+        fs::create_dir_all(root.join("src")).expect("src dir");
+
+        fs::write(
+            root.join("syu.yaml"),
+            format!(
+                "version: {}\nspec:\n  root: docs/syu\nvalidate:\n  default_fix: false\n  allow_planned: true\n  require_non_orphaned_items: true\n  require_symbol_trace_coverage: false\n",
+                env!("CARGO_PKG_VERSION")
+            ),
+        )
+        .expect("config");
+        fs::write(
+            root.join("docs/syu/philosophy/foundation.yaml"),
+            "category: Philosophy\nversion: 1\nlanguage: en\nphilosophies:\n  - id: PHIL-HIST-001\n    title: History should stay explorable.\n    product_design_principle: Keep commit history close to trace links.\n    coding_guideline: Prefer one-command repository history lookups.\n    linked_policies:\n      - POL-HIST-001\n",
+        )
+        .expect("philosophy file");
+        fs::write(
+            root.join("docs/syu/policies/policies.yaml"),
+            "category: Policies\nversion: 1\nlanguage: en\npolicies:\n  - id: POL-HIST-001\n    title: History should be reachable from traces.\n    summary: Git history is useful when it is derived from checked-in trace metadata.\n    description: The repository history should be explorable from requirement and feature traces.\n    linked_philosophies:\n      - PHIL-HIST-001\n    linked_requirements:\n      - REQ-HIST-001\n",
+        )
+        .expect("policy file");
+        fs::write(
+            root.join("docs/syu/requirements/core.yaml"),
+            "category: Core\nprefix: REQ-HIST\n\nrequirements:\n  - id: REQ-HIST-001\n    title: Requirement history lookup\n    description: Requirement history should show the traced test and checked-in definition.\n    priority: medium\n    status: implemented\n    linked_policies:\n      - POL-HIST-001\n    linked_features:\n      - FEAT-HIST-001\n    tests:\n      rust:\n        - file: src/history_tests.rs\n          symbols:\n            - requirement_history_test\n",
+        )
+        .expect("requirement file");
+        fs::write(
+            root.join("docs/syu/features/features.yaml"),
+            "version: \"1\"\nfiles:\n  - kind: history\n    file: cli/history.yaml\n",
+        )
+        .expect("feature registry");
+        fs::write(
+            root.join("docs/syu/features/cli/history.yaml"),
+            "category: History\nversion: 1\nfeatures:\n  - id: FEAT-HIST-001\n    title: Feature history lookup\n    summary: Feature history should show the traced implementation and checked-in definition.\n    status: implemented\n    linked_requirements:\n      - REQ-HIST-001\n    implementations:\n      rust:\n        - file: src/history_feature.rs\n          symbols:\n            - feature_history\n",
+        )
+        .expect("feature file");
+        fs::write(
+            root.join("src/history_tests.rs"),
+            "// REQ-HIST-001\nfn requirement_history_test() {}\n",
+        )
+        .expect("history test file");
+        fs::write(
+            root.join("src/history_feature.rs"),
+            "// FEAT-HIST-001\nfn feature_history() {}\n",
+        )
+        .expect("history feature file");
     }
 
     fn init_test_git_repository(path: &Path) {
