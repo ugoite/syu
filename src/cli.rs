@@ -787,10 +787,12 @@ mod tests {
     fn completion_args_parse_shell_names() {
         let cli = Cli::try_parse_from(["syu", "completion", "zsh"])
             .expect("completion args should parse");
-        let Some(super::Commands::Completion(CompletionArgs { shell })) = cli.command else {
-            panic!("expected completion command");
-        };
-        assert_eq!(shell, Shell::Zsh);
+        assert!(matches!(
+            cli.command,
+            Some(super::Commands::Completion(CompletionArgs {
+                shell: Shell::Zsh
+            }))
+        ));
     }
 
     #[test]
