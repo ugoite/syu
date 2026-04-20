@@ -491,6 +491,7 @@ fn repository_declares_documentation_guides() {
     assert!(app_guide.contains("ArrowDown"));
     assert!(app_guide.contains("Escape"));
     assert!(app_guide.contains("the item's YAML `status:` field"));
+    assert!(app_guide.contains("--allow-remote"));
     assert!(app_guide.contains("../../website/static/img/app-guide-overview.png"));
     assert!(!app_guide.contains("](/img/"));
     assert!(!app_guide.contains("`planned`, `implemented`, or `deprecated`"));
@@ -638,6 +639,7 @@ fn repository_declares_documentation_guides() {
     assert!(merge_queue_playbook.contains("gh pr merge 123 --auto --squash"));
     assert!(merge_queue_playbook.contains("gh-readonly-queue/main/pr-123-<sha>"));
     assert!(configuration.contains("validate.default_fix"));
+    assert!(configuration.contains("--allow-remote"));
     assert!(configuration.contains("trace-adapter-support.md"));
     assert!(configuration.contains("validate.allow_planned"));
     assert!(configuration.contains("Rust, Python, Go, Java, and TypeScript/JavaScript"));
@@ -1091,6 +1093,8 @@ fn repository_ships_browser_app() {
     assert!(build_script.contains("syu-app-dist"));
     assert!(build_script.contains("scripts/ci/pinned-npm.sh install app"));
     assert!(build_script.contains("browser app dependencies are not ready"));
+    assert!(build_script.contains("fresh clone or fresh worktree"));
+    assert!(build_script.contains("Cargo intentionally does not run a networked npm install"));
     assert!(build_script.contains("build:wasm"));
     assert!(build_script.contains("--outDir"));
     assert!(build_script.contains("shared_core_dir"));
@@ -1127,6 +1131,7 @@ fn repository_ships_browser_app() {
     assert!(readme.contains("generates the embedded"));
     assert!(readme.contains("scripts/ci/pinned-npm.sh install app"));
     assert!(readme.contains("Cargo no longer runs `npm ci` for you during normal builds."));
+    assert!(readme.contains("fresh clone or fresh worktree"));
     assert!(readme.contains("offline, hermetic, and security-sensitive environments"));
     assert!(readme.contains("check-browser-app-freshness.sh"));
     assert!(readme.contains("regenerates the local"));
