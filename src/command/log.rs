@@ -122,11 +122,8 @@ pub fn run_log_command(args: &LogArgs) -> Result<i32> {
         dedupe_tracked_paths(&mut target.tracked_paths);
     }
     let repository_root = resolve_git_repository_root(&workspace.root)?;
-    let scope = resolve_history_scope(
-        &workspace.root,
-        args.range.as_deref(),
-        args.merge_base_ref.as_deref(),
-    )?;
+    let merge_base_ref = args.merge_base_ref.as_deref();
+    let scope = resolve_history_scope(&workspace.root, args.range.as_deref(), merge_base_ref)?;
     let commits = load_git_history(
         &workspace.root,
         args.limit,
@@ -1211,6 +1208,20 @@ mod tests {
         let error = resolve_history_scope(Path::new("/repo"), None, Some("origin/main"))
             .expect_err("empty merge-base output should fail");
         assert!(error.to_string().contains("empty base SHA"));
+    }
+
+    #[test]
+    fn resolve_history_scope_reports_spawn_failures() {
+        let fake_bin = tempdir().expect("tempdir should exist");
+        let _path_guard = PathGuard::set(vec![fake_bin.path().to_path_buf()]);
+
+        let error = resolve_history_scope(Path::new("/repo"), None, Some("origin/main"))
+            .expect_err("missing git binary should fail");
+        assert!(
+            error
+                .to_string()
+                .contains("failed to run `git merge-base HEAD origin/main`")
+        );
     }
 
     #[test]
