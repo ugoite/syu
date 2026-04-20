@@ -118,10 +118,9 @@ impl LanguageAdapter for PythonAdapter {
     fn patterns(&self, symbol: &str) -> Vec<String> {
         let escaped = regex::escape(symbol);
         vec![
-            format!(r"(?m)\bdef\s+{escaped}\b"),
-            format!(r"(?m)\bclass\s+{escaped}\b"),
-            format!(r"(?m)^\s*{escaped}\s*="),
-            format!(r"(?m)\b{escaped}\b"),
+            format!(r"(?m)\bdef\s+(?:self\.)?{escaped}\b"),
+            format!(r"(?m)\b(?:class|module)\s+{escaped}\b"),
+            format!(r"(?m)^\s*(?:self\.)?{escaped}\s*="),
         ]
     }
 }
@@ -461,6 +460,8 @@ mod tests {
         assert!(ruby.symbol_exists("class OrderSummary\nend\n", "OrderSummary"));
         assert!(ruby.symbol_exists("def ruby_feature_impl\n  true\nend\n", "ruby_feature_impl"));
         assert!(ruby.symbol_exists("def self.build\n  new\nend\n", "build"));
+        assert!(ruby.symbol_exists("module CheckoutFlow\nend\n", "CheckoutFlow"));
+        assert!(!ruby.symbol_exists("# OrderSummary\nputs 'ruby_feature_impl'\n", "OrderSummary"));
         assert!(typescript.symbol_exists(
             "export function featureTraceTs(): boolean { return true; }",
             "featureTraceTs"
