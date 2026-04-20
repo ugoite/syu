@@ -204,7 +204,7 @@ fn missing_app_dependencies_message(required_npm: &str) -> String {
             "Cargo intentionally does not run a networked npm install for you during embedded browser-app builds.\n\n",
             "From the repository root, run:\n",
             "  scripts/ci/pinned-npm.sh install app\n",
-            "  npm --prefix app ci\n\n",
+            "  scripts/ci/pinned-npm.sh exec app -- ci\n\n",
             "Then rerun the Cargo command. The pinned npm workflow expects npm {}."
         ),
         required_npm
@@ -376,7 +376,7 @@ mod tests {
         assert!(message.contains("fresh clone or fresh worktree"));
         assert!(message.contains("Cargo intentionally does not run a networked npm install"));
         assert!(message.contains("scripts/ci/pinned-npm.sh install app"));
-        assert!(message.contains("npm --prefix app ci"));
+        assert!(message.contains("scripts/ci/pinned-npm.sh exec app -- ci"));
         assert!(message.contains("npm 11.8.0"));
     }
 
