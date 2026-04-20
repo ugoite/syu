@@ -56,7 +56,7 @@ fn list_command_supports_json_output() {
             .as_array()
             .expect("items should be an array")
             .len(),
-        5
+        6
     );
     assert_eq!(json["items"][0]["id"], "FEAT-TRACE-001");
 }
@@ -257,7 +257,7 @@ fn list_command_help_documents_both_argument_orders() {
         "help should explain the automation-oriented list output:\n{stdout}",
     );
     assert!(
-        stdout.contains("workspace metadata, per-layer counts, and the current validation errors"),
+        stdout.contains("workspace metadata, per-layer counts, grouped items, and the current validation errors in text or JSON"),
         "help should distinguish list output from the browse snapshot:\n{stdout}",
     );
 }

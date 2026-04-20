@@ -43,6 +43,7 @@ Examples:
   syu init . --interactive
   syu init . --id-prefix store
   syu init . --template rust-only
+  syu init . --template typescript-only
   syu init . --template go-only
   syu init . --template java-only
   syu init . --spec-root docs/spec
@@ -73,7 +74,7 @@ const WORKSPACE_HELP: &str = "Workspace root or any child directory; syu walks u
 
 const LIST_AFTER_HELP: &str = "\
 Choose `syu list` when you want list-shaped output that can be narrowed to one layer or emitted as JSON for automation.
-Choose `syu browse --non-interactive` when you want the browse snapshot instead: workspace metadata, per-layer counts, and the current validation errors in plain text.
+Choose `syu browse --non-interactive` when you want the browse snapshot instead: workspace metadata, per-layer counts, grouped items, and the current validation errors in text or JSON.
 
 Examples:
   syu list
@@ -89,12 +90,13 @@ Note:
   Pass the workspace root, the configured spec.root directory, or any child directory.
   syu walks upward until it finds syu.yaml, then resolves the configured spec.root from that workspace.";
 const BROWSE_AFTER_HELP: &str = "\
-Choose `syu browse --non-interactive` when you want the browse snapshot in plain text: workspace metadata, per-layer counts, grouped items, and the current validation errors.
-Choose `syu list` when you want list-shaped output that can be narrowed to one layer or emitted as JSON for automation.
+Choose `syu browse --non-interactive` when you want the browse snapshot in text or JSON: workspace metadata, per-layer counts, grouped items, and the current validation errors.
+Choose `syu list` when you want list-shaped output that can be narrowed to one layer.
 
 Examples:
   syu browse .
   syu browse . --non-interactive
+  syu browse . --non-interactive --format json
 ";
 
 const SEARCH_AFTER_HELP: &str = "\
@@ -107,6 +109,7 @@ const LOG_AFTER_HELP: &str = "\
 Examples:
   syu log REQ-CORE-002
   syu log FEAT-CHECK-001 --kind implementation --path src/command
+  syu log REQ-CORE-024 --include-related --merge-base-ref origin/main
   syu log REQ-CORE-019 --format json";
 
 const RELATE_AFTER_HELP: &str = "\
@@ -213,6 +216,10 @@ pub struct BrowseArgs {
     /// Useful in CI pipelines and scripts.
     #[arg(long, action = ArgAction::SetTrue)]
     pub non_interactive: bool,
+
+    #[arg(help = "Output format for non-interactive browse snapshots")]
+    #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
+    pub format: OutputFormat,
 }
 
 impl Default for BrowseArgs {
@@ -220,6 +227,7 @@ impl Default for BrowseArgs {
         Self {
             workspace: PathBuf::from("."),
             non_interactive: false,
+            format: OutputFormat::Text,
         }
     }
 }
@@ -342,6 +350,18 @@ pub struct LogArgs {
     #[arg(help = "Limit traced paths to one repository-relative file or directory prefix")]
     #[arg(long, value_name = "PATH")]
     pub path: Option<PathBuf>,
+
+    #[arg(help = "Also include related spec definitions and traces from `syu relate`")]
+    #[arg(long)]
+    pub include_related: bool,
+
+    #[arg(help = "Limit history to commits after the merge-base between HEAD and the given ref")]
+    #[arg(long, value_name = "REF", conflicts_with = "range")]
+    pub merge_base_ref: Option<String>,
+
+    #[arg(help = "Limit history to an explicit git revision range such as origin/main..HEAD")]
+    #[arg(long, value_name = "RANGE", conflicts_with = "merge_base_ref")]
+    pub range: Option<String>,
 
     #[arg(help = "Maximum number of matching commits to show")]
     #[arg(long, default_value_t = 20)]
@@ -625,6 +645,8 @@ pub enum StarterTemplate {
     PythonOnly,
     GoOnly,
     JavaOnly,
+    #[value(name = "typescript-only")]
+    TypeScriptOnly,
     Polyglot,
 }
 
@@ -637,6 +659,7 @@ impl StarterTemplate {
             Self::PythonOnly => "python-only",
             Self::GoOnly => "go-only",
             Self::JavaOnly => "java-only",
+            Self::TypeScriptOnly => "typescript-only",
             Self::Polyglot => "polyglot",
         }
     }
@@ -703,6 +726,7 @@ mod tests {
         assert_eq!(StarterTemplate::PythonOnly.label(), "python-only");
         assert_eq!(StarterTemplate::GoOnly.label(), "go-only");
         assert_eq!(StarterTemplate::JavaOnly.label(), "java-only");
+        assert_eq!(StarterTemplate::TypeScriptOnly.label(), "typescript-only");
         assert_eq!(StarterTemplate::Polyglot.label(), "polyglot");
         assert_eq!(ValidationSeverityFilter::Error.as_str(), "error");
         assert_eq!(ValidationSeverityFilter::Warning.as_str(), "warning");
