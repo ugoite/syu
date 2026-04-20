@@ -46,6 +46,18 @@ checkout.
 Run branch 1 for every change. Then add any later branches below that also
 match your change:
 
+If you want one entrypoint that prepares the optional local Node surfaces first,
+run:
+
+```bash
+scripts/ci/bootstrap-contributor-tooling.sh
+```
+
+That default path installs the browser-app and docs-site dependencies together.
+Add `--vscode` when you are working on `editors/vscode/`, `--playwright` when
+you want local end-to-end browser coverage, or `--all` when you want every
+checked-in optional npm surface ready at once.
+
 1. **Every change**
 
    ```bash
@@ -90,10 +102,16 @@ match your change:
    Outside the devcontainer, or when you only need the raw follow-up steps,
    install the browser app dependencies with:
 
-   ```bash
-   scripts/ci/pinned-npm.sh install app
-   npm --prefix app ci
-   ```
+    ```bash
+    scripts/ci/pinned-npm.sh install app
+    npm --prefix app ci
+    ```
+
+    Or prepare the same app dependencies together with the docs site through:
+
+    ```bash
+    scripts/ci/bootstrap-contributor-tooling.sh --app
+    ```
 
    Normal Cargo-driven builds no longer run that install step for you. If the
    embedded browser app dependencies are missing or stale, `build.rs` stops and
@@ -143,9 +161,15 @@ match your change:
    then runs the docs-site install/build sequence below. Install the docs-site
    dependencies first when you need the raw follow-up steps only:
 
-   ```bash
-   bash scripts/ci/install-docs-site-deps.sh
-   ```
+    ```bash
+    bash scripts/ci/install-docs-site-deps.sh
+    ```
+
+    Or prepare the docs site together with the browser-app defaults through:
+
+    ```bash
+    scripts/ci/bootstrap-contributor-tooling.sh --website
+    ```
 
    The script removes `website/node_modules` before reinstalling so repeated
    runs stay deterministic across branch switches and reused worktrees. The raw

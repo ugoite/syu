@@ -740,6 +740,12 @@ scripts/ci/pinned-npm.sh install app
 npm --prefix app ci
 ```
 
+If you also want the docs-site tooling ready in the same pass, use:
+
+```bash
+scripts/ci/bootstrap-contributor-tooling.sh
+```
+
 Cargo no longer runs `npm ci` for you during normal builds. If `app/node_modules`
 is missing or stale, `build.rs` stops and points back to the commands above so
 offline, hermetic, and security-sensitive environments do not hide a networked
@@ -771,6 +777,13 @@ installs follow the same pinned npm flow CI uses:
 ```bash
 bash scripts/ci/install-docs-site-deps.sh
 npm --prefix website run start
+```
+
+That same contributor bootstrap installs the docs-site dependencies plus the
+browser-app dependencies together:
+
+```bash
+scripts/ci/bootstrap-contributor-tooling.sh
 ```
 
 The install script removes `website/node_modules` first so repeated docs-site

@@ -162,6 +162,7 @@ description: "Generated reference for docs/syu/requirements/core/repository.yaml
   - **linked_features**:
     - FEAT-CONTRIB-002
     - FEAT-CONTRIB-003
+    - FEAT-CONTRIB-004
   - **tests**:
     - **rust**:
       - **file**: tests/repository_quality.rs
@@ -335,6 +336,7 @@ requirements:
     linked_features:
       - FEAT-CONTRIB-002
       - FEAT-CONTRIB-003
+      - FEAT-CONTRIB-004
     tests:
       rust:
         - file: tests/repository_quality.rs
