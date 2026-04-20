@@ -30,19 +30,12 @@ pointing at some other major. Treat the checked-in `.nvmrc` files as the source
 of truth for contributor tasks instead of assuming the current shell is already
 correct.
 
-When you switch tasks, switch Node first. Run the one command that matches the
-surface you are about to touch instead of pasting all three in sequence:
+When you switch tasks, switch Node first. Pick the one command that matches the
+surface you are about to touch:
 
-```bash
-# Browser app work
-nvm use "$(cat app/.nvmrc)"
-
-# Docs-site work
-nvm use "$(cat website/.nvmrc)"
-
-# VS Code extension work
-nvm use "$(cat editors/vscode/.nvmrc)"
-```
+- Browser app: `nvm use "$(cat app/.nvmrc)"`
+- Docs site: `nvm use "$(cat website/.nvmrc)"`
+- VS Code extension: `nvm use "$(cat editors/vscode/.nvmrc)"`
 
 `fnm`, `Volta`, or another version manager are equally fine; the important part
 is matching the checked-in major for the surface you are about to touch.
