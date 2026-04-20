@@ -697,6 +697,8 @@ fn repository_declares_documentation_guides() {
     assert!(docs_home.contains("Four specification layers"));
     assert!(docs_home.contains("Common journeys"));
     assert!(docs_home.contains("Stay close to checked-in source"));
+    assert!(docs_home.contains("Keep a command card open"));
+    assert!(docs_home.contains("/docs/guide/command-card"));
     assert!(docs_home.contains("Follow a full tutorial"));
     assert!(docs_home.contains("Troubleshoot a broken workspace"));
     assert!(docs_home.contains("Stay in VS Code"));
