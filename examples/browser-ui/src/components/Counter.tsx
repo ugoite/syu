@@ -17,7 +17,7 @@ export function Counter() {
       <p data-testid="count-display">Count: {count}</p>
       <button
         data-testid="increment-button"
-        onClick={() => setCount(count + 1)}
+        onClick={() => setCount((currentCount) => currentCount + 1)}
       >
         Increment
       </button>
