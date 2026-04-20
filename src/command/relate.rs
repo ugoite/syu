@@ -112,6 +112,7 @@ enum SelectionKind {
 enum SelectionSource {
     Definition { kind: LookupKind, id: String },
     Path { path: String },
+    RangePaths { paths: Vec<String> },
     Symbol { symbol: String },
 }
 
@@ -207,8 +208,11 @@ fn run_relate_range(workspace: &Workspace, range: &str, format: OutputFormat) ->
         traces: collect_related_traces(
             workspace,
             &expanded_ids,
-            &SelectionSource::Path {
-                path: "multiple files".to_string(),
+            &SelectionSource::RangePaths {
+                paths: changed_files
+                    .iter()
+                    .map(|path| path.display().to_string())
+                    .collect(),
             },
         ),
         gaps: collect_gaps(workspace, &expanded_ids),
@@ -1046,6 +1050,9 @@ fn trace_is_direct_match(
                 )
         }
         SelectionSource::Path { path } => reference.file.display().to_string() == *path,
+        SelectionSource::RangePaths { paths } => paths
+            .iter()
+            .any(|path| reference.file.display().to_string() == *path),
         SelectionSource::Symbol { symbol } => reference
             .symbols
             .iter()
@@ -1127,6 +1134,14 @@ mod tests {
         assert!(trace_is_direct_match(
             &SelectionSource::Path {
                 path: "src/command/relate.rs".to_string(),
+            },
+            "feature",
+            "FEAT-RELATE-001",
+            &reference,
+        ));
+        assert!(trace_is_direct_match(
+            &SelectionSource::RangePaths {
+                paths: vec!["src/command/relate.rs".to_string(), "src/other.rs".to_string()],
             },
             "feature",
             "FEAT-RELATE-001",
