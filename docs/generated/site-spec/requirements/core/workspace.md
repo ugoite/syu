@@ -350,11 +350,18 @@ description: "Generated reference for docs/syu/requirements/core/workspace.yaml"
     - POL-005
   - **linked_features**:
     - FEAT-VSCODE-001
+    - FEAT-VSCODE-002
   - **tests**:
     - **rust**:
       - **file**: tests/repository_quality.rs
         - **symbols**:
           - repository_ships_vscode_extension
+      - **file**: tests/lsp_tests.rs
+        - **symbols**:
+          - *
+      - **file**: src/lsp/handlers.rs
+        - **symbols**:
+          - *
     - **javascript**:
       - **file**: editors/vscode/test/model.test.js
         - **symbols**:
@@ -758,11 +765,18 @@ requirements:
       - POL-005
     linked_features:
       - FEAT-VSCODE-001
+      - FEAT-VSCODE-002
     tests:
       rust:
         - file: tests/repository_quality.rs
           symbols:
             - repository_ships_vscode_extension
+        - file: tests/lsp_tests.rs
+          symbols:
+            - '*'
+        - file: src/lsp/handlers.rs
+          symbols:
+            - '*'
       javascript:
         - file: editors/vscode/test/model.test.js
           symbols:
