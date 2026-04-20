@@ -67,10 +67,6 @@ fn emit_watch_recursive(path: &Path) {
     }
 }
 
-fn npm_executable() -> &'static str {
-    if cfg!(windows) { "npm.cmd" } else { "npm" }
-}
-
 fn pinned_npm_script(manifest_dir: &Path) -> PathBuf {
     manifest_dir
         .join("scripts")
@@ -160,14 +156,22 @@ fn needs_npm_ci(app_dir: &Path) -> bool {
 }
 
 fn run_npm(
+    manifest_dir: &Path,
     app_dir: &Path,
+    package_dir: &str,
     args: &[String],
     action: &str,
     extra_env: &[(&str, String)],
 ) -> Result<(), String> {
-    let mut command = Command::new(npm_executable());
-    command.args(args);
-    let command_display = format!("{} {}", npm_executable(), args.join(" "));
+    let script = pinned_npm_script(manifest_dir);
+    let mut command = Command::new(&script);
+    command.arg("exec").arg(package_dir).arg("--").args(args);
+    let command_display = format!(
+        "{} exec {} -- {}",
+        script.display(),
+        package_dir,
+        args.join(" ")
+    );
 
     let status = command
         .current_dir(app_dir)
@@ -226,7 +230,9 @@ fn rebuild_browser_wasm_bindings(manifest_dir: &Path, app_dir: &Path) -> Result<
         .into_owned();
 
     run_npm(
+        manifest_dir,
         app_dir,
+        "app",
         &[String::from("run"), String::from("build:wasm")],
         "generate the browser app Wasm bridge",
         &[("CARGO_TARGET_DIR", wasm_target_dir)],
@@ -240,7 +246,9 @@ fn build_browser_bundle(app_dir: &Path, out_dir: &Path) -> Result<(), String> {
 
     let out_dir_arg = out_dir.to_string_lossy().into_owned();
     run_npm(
+        app_dir.parent().unwrap_or(app_dir),
         app_dir,
+        "app",
         &[
             String::from("run"),
             String::from("build"),
