@@ -3,6 +3,7 @@
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::fmt;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -52,6 +53,53 @@ pub(crate) struct ResponseError {
     pub message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<Value>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct LspError {
+    pub code: i32,
+    pub message: String,
+}
+
+impl LspError {
+    pub(crate) fn invalid_params(message: impl Into<String>) -> Self {
+        Self {
+            code: error_codes::INVALID_PARAMS,
+            message: message.into(),
+        }
+    }
+
+    pub(crate) fn method_not_found(method: impl Into<String>) -> Self {
+        Self {
+            code: error_codes::METHOD_NOT_FOUND,
+            message: format!("method not found: {}", method.into()),
+        }
+    }
+
+    pub(crate) fn internal(message: impl Into<String>) -> Self {
+        Self {
+            code: error_codes::INTERNAL_ERROR,
+            message: message.into(),
+        }
+    }
+}
+
+impl fmt::Display for LspError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for LspError {}
+
+impl From<LspError> for ResponseError {
+    fn from(value: LspError) -> Self {
+        Self {
+            code: value.code,
+            message: value.message,
+            data: None,
+        }
+    }
 }
 
 #[allow(dead_code)]
@@ -135,12 +183,21 @@ impl MarkupContent {
 
 #[cfg(test)]
 mod tests {
-    use super::MarkupContent;
+    use super::{LspError, MarkupContent, ResponseError, error_codes};
 
     #[test]
     fn markdown_content_uses_markdown_kind() {
         let content = MarkupContent::markdown("hello".to_string());
         assert_eq!(content.kind, "markdown");
         assert_eq!(content.value, "hello");
+    }
+
+    #[test]
+    fn lsp_error_converts_to_response_error() {
+        let error = LspError::invalid_params("bad input");
+        let response: ResponseError = error.into();
+        assert_eq!(response.code, error_codes::INVALID_PARAMS);
+        assert_eq!(response.message, "bad input");
+        assert!(response.data.is_none());
     }
 }

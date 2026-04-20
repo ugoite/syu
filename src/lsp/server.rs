@@ -2,10 +2,11 @@
 // REQ-CORE-001
 
 use anyhow::{Context, Result};
+use serde::de::DeserializeOwned;
 use std::io::{BufRead, BufReader, Write};
 
 use super::handlers::LspHandlers;
-use super::protocol::{Message, Notification, Request, Response, ResponseError};
+use super::protocol::{LspError, Message, Notification, Request, Response, ResponseError};
 
 pub(crate) struct LspServer {
     handlers: LspHandlers,
@@ -95,25 +96,27 @@ impl LspServer {
     }
 
     fn handle_request(&mut self, request: Request) -> Result<Response> {
-        let result = match request.method.as_str() {
+        let result: std::result::Result<serde_json::Value, LspError> = match request.method.as_str()
+        {
             "initialize" => {
-                let params = request
-                    .params
-                    .map(serde_json::from_value)
-                    .transpose()?
-                    .unwrap_or_default();
+                let params = parse_optional_params(request.params);
+                let params = match params {
+                    Ok(value) => value,
+                    Err(error) => return Ok(error_response(request.id, error)),
+                };
                 self.handlers.handle_initialize(params)
             }
             "shutdown" => self.handlers.handle_shutdown(),
             "textDocument/hover" => {
-                let params = request
-                    .params
-                    .ok_or_else(|| anyhow::anyhow!("missing params"))?;
-                let params = serde_json::from_value(params)?;
+                let params = parse_required_params(request.params);
+                let params = match params {
+                    Ok(value) => value,
+                    Err(error) => return Ok(error_response(request.id, error)),
+                };
                 let hover = self.handlers.handle_hover(params)?;
-                Ok(serde_json::to_value(hover)?)
+                serde_json::to_value(hover).map_err(|error| LspError::internal(error.to_string()))
             }
-            _ => Err(anyhow::anyhow!("method not found: {}", request.method)),
+            _ => Err(LspError::method_not_found(request.method)),
         };
 
         match result {
@@ -123,16 +126,7 @@ impl LspServer {
                 result: Some(value),
                 error: None,
             }),
-            Err(e) => Ok(Response {
-                jsonrpc: "2.0".to_string(),
-                id: request.id,
-                result: None,
-                error: Some(ResponseError {
-                    code: super::protocol::error_codes::INTERNAL_ERROR,
-                    message: e.to_string(),
-                    data: None,
-                }),
-            }),
+            Err(e) => Ok(error_response(request.id, e)),
         }
     }
 
@@ -146,6 +140,34 @@ impl LspServer {
         }
         Ok(())
     }
+}
+
+fn error_response(id: super::protocol::RequestId, error: LspError) -> Response {
+    Response {
+        jsonrpc: "2.0".to_string(),
+        id,
+        result: None,
+        error: Some(ResponseError::from(error)),
+    }
+}
+
+fn parse_optional_params<T>(params: Option<serde_json::Value>) -> std::result::Result<T, LspError>
+where
+    T: DeserializeOwned + Default,
+{
+    params
+        .map(serde_json::from_value)
+        .transpose()
+        .map_err(|error| LspError::invalid_params(error.to_string()))
+        .map(Option::unwrap_or_default)
+}
+
+fn parse_required_params<T>(params: Option<serde_json::Value>) -> std::result::Result<T, LspError>
+where
+    T: DeserializeOwned,
+{
+    let params = params.ok_or_else(|| LspError::invalid_params("missing params"))?;
+    serde_json::from_value(params).map_err(|error| LspError::invalid_params(error.to_string()))
 }
 
 #[cfg(test)]
@@ -237,24 +259,52 @@ mod tests {
             })
             .expect("request should produce response");
         assert!(response.result.is_none());
+        let error = response.error.expect("error response");
         assert_eq!(
-            response.error.expect("error response").message,
-            "method not found: workspace/unknown"
+            error.code,
+            super::super::protocol::error_codes::METHOD_NOT_FOUND
         );
+        assert_eq!(error.message, "method not found: workspace/unknown");
     }
 
     #[test]
     fn handle_request_returns_error_when_hover_params_are_missing() {
         let mut server = LspServer::new();
-        let error = server
+        let response = server
             .handle_request(Request {
                 jsonrpc: "2.0".to_string(),
                 id: super::super::protocol::RequestId::Number(2),
                 method: "textDocument/hover".to_string(),
                 params: None,
             })
-            .expect_err("missing params should fail before a response is built");
-        assert!(error.to_string().contains("missing params"));
+            .expect("missing params should produce an error response");
+        let error = response.error.expect("error response");
+        assert_eq!(
+            error.code,
+            super::super::protocol::error_codes::INVALID_PARAMS
+        );
+        assert_eq!(error.message, "missing params");
+    }
+
+    #[test]
+    fn handle_request_returns_invalid_params_for_bad_initialize_uri() {
+        let mut server = LspServer::new();
+        let response = server
+            .handle_request(Request {
+                jsonrpc: "2.0".to_string(),
+                id: super::super::protocol::RequestId::Number(3),
+                method: "initialize".to_string(),
+                params: Some(json!({
+                    "rootUri": "file://%"
+                })),
+            })
+            .expect("bad params should produce an error response");
+        let error = response.error.expect("error response");
+        assert_eq!(
+            error.code,
+            super::super::protocol::error_codes::INVALID_PARAMS
+        );
+        assert!(error.message.contains("invalid file URI"));
     }
 
     #[test]

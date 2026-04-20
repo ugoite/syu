@@ -1,16 +1,16 @@
 // FEAT-LSP-001
 // REQ-CORE-001
 
-use anyhow::{Result, bail};
 use regex::Regex;
 use serde_json::Value;
-use std::path::Path;
+use std::path::PathBuf;
 use std::sync::LazyLock;
+use url::Url;
 
 use crate::workspace::{Workspace, load_workspace};
 
 use super::protocol::{
-    Hover, InitializeParams, InitializeResult, MarkupContent, ServerCapabilities,
+    Hover, InitializeParams, InitializeResult, LspError, MarkupContent, ServerCapabilities,
     TextDocumentPositionParams,
 };
 
@@ -27,14 +27,19 @@ impl LspHandlers {
         }
     }
 
-    pub(crate) fn handle_initialize(&mut self, params: InitializeParams) -> Result<Value> {
+    pub(crate) fn handle_initialize(
+        &mut self,
+        params: InitializeParams,
+    ) -> Result<Value, LspError> {
         let root_path = if let Some(root_uri) = params.root_uri {
             uri_to_path(&root_uri)?
         } else {
-            std::env::current_dir()?
+            std::env::current_dir().map_err(|error| LspError::internal(error.to_string()))?
         };
 
-        self.workspace = Some(load_workspace(&root_path)?);
+        self.workspace = Some(
+            load_workspace(&root_path).map_err(|error| LspError::internal(error.to_string()))?,
+        );
 
         let result = InitializeResult {
             capabilities: ServerCapabilities {
@@ -42,29 +47,33 @@ impl LspHandlers {
             },
         };
 
-        Ok(serde_json::to_value(result)?)
+        serde_json::to_value(result).map_err(|error| LspError::internal(error.to_string()))
     }
 
-    pub(crate) fn handle_initialized(&mut self) -> Result<()> {
+    pub(crate) fn handle_initialized(&mut self) -> Result<(), LspError> {
         self.initialized = true;
         Ok(())
     }
 
-    pub(crate) fn handle_shutdown(&mut self) -> Result<Value> {
+    pub(crate) fn handle_shutdown(&mut self) -> Result<Value, LspError> {
         self.initialized = false;
         Ok(Value::Null)
     }
 
-    pub(crate) fn handle_hover(&self, params: TextDocumentPositionParams) -> Result<Option<Hover>> {
+    pub(crate) fn handle_hover(
+        &self,
+        params: TextDocumentPositionParams,
+    ) -> Result<Option<Hover>, LspError> {
         let workspace = match &self.workspace {
             Some(ws) => ws,
-            None => bail!("workspace not initialized"),
+            None => return Err(LspError::internal("workspace not initialized")),
         };
 
         let file_path = uri_to_path(&params.text_document.uri)?;
         let line = params.position.line as usize;
 
-        let content = std::fs::read_to_string(&file_path)?;
+        let content = std::fs::read_to_string(&file_path)
+            .map_err(|error| LspError::internal(error.to_string()))?;
         let lines: Vec<&str> = content.lines().collect();
 
         if line >= lines.len() {
@@ -84,11 +93,16 @@ impl LspHandlers {
     }
 }
 
-fn uri_to_path(uri: &str) -> Result<std::path::PathBuf> {
-    if let Some(path_str) = uri.strip_prefix("file://") {
-        Ok(Path::new(path_str).to_path_buf())
+fn uri_to_path(uri: &str) -> Result<PathBuf, LspError> {
+    if uri.starts_with("file://") {
+        let parsed = Url::parse(uri).map_err(|error| {
+            LspError::invalid_params(format!("invalid file URI `{uri}`: {error}"))
+        })?;
+        parsed
+            .to_file_path()
+            .map_err(|()| LspError::invalid_params(format!("unsupported file URI path: {uri}")))
     } else {
-        Ok(Path::new(uri).to_path_buf())
+        Ok(PathBuf::from(uri))
     }
 }
 
@@ -204,6 +218,13 @@ mod tests {
         let uri = "file:///home/user/file.txt";
         let path = uri_to_path(uri).unwrap();
         assert_eq!(path.to_str().unwrap(), "/home/user/file.txt");
+    }
+
+    #[test]
+    fn test_uri_to_path_decodes_percent_encoding() {
+        let uri = "file:///tmp/space%20name.txt";
+        let path = uri_to_path(uri).unwrap();
+        assert_eq!(path.to_str().unwrap(), "/tmp/space name.txt");
     }
 
     #[test]
