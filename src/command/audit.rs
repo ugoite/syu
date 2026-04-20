@@ -183,6 +183,7 @@ fn tension_findings(workspace: &Workspace) -> Vec<AuditFinding> {
             .iter()
             .filter(|requirement| feature.linked_requirements.contains(&requirement.id))
         {
+            let requirement_terms = requirement_terms(requirement);
             for policy in workspace
                 .policies
                 .iter()
@@ -192,6 +193,13 @@ fn tension_findings(workspace: &Workspace) -> Vec<AuditFinding> {
                 if let Some((feature_term, policy_term)) =
                     first_opposing_term_pair(&feature_terms, &policy_terms)
                 {
+                    if linked_requirement_explicitly_scopes_term_pair(
+                        &requirement_terms,
+                        feature_term,
+                        policy_term,
+                    ) {
+                        continue;
+                    }
                     let mut related_ids = vec![
                         feature.id.clone(),
                         requirement.id.clone(),
@@ -217,6 +225,14 @@ fn tension_findings(workspace: &Workspace) -> Vec<AuditFinding> {
         }
     }
     findings
+}
+
+fn linked_requirement_explicitly_scopes_term_pair(
+    requirement_terms: &HashSet<String>,
+    left_term: &str,
+    right_term: &str,
+) -> bool {
+    requirement_terms.contains(left_term) && requirement_terms.contains(right_term)
 }
 
 fn orphaned_policy_findings(
@@ -313,7 +329,8 @@ fn first_opposing_term_pair<'a>(
 #[cfg(test)]
 mod tests {
     use super::{
-        AuditFindingKind, first_opposing_term_pair, jaccard_score, orphaned_policy_findings,
+        AuditFindingKind, first_opposing_term_pair, jaccard_score,
+        linked_requirement_explicitly_scopes_term_pair, orphaned_policy_findings,
         render_text_results, tension_findings, tokenize,
     };
     use crate::{
@@ -357,6 +374,25 @@ mod tests {
             first_opposing_term_pair(&left, &right),
             Some(("automatic", "manual"))
         );
+    }
+
+    #[test]
+    fn linked_requirement_terms_can_suppress_known_surface_pairs() {
+        let requirement_terms = HashSet::from([
+            "browser".to_string(),
+            "terminal".to_string(),
+            "workflow".to_string(),
+        ]);
+        assert!(linked_requirement_explicitly_scopes_term_pair(
+            &requirement_terms,
+            "browser",
+            "terminal",
+        ));
+        assert!(!linked_requirement_explicitly_scopes_term_pair(
+            &requirement_terms,
+            "manual",
+            "automatic",
+        ));
     }
 
     #[test]
@@ -428,6 +464,53 @@ mod tests {
                 id: "FEAT-001".to_string(),
                 title: "and the".to_string(),
                 summary: "to of in".to_string(),
+                status: "implemented".to_string(),
+                linked_requirements: vec!["REQ-001".to_string()],
+                implementations: BTreeMap::new(),
+            }],
+        };
+
+        assert!(tension_findings(&workspace).is_empty());
+    }
+
+    #[test]
+    fn skips_tension_when_requirement_already_names_both_surface_terms() {
+        let workspace = Workspace {
+            root: PathBuf::from("."),
+            spec_root: PathBuf::from("docs/syu"),
+            config: crate::config::SyuConfig::default(),
+            philosophies: vec![Philosophy {
+                id: "PHIL-001".to_string(),
+                title: "Support both surfaces".to_string(),
+                product_design_principle: "Keep browser and terminal workflows equally explorable."
+                    .to_string(),
+                coding_guideline: "Prefer explicit surface hand-offs.".to_string(),
+                linked_policies: vec!["POL-001".to_string()],
+            }],
+            policies: vec![Policy {
+                id: "POL-001".to_string(),
+                title: "Keep the terminal review flow healthy".to_string(),
+                summary: "Terminal review flow should stay easy to navigate.".to_string(),
+                description: "Terminal review flow should remain a first-class surface.".to_string(),
+                linked_philosophies: vec!["PHIL-001".to_string()],
+                linked_requirements: vec!["REQ-001".to_string()],
+            }],
+            requirements: vec![Requirement {
+                id: "REQ-001".to_string(),
+                title: "Bridge browser and terminal review workflows".to_string(),
+                description:
+                    "Reviewers should be able to move between browser and terminal workflows without losing context."
+                        .to_string(),
+                priority: "medium".to_string(),
+                status: "implemented".to_string(),
+                linked_policies: vec!["POL-001".to_string()],
+                linked_features: vec!["FEAT-001".to_string()],
+                tests: BTreeMap::new(),
+            }],
+            features: vec![Feature {
+                id: "FEAT-001".to_string(),
+                title: "Browser review overview".to_string(),
+                summary: "Browser review overview keeps linked context visible.".to_string(),
                 status: "implemented".to_string(),
                 linked_requirements: vec!["REQ-001".to_string()],
                 implementations: BTreeMap::new(),
