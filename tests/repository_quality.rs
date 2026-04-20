@@ -800,6 +800,8 @@ fn repository_ships_example_workspaces() {
     let typescript_example_config = read_file("examples/typescript-only/syu.yaml");
     let typescript_example_requirement =
         read_file("examples/typescript-only/docs/syu/requirements/core/typescript.yaml");
+    let typescript_example_nvmrc = read_file("examples/typescript-only/.nvmrc");
+    let typescript_example_package = read_file("examples/typescript-only/package.json");
     let typescript_example_readme = read_file("examples/typescript-only/README.md");
     let polyglot_config = read_file("examples/polyglot/syu.yaml");
     let polyglot_feature = read_file("examples/polyglot/docs/syu/features/languages/polyglot.yaml");
@@ -844,8 +846,11 @@ fn repository_ships_example_workspaces() {
     assert!(java_example_readme.contains("JavaFeatureImpl"));
     assert!(typescript_example_config.contains(&format!("version: {current_version}")));
     assert!(typescript_example_requirement.contains("REQ-TS-001"));
+    assert_eq!(typescript_example_nvmrc.trim(), "20");
+    assert!(typescript_example_package.contains("\"node\": \">=20 <21\""));
     assert!(typescript_example_readme.contains("typescriptRequirementTest"));
     assert!(typescript_example_readme.contains("typescriptFeature"));
+    assert!(typescript_example_readme.contains("nvm use \"$(cat .nvmrc)\""));
     assert!(polyglot_config.contains(&format!("version: {current_version}")));
     assert!(polyglot_feature.contains("FEAT-MIX-001"));
     assert!(polyglot_feature.contains("status: implemented"));

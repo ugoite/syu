@@ -261,6 +261,7 @@ fn init_command_bootstraps_language_templates_that_validate_accept() {
             assert!(feature.contains("status: implemented"));
             assert!(feature.contains("JavaFeatureImpl"));
         } else if template == "typescript-only" {
+            assert!(workspace.join(".nvmrc").exists(), "missing .nvmrc");
             assert!(
                 workspace.join("package.json").exists(),
                 "missing package.json"
@@ -280,6 +281,7 @@ fn init_command_bootstraps_language_templates_that_validate_accept() {
             let package_json = fs::read_to_string(workspace.join("package.json"))
                 .expect("package.json should exist");
             assert!(package_json.contains("\"name\": \"typescript-only\""));
+            assert!(package_json.contains("\"node\": \">=20 <21\""));
             assert!(package_json.contains("\"packageManager\": \"npm@11.8.0\""));
             assert!(requirement.contains("status: implemented"));
             assert!(requirement.contains("typescriptRequirementTest"));

@@ -686,6 +686,7 @@ fn starter_source_files(project_name: &str, template: StarterTemplate) -> Vec<(S
             ),
         ],
         StarterTemplate::TypeScriptOnly => vec![
+            (".nvmrc".to_string(), "20\n".to_string()),
             ("package.json".to_string(), render_typescript_package_file(project_name)),
             (
                 "tsconfig.json".to_string(),
@@ -720,7 +721,7 @@ fn render_java_pom_file(project_name: &str) -> String {
 
 fn render_typescript_package_file(project_name: &str) -> String {
     format!(
-        "{{\n  \"name\": \"{}\",\n  \"private\": true,\n  \"type\": \"module\",\n  \"scripts\": {{\n    \"test\": \"node --import tsx --test src/app.test.ts\"\n  }},\n  \"devDependencies\": {{\n    \"tsx\": \"^4.20.6\",\n    \"typescript\": \"^5.9.3\"\n  }},\n  \"packageManager\": \"npm@11.8.0\"\n}}\n",
+        "{{\n  \"name\": \"{}\",\n  \"private\": true,\n  \"type\": \"module\",\n  \"engines\": {{\n    \"node\": \">=20 <21\"\n  }},\n  \"scripts\": {{\n    \"test\": \"node --import tsx --test src/app.test.ts\"\n  }},\n  \"devDependencies\": {{\n    \"tsx\": \"^4.20.6\",\n    \"typescript\": \"^5.9.3\"\n  }},\n  \"packageManager\": \"npm@11.8.0\"\n}}\n",
         project_slug(project_name)
     )
 }

@@ -4,10 +4,10 @@ This example demonstrates a minimal TypeScript-first workspace using the built-i
 TypeScript trace adapter.
 
 It contains one philosophy, one policy, one requirement, and one feature, plus
-one `package.json`, one TypeScript source file, and one Node-backed TypeScript
-test file. It keeps the traced symbol names explicit in JSDoc, but the current
-starter only relies on symbol existence checks so the first TypeScript workflow
-stays honest with what the validator enforces today.
+one `package.json`, one checked-in `.nvmrc`, one TypeScript source file, and one
+Node-backed TypeScript test file. It keeps the traced symbol names explicit in
+JSDoc, but the current starter only relies on symbol existence checks so the
+first TypeScript workflow stays honest with what the validator enforces today.
 
 This workspace matches the built-in `syu init --template typescript-only`
 starter, so you can either inspect the checked-in example first or generate the
@@ -21,7 +21,8 @@ same shape directly in your own repository.
 | `docs/syu/policies/policies.yaml` | `POL-TS-001` linked to `PHIL-TS-001` |
 | `docs/syu/requirements/core/typescript.yaml` | `REQ-TS-001` with a TypeScript test trace |
 | `docs/syu/features/languages/typescript.yaml` | `FEAT-TS-001` with a TypeScript implementation trace |
-| `package.json` | Minimal npm metadata plus a `npm test` script |
+| `.nvmrc` | Pins the starter to the checked-in Node 20 runtime |
+| `package.json` | Minimal npm metadata, a checked-in Node engine, and a `npm test` script |
 | `tsconfig.json` | TypeScript compiler settings for the starter files |
 | `src/app.ts` | TypeScript source file containing `typescriptFeature` |
 | `src/app.test.ts` | TypeScript test file containing `typescriptRequirementTest` |
@@ -31,6 +32,7 @@ same shape directly in your own repository.
 
 ```bash
 cd examples/typescript-only
+nvm use "$(cat .nvmrc)"
 npm install
 npm test
 syu validate .
@@ -61,6 +63,9 @@ traceability: requirements=1/1 traces validated; features=1/1 traces validated
 
 - **TypeScript files are traced directly** — the requirement and feature point
   at real `.ts` files instead of a lighter file-only fallback.
+- **Runtime expectations are checked in** — `.nvmrc` and `package.json#engines`
+  both point at Node 20 so the first `npm install` does not depend on shell
+  guesswork.
 - **JSDoc keeps the IDs obvious** — both traced symbols still carry the stable
   spec ID even though validation currently keys off the traced symbol names.
 - **The example stays small** — there is no bundler or frontend framework yet,
