@@ -359,7 +359,13 @@ description: "Generated reference for docs/syu/requirements/core/workspace.yaml"
       - **file**: tests/lsp_tests.rs
         - **symbols**:
           - *
+      - **file**: src/lsp/server.rs
+        - **symbols**:
+          - *
       - **file**: src/lsp/handlers.rs
+        - **symbols**:
+          - *
+      - **file**: src/lsp/protocol.rs
         - **symbols**:
           - *
     - **javascript**:
@@ -774,7 +780,13 @@ requirements:
         - file: tests/lsp_tests.rs
           symbols:
             - '*'
+        - file: src/lsp/server.rs
+          symbols:
+            - '*'
         - file: src/lsp/handlers.rs
+          symbols:
+            - '*'
+        - file: src/lsp/protocol.rs
           symbols:
             - '*'
       javascript:
