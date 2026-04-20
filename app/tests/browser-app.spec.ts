@@ -522,8 +522,10 @@ test("shows a visible banner when a workspace refresh reload fails after the ini
 test("allows a manual refresh and updates the last refresh timestamp after a stale snapshot banner", async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1, name: /^syu\b/i })).toBeVisible();
+  await expect(page.locator("header").getByLabel("Last successful refresh").first()).toBeVisible();
 
   const refreshTimestamp = page.getByLabel("Last successful refresh").first();
   const initialTimestamp = await refreshTimestamp.getAttribute("datetime");

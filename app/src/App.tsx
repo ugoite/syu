@@ -640,6 +640,17 @@ function App() {
               </button>
             </h1>
             <div className="flex items-center gap-3 md:hidden">
+              <div className="text-right text-[11px] text-slate-300">
+                <div className="font-medium text-slate-100">Last refreshed</div>
+                <time
+                  aria-label="Last successful refresh"
+                  className="block text-slate-400"
+                  dateTime={lastSuccessfulRefreshAt ?? ""}
+                  title={lastSuccessfulRefreshAt ?? undefined}
+                >
+                  {lastRefreshLabel}
+                </time>
+              </div>
               <span
                 className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${refreshStateClasses}`}
               >
