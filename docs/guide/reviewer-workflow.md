@@ -27,6 +27,9 @@ command feature:
 You can follow the same flow in any repository by swapping in your own spec ID,
 file path, and symbol name.
 
+If you only need the short-form command reminder while you review, keep the
+[command card](./command-card.md) open alongside this guide.
+
 ## 1. Start from the spec item under review
 
 Open the feature or requirement that the PR says it changed:
@@ -92,6 +95,7 @@ After you know the owning ID and traced files, inspect their recent Git history:
 
 ```bash
 syu log FEAT-CHECK-001 --kind implementation --path src/command
+syu log REQ-CORE-017 --include-related --merge-base-ref origin/main
 ```
 
 Use `syu log` when review needs historical context:
@@ -99,6 +103,8 @@ Use `syu log` when review needs historical context:
 - has this area changed repeatedly in the same way?
 - did a recent commit rename the traced file or symbol?
 - is the PR fixing a regression in a path that already has relevant history?
+- do I need the linked requirement/feature surface, not just one selected ID?
+- what changed on this review branch since it diverged from main?
 
 Treat `syu log` as history for the **currently traced** surface, not proof that
 the whole PR diff is covered. A newly added implementation or test file can be
@@ -115,8 +121,8 @@ syu log REQ-CORE-017 --kind test
 
 ## 5. Close the loop with a focused validation pass
 
-If the PR changes spec files, traced paths, or link structure, run a narrower
-validation pass before the full repository check:
+If the PR changes spec files, traced paths, or link structure, use the normal
+validation commands as a focused review view over the full repository result:
 
 ```bash
 syu validate . --genre trace
@@ -125,7 +131,9 @@ syu validate . --id FEAT-CHECK-001
 
 Use `--genre trace` when you want trace-specific failures first. Use `--id`
 when the review is anchored on one concrete requirement or feature and you want
-the smallest relevant validation slice before expanding outward.
+the output filtered down to that item after the full workspace validation run.
+It is a review-focused view over the collected result, not a smaller or faster
+validation scope.
 
 ## Fast reviewer playbook
 

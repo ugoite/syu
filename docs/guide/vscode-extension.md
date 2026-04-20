@@ -23,10 +23,22 @@ editor protocol later.
 
 ## Run it from source
 
+Switch your shell to the checked-in Node 20 version from
+`editors/vscode/.nvmrc`, then use the pinned npm release from
+`editors/vscode/package.json` to install dependencies from the repository root.
+If you are switching between the extension, the docs site, and the browser app,
+use the [repository Node workflow guide](./node-workflow.md) as the one-place
+runtime map first:
+
+```bash
+nvm use "$(cat editors/vscode/.nvmrc)"
+scripts/ci/pinned-npm.sh install editors/vscode
+npm --prefix editors/vscode ci
+```
+
 1. Open `editors/vscode/` in VS Code.
-2. Run `npm install`.
-3. Press `F5` to start an Extension Development Host.
-4. Open a repository that contains `syu.yaml` or `docs/syu/features/features.yaml`.
+2. Press `F5` to start an Extension Development Host.
+3. Open a repository that contains `syu.yaml` or `docs/syu/features/features.yaml`.
 
 If the `syu` binary is not already on your `PATH`, open VS Code settings and set
 `syu.binaryPath` to the installed CLI.

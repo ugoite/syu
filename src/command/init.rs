@@ -66,7 +66,7 @@ pub(crate) struct StarterTemplateCatalogEntry {
     pub(crate) related_example: Option<&'static str>,
 }
 
-const STARTER_TEMPLATE_CATALOG: [StarterTemplateCatalogEntry; 7] = [
+const STARTER_TEMPLATE_CATALOG: [StarterTemplateCatalogEntry; 9] = [
     StarterTemplateCatalogEntry {
         template: StarterTemplate::Generic,
         name: "generic",
@@ -92,6 +92,12 @@ const STARTER_TEMPLATE_CATALOG: [StarterTemplateCatalogEntry; 7] = [
         related_example: Some("examples/python-only"),
     },
     StarterTemplateCatalogEntry {
+        template: StarterTemplate::RubyOnly,
+        name: "ruby-only",
+        description: "Starter for Ruby-first repos with Ruby-oriented IDs plus a minimal Gemfile, source, and test files.",
+        related_example: Some("examples/ruby-only"),
+    },
+    StarterTemplateCatalogEntry {
         template: StarterTemplate::GoOnly,
         name: "go-only",
         description: "Starter for Go-first repos with Go-oriented IDs plus a minimal go.mod, source, and test files.",
@@ -102,6 +108,12 @@ const STARTER_TEMPLATE_CATALOG: [StarterTemplateCatalogEntry; 7] = [
         name: "java-only",
         description: "Starter for Java-first repos with Java-oriented IDs plus a minimal pom.xml, source, and test files.",
         related_example: Some("examples/java-only"),
+    },
+    StarterTemplateCatalogEntry {
+        template: StarterTemplate::TypeScriptOnly,
+        name: "typescript-only",
+        description: "Starter for TypeScript-first repos with TypeScript-oriented IDs plus a minimal package.json, source, and test files.",
+        related_example: Some("examples/typescript-only"),
     },
     StarterTemplateCatalogEntry {
         template: StarterTemplate::Polyglot,
@@ -344,9 +356,11 @@ fn parse_starter_template_prompt(raw: &str) -> Option<StarterTemplate> {
         "docs" | "docs-first" | "2" => Some(StarterTemplate::DocsFirst),
         "rust" | "rust-only" | "3" => Some(StarterTemplate::RustOnly),
         "python" | "python-only" | "4" => Some(StarterTemplate::PythonOnly),
-        "go" | "go-only" | "5" => Some(StarterTemplate::GoOnly),
-        "java" | "java-only" | "6" => Some(StarterTemplate::JavaOnly),
-        "polyglot" | "mixed" | "7" => Some(StarterTemplate::Polyglot),
+        "ruby" | "ruby-only" | "5" => Some(StarterTemplate::RubyOnly),
+        "go" | "go-only" | "6" => Some(StarterTemplate::GoOnly),
+        "java" | "java-only" | "7" => Some(StarterTemplate::JavaOnly),
+        "typescript" | "typescript-only" | "ts-only" | "8" => Some(StarterTemplate::TypeScriptOnly),
+        "polyglot" | "mixed" | "9" => Some(StarterTemplate::Polyglot),
         _ => None,
     }
 }
@@ -526,6 +540,12 @@ fn default_id_prefixes(template: StarterTemplate) -> StarterIdPrefixes {
             requirement: "REQ-PY".to_string(),
             feature: "FEAT-PY".to_string(),
         },
+        StarterTemplate::RubyOnly => StarterIdPrefixes {
+            philosophy: "PHIL-RB".to_string(),
+            policy: "POL-RB".to_string(),
+            requirement: "REQ-RB".to_string(),
+            feature: "FEAT-RB".to_string(),
+        },
         StarterTemplate::GoOnly => StarterIdPrefixes {
             philosophy: "PHIL-GO".to_string(),
             policy: "POL-GO".to_string(),
@@ -537,6 +557,12 @@ fn default_id_prefixes(template: StarterTemplate) -> StarterIdPrefixes {
             policy: "POL-JAVA".to_string(),
             requirement: "REQ-JAVA".to_string(),
             feature: "FEAT-JAVA".to_string(),
+        },
+        StarterTemplate::TypeScriptOnly => StarterIdPrefixes {
+            philosophy: "PHIL-TS".to_string(),
+            policy: "POL-TS".to_string(),
+            requirement: "REQ-TS".to_string(),
+            feature: "FEAT-TS".to_string(),
         },
         StarterTemplate::Polyglot => StarterIdPrefixes {
             philosophy: "PHIL-MIX".to_string(),
@@ -659,6 +685,19 @@ fn starter_source_files(project_name: &str, template: StarterTemplate) -> Vec<(S
                     .to_string(),
             ),
         ],
+        StarterTemplate::RubyOnly => vec![
+            ("Gemfile".to_string(), render_ruby_gemfile()),
+            (
+                "lib/order_summary.rb".to_string(),
+                "class OrderSummary\n  def ruby_feature_impl\n    \"ruby-only starter\"\n  end\nend\n"
+                    .to_string(),
+            ),
+            (
+                "test/order_summary_test.rb".to_string(),
+                "require \"minitest/autorun\"\nrequire_relative \"../lib/order_summary\"\n\nclass OrderSummaryTest < Minitest::Test\n  def test_ruby_requirement\n    refute_empty OrderSummary.new.ruby_feature_impl\n  end\nend\n"
+                    .to_string(),
+            ),
+        ],
         StarterTemplate::JavaOnly => vec![
             ("pom.xml".to_string(), render_java_pom_file(project_name)),
             (
@@ -672,6 +711,25 @@ fn starter_source_files(project_name: &str, template: StarterTemplate) -> Vec<(S
                     .to_string(),
             ),
         ],
+        StarterTemplate::TypeScriptOnly => vec![
+            (".nvmrc".to_string(), "20\n".to_string()),
+            ("package.json".to_string(), render_typescript_package_file(project_name)),
+            (
+                "tsconfig.json".to_string(),
+                "{\n  \"compilerOptions\": {\n    \"target\": \"ES2022\",\n    \"module\": \"NodeNext\",\n    \"moduleResolution\": \"NodeNext\",\n    \"strict\": true,\n    \"noEmit\": true\n  },\n  \"include\": [\"src/**/*.ts\"]\n}\n"
+                    .to_string(),
+            ),
+            (
+                "src/app.ts".to_string(),
+                "/** FEAT-TS-001 keeps the first TypeScript implementation trace explicit. */\nexport function typescriptFeature(): string {\n  return 'typescript-only starter'\n}\n"
+                    .to_string(),
+            ),
+            (
+                "src/app.test.ts".to_string(),
+                "import assert from 'node:assert/strict'\nimport test from 'node:test'\n\nimport { typescriptFeature } from './app.ts'\n\n/** REQ-TS-001 keeps the first TypeScript test trace explicit. */\ntest('typescriptRequirementTest', () => {\n  assert.notEqual(typescriptFeature(), '')\n})\n"
+                    .to_string(),
+            ),
+        ],
         _ => Vec::new(),
     }
 }
@@ -680,9 +738,20 @@ fn render_go_module_file(project_name: &str) -> String {
     format!("module {}\n\ngo 1.19\n", go_module_path(project_name))
 }
 
+fn render_ruby_gemfile() -> String {
+    "source \"https://rubygems.org\"\n\ngem \"minitest\"\n".to_string()
+}
+
 fn render_java_pom_file(project_name: &str) -> String {
     format!(
         "<project xmlns=\"http://maven.apache.org/POM/4.0.0\"\n         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n         xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd\">\n  <modelVersion>4.0.0</modelVersion>\n  <groupId>example.app</groupId>\n  <artifactId>{}</artifactId>\n  <version>0.1.0-SNAPSHOT</version>\n  <properties>\n    <maven.compiler.source>17</maven.compiler.source>\n    <maven.compiler.target>17</maven.compiler.target>\n    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>\n    <junit.version>5.12.2</junit.version>\n  </properties>\n  <dependencies>\n    <dependency>\n      <groupId>org.junit.jupiter</groupId>\n      <artifactId>junit-jupiter</artifactId>\n      <version>${{junit.version}}</version>\n      <scope>test</scope>\n    </dependency>\n  </dependencies>\n  <build>\n    <plugins>\n      <plugin>\n        <groupId>org.apache.maven.plugins</groupId>\n        <artifactId>maven-surefire-plugin</artifactId>\n        <version>3.5.4</version>\n      </plugin>\n    </plugins>\n  </build>\n</project>\n",
+        project_slug(project_name)
+    )
+}
+
+fn render_typescript_package_file(project_name: &str) -> String {
+    format!(
+        "{{\n  \"name\": \"{}\",\n  \"description\": \"TypeScript-first starter workspace for Node 20.\",\n  \"private\": true,\n  \"type\": \"module\",\n  \"engines\": {{\n    \"node\": \">=20 <21\"\n  }},\n  \"scripts\": {{\n    \"test\": \"node --import tsx --test src/app.test.ts\"\n  }},\n  \"devDependencies\": {{\n    \"@types/node\": \"^24.7.2\",\n    \"tsx\": \"^4.20.6\",\n    \"typescript\": \"^5.9.3\"\n  }},\n  \"packageManager\": \"npm@11.8.0\"\n}}\n",
         project_slug(project_name)
     )
 }
@@ -750,11 +819,17 @@ fn philosophy_template(
         StarterTemplate::PythonOnly => format!(
             "category: Philosophy\nversion: 1\nlanguage: en\n\nphilosophies:\n  - id: {philosophy_id}\n    title: {project_name} should keep Python traces explicit\n    product_design_principle: |\n      The project should keep Python traceability small, reviewable, and easy\n      to understand from docstrings alone.\n    coding_guideline: |\n      Prefer stable IDs and clear docstrings on traced Python symbols from the\n      first requirement onward.\n    linked_policies:\n      - {policy_id}\n"
         ),
+        StarterTemplate::RubyOnly => format!(
+            "category: Philosophy\nversion: 1\nlanguage: en\n\nphilosophies:\n  - id: {philosophy_id}\n    title: {project_name} should keep Ruby traces explicit\n    product_design_principle: |\n      The project should keep Ruby-first traceability small, reviewable, and\n      easy to understand from ordinary class and method names.\n    coding_guideline: |\n      Prefer stable IDs and small Ruby source and test files whose traced\n      symbols stay obvious in review.\n    linked_policies:\n      - {policy_id}\n"
+        ),
         StarterTemplate::GoOnly => format!(
             "category: Philosophy\nversion: 1\nlanguage: en\n\nphilosophies:\n  - id: {philosophy_id}\n    title: {project_name} should keep Go traces explicit from the first commit\n    product_design_principle: |\n      The project should prove that a Go-first repository can adopt `syu`\n      without waiting for a larger multi-language scaffold.\n    coding_guideline: |\n      Prefer stable IDs and small Go starter files whose traced symbols stay\n      obvious in review.\n    linked_policies:\n      - {policy_id}\n"
         ),
         StarterTemplate::JavaOnly => format!(
             "category: Philosophy\nversion: 1\nlanguage: en\n\nphilosophies:\n  - id: {philosophy_id}\n    title: {project_name} should keep Java traces explicit from the first commit\n    product_design_principle: |\n      The project should prove that a Java-first repository can adopt `syu`\n      with real source and test files before deeper framework integration is needed.\n    coding_guideline: |\n      Prefer stable IDs and small Java starter files whose traced symbols stay\n      obvious in review.\n    linked_policies:\n      - {policy_id}\n"
+        ),
+        StarterTemplate::TypeScriptOnly => format!(
+            "category: Philosophy\nversion: 1\nlanguage: en\n\nphilosophies:\n  - id: {philosophy_id}\n    title: {project_name} should keep TypeScript traces explicit from the first commit\n    product_design_principle: |\n      The project should prove that a TypeScript-first repository can adopt `syu`\n      with real source and test files before larger frontend tooling shows up.\n    coding_guideline: |\n      Prefer stable IDs and short JSDoc comments on traced TypeScript symbols from\n      the first requirement onward.\n    linked_policies:\n      - {policy_id}\n"
         ),
         StarterTemplate::Polyglot => format!(
             "category: Philosophy\nversion: 1\nlanguage: en\n\nphilosophies:\n  - id: {philosophy_id}\n    title: {project_name} should keep polyglot traces coherent\n    product_design_principle: |\n      The project should prove that one specification can stay understandable\n      even when implementation and tests span multiple languages.\n    coding_guideline: |\n      Prefer stable IDs and short language-native docs on every traced symbol.\n    linked_policies:\n      - {policy_id}\n"
@@ -784,11 +859,17 @@ fn policy_template(
         StarterTemplate::PythonOnly => format!(
             "category: Policies\nversion: 1\nlanguage: en\n\npolicies:\n  - id: {policy_id}\n    title: Python requirement and feature traces must stay documented in {project_name}\n    summary: Start with a Python-first workflow that stays explicit in docstrings.\n    description: |\n      Python requirement and feature traces should point to symbols whose\n      docstrings carry both the stable ID and a short explanation.\n    linked_philosophies:\n      - {philosophy_id}\n    linked_requirements:\n      - {requirement_id}\n"
         ),
+        StarterTemplate::RubyOnly => format!(
+            "category: Policies\nversion: 1\nlanguage: en\n\npolicies:\n  - id: {policy_id}\n    title: Ruby requirement and feature traces must stay explicit in {project_name}\n    summary: Start with a Ruby-first workflow that keeps the first traced symbols easy to inspect.\n    description: |\n      The starter workspace should include real Ruby source and test files so the\n      first requirement and feature validate against code contributors can open immediately.\n    linked_philosophies:\n      - {philosophy_id}\n    linked_requirements:\n      - {requirement_id}\n"
+        ),
         StarterTemplate::GoOnly => format!(
             "category: Policies\nversion: 1\nlanguage: en\n\npolicies:\n  - id: {policy_id}\n    title: Go requirement and feature traces must stay explicit in {project_name}\n    summary: Start with a Go-first workflow that keeps the first traced symbols easy to inspect.\n    description: |\n      The starter workspace should include real Go source and test files so the\n      first requirement and feature validate against code contributors can open immediately.\n    linked_philosophies:\n      - {philosophy_id}\n    linked_requirements:\n      - {requirement_id}\n"
         ),
         StarterTemplate::JavaOnly => format!(
             "category: Policies\nversion: 1\nlanguage: en\n\npolicies:\n  - id: {policy_id}\n    title: Java requirement and feature traces must stay explicit in {project_name}\n    summary: Start with a Java-first workflow that keeps the first traced symbols easy to inspect.\n    description: |\n      The starter workspace should include real Java source and test files plus\n      a minimal Maven project so the first requirement and feature stay easy to review.\n    linked_philosophies:\n      - {philosophy_id}\n    linked_requirements:\n      - {requirement_id}\n"
+        ),
+        StarterTemplate::TypeScriptOnly => format!(
+            "category: Policies\nversion: 1\nlanguage: en\n\npolicies:\n  - id: {policy_id}\n    title: TypeScript requirement and feature traces must stay explicit in {project_name}\n    summary: Start with a TypeScript-first workflow that keeps the first traced symbols easy to inspect.\n    description: |\n      The starter workspace should include real TypeScript source and test files\n      plus a minimal npm-driven project so the first requirement and feature stay easy to review.\n    linked_philosophies:\n      - {philosophy_id}\n    linked_requirements:\n      - {requirement_id}\n"
         ),
         StarterTemplate::Polyglot => format!(
             "category: Policies\nversion: 1\nlanguage: en\n\npolicies:\n  - id: {policy_id}\n    title: Polyglot requirement and feature traces must stay verifiable in {project_name}\n    summary: Start with one specification flow that can grow across languages.\n    description: |\n      The starter workspace should make it obvious how one requirement and one\n      feature can stay linked even when implementation later spans Rust,\n      Python, and TypeScript.\n    linked_philosophies:\n      - {philosophy_id}\n    linked_requirements:\n      - {requirement_id}\n"
@@ -823,12 +904,20 @@ fn requirement_template(
             "category: Python Requirements\nprefix: {}\n\nrequirements:\n  - id: {requirement_id}\n    title: Bootstrap {project_name} with Python-first trace conventions\n    description: |\n      The project should start with a Python-oriented requirement that can later\n      claim documented Python test symbols without restructuring the workspace.\n    priority: high\n    status: planned\n    linked_policies:\n      - {policy_id}\n    linked_features:\n      - {feature_id}\n    tests: {{}}\n",
             id_prefixes.requirement
         ),
+        StarterTemplate::RubyOnly => format!(
+            "category: Ruby Requirements\nprefix: {}\n\nrequirements:\n  - id: {requirement_id}\n    title: Bootstrap {project_name} with a Ruby-backed requirement trace\n    description: |\n      The project should start with one Ruby test symbol so the first requirement\n      already validates against a real Minitest file.\n    priority: high\n    status: implemented\n    linked_policies:\n      - {policy_id}\n    linked_features:\n      - {feature_id}\n    tests:\n      ruby:\n        - file: test/order_summary_test.rb\n          symbols:\n            - test_ruby_requirement\n",
+            id_prefixes.requirement
+        ),
         StarterTemplate::GoOnly => format!(
             "category: Go Requirements\nprefix: {}\n\nrequirements:\n  - id: {requirement_id}\n    title: Bootstrap {project_name} with a Go-backed requirement trace\n    description: |\n      The project should start with one Go test symbol so the first requirement\n      already validates against a real `_test.go` file.\n    priority: high\n    status: implemented\n    linked_policies:\n      - {policy_id}\n    linked_features:\n      - {feature_id}\n    tests:\n      go:\n        - file: go/app_test.go\n          symbols:\n            - TestGoRequirement\n",
             id_prefixes.requirement
         ),
         StarterTemplate::JavaOnly => format!(
             "category: Java Requirements\nprefix: {}\n\nrequirements:\n  - id: {requirement_id}\n    title: Bootstrap {project_name} with a Java-backed requirement trace\n    description: |\n      The project should start with one JUnit test symbol so the first requirement\n      already validates against a real Java test file.\n    priority: high\n    status: implemented\n    linked_policies:\n      - {policy_id}\n    linked_features:\n      - {feature_id}\n    tests:\n      java:\n        - file: src/test/java/example/app/OrderSummaryTest.java\n          symbols:\n            - JavaRequirementTest\n",
+            id_prefixes.requirement
+        ),
+        StarterTemplate::TypeScriptOnly => format!(
+            "category: TypeScript Requirements\nprefix: {}\n\nrequirements:\n  - id: {requirement_id}\n    title: Bootstrap {project_name} with a TypeScript-backed requirement trace\n    description: |\n      The project should start with one Node-backed TypeScript test symbol so the\n      first requirement already validates against a real `.test.ts` file.\n    priority: high\n    status: implemented\n    linked_policies:\n      - {policy_id}\n    linked_features:\n      - {feature_id}\n    tests:\n      typescript:\n        - file: src/app.test.ts\n          symbols:\n            - typescriptRequirementTest\n",
             id_prefixes.requirement
         ),
         StarterTemplate::Polyglot => format!(
@@ -872,11 +961,17 @@ fn feature_template(
         StarterTemplate::PythonOnly => format!(
             "category: Python Features\nversion: 1\n\nfeatures:\n  - id: {feature_id}\n    title: Bootstrap the {project_name} Python spec workspace\n    summary: Provide a Python-oriented starter structure that contributors can extend.\n    status: planned\n    linked_requirements:\n      - {requirement_id}\n    implementations: {{}}\n"
         ),
+        StarterTemplate::RubyOnly => format!(
+            "category: Ruby Features\nversion: 1\n\nfeatures:\n  - id: {feature_id}\n    title: Bootstrap the {project_name} Ruby spec workspace\n    summary: Provide a Ruby-oriented starter structure with one traced implementation symbol.\n    status: implemented\n    linked_requirements:\n      - {requirement_id}\n    implementations:\n      ruby:\n        - file: lib/order_summary.rb\n          symbols:\n            - ruby_feature_impl\n"
+        ),
         StarterTemplate::GoOnly => format!(
             "category: Go Features\nversion: 1\n\nfeatures:\n  - id: {feature_id}\n    title: Bootstrap the {project_name} Go spec workspace\n    summary: Provide a Go-oriented starter structure with one traced implementation symbol.\n    status: implemented\n    linked_requirements:\n      - {requirement_id}\n    implementations:\n      go:\n        - file: go/app.go\n          symbols:\n            - GoFeatureImpl\n"
         ),
         StarterTemplate::JavaOnly => format!(
             "category: Java Features\nversion: 1\n\nfeatures:\n  - id: {feature_id}\n    title: Bootstrap the {project_name} Java spec workspace\n    summary: Provide a Java-oriented starter structure with one traced implementation symbol.\n    status: implemented\n    linked_requirements:\n      - {requirement_id}\n    implementations:\n      java:\n        - file: src/main/java/example/app/OrderSummary.java\n          symbols:\n            - JavaFeatureImpl\n"
+        ),
+        StarterTemplate::TypeScriptOnly => format!(
+            "category: TypeScript Features\nversion: 1\n\nfeatures:\n  - id: {feature_id}\n    title: Bootstrap the {project_name} TypeScript spec workspace\n    summary: Provide a TypeScript-oriented starter structure with one traced implementation symbol.\n    status: implemented\n    linked_requirements:\n      - {requirement_id}\n    implementations:\n      typescript:\n        - file: src/app.ts\n          symbols:\n            - typescriptFeature\n"
         ),
         StarterTemplate::Polyglot => format!(
             "category: Polyglot Features\nversion: 1\n\nfeatures:\n  - id: {feature_id}\n    title: Bootstrap the {project_name} polyglot spec workspace\n    summary: Provide a starter structure that can grow across Rust, Python, and TypeScript.\n    status: planned\n    linked_requirements:\n      - {requirement_id}\n    implementations: {{}}\n"
@@ -890,8 +985,10 @@ fn requirement_document_path(template: StarterTemplate) -> &'static str {
         StarterTemplate::DocsFirst => "requirements/core/docs.yaml",
         StarterTemplate::RustOnly => "requirements/core/rust.yaml",
         StarterTemplate::PythonOnly => "requirements/core/python.yaml",
+        StarterTemplate::RubyOnly => "requirements/core/ruby.yaml",
         StarterTemplate::GoOnly => "requirements/core/go.yaml",
         StarterTemplate::JavaOnly => "requirements/core/java.yaml",
+        StarterTemplate::TypeScriptOnly => "requirements/core/typescript.yaml",
         StarterTemplate::Polyglot => "requirements/core/polyglot.yaml",
     }
 }
@@ -902,8 +999,10 @@ fn feature_document_path(template: StarterTemplate) -> &'static str {
         StarterTemplate::DocsFirst => "features/documentation/docs.yaml",
         StarterTemplate::RustOnly => "features/languages/rust.yaml",
         StarterTemplate::PythonOnly => "features/languages/python.yaml",
+        StarterTemplate::RubyOnly => "features/languages/ruby.yaml",
         StarterTemplate::GoOnly => "features/languages/go.yaml",
         StarterTemplate::JavaOnly => "features/languages/java.yaml",
+        StarterTemplate::TypeScriptOnly => "features/languages/typescript.yaml",
         StarterTemplate::Polyglot => "features/languages/polyglot.yaml",
     }
 }
@@ -914,8 +1013,10 @@ fn feature_kind(template: StarterTemplate) -> &'static str {
         StarterTemplate::DocsFirst => "documentation",
         StarterTemplate::RustOnly => "rust",
         StarterTemplate::PythonOnly => "python",
+        StarterTemplate::RubyOnly => "ruby",
         StarterTemplate::GoOnly => "go",
         StarterTemplate::JavaOnly => "java",
+        StarterTemplate::TypeScriptOnly => "typescript",
         StarterTemplate::Polyglot => "polyglot",
     }
 }
@@ -1018,6 +1119,24 @@ mod tests {
             .expect("go-only scaffold should include go.mod");
 
         assert_eq!(go_mod.1, "module example.com/go-only-demo\n\ngo 1.19\n");
+    }
+
+    #[test]
+    fn ruby_only_scaffold_includes_a_gemfile() {
+        let files = scaffold_files(
+            "Ruby Only Demo",
+            std::path::Path::new(DEFAULT_SPEC_ROOT),
+            StarterTemplate::RubyOnly,
+            &default_id_prefixes(StarterTemplate::RubyOnly),
+            false,
+        );
+        let gemfile = files
+            .into_iter()
+            .find(|(path, _)| path == "Gemfile")
+            .expect("ruby-only scaffold should include Gemfile");
+
+        assert!(gemfile.1.contains("rubygems.org"));
+        assert!(gemfile.1.contains("gem \"minitest\""));
     }
 
     #[test]
@@ -1327,14 +1446,14 @@ mod tests {
     fn prompt_for_starter_template_retries_invalid_values() {
         let mut prompt_io = FakePromptIo {
             terminal: true,
-            lines: VecDeque::from(["unknown".to_string(), "7".to_string()]),
+            lines: VecDeque::from(["unknown".to_string(), "typescript-only".to_string()]),
             ..Default::default()
         };
 
         let template = prompt_for_starter_template(&mut prompt_io, StarterTemplate::Generic)
             .expect("template prompt should retry");
 
-        assert_eq!(template, StarterTemplate::Polyglot);
+        assert_eq!(template, StarterTemplate::TypeScriptOnly);
         assert_eq!(prompt_io.prompts.len(), 2);
     }
 
@@ -1349,12 +1468,20 @@ mod tests {
             Some(StarterTemplate::PythonOnly)
         );
         assert_eq!(
+            parse_starter_template_prompt("ruby"),
+            Some(StarterTemplate::RubyOnly)
+        );
+        assert_eq!(
             parse_starter_template_prompt("go"),
             Some(StarterTemplate::GoOnly)
         );
         assert_eq!(
             parse_starter_template_prompt("java"),
             Some(StarterTemplate::JavaOnly)
+        );
+        assert_eq!(
+            parse_starter_template_prompt("ts-only"),
+            Some(StarterTemplate::TypeScriptOnly)
         );
         assert_eq!(
             parse_starter_template_prompt("mixed"),
@@ -1651,6 +1778,7 @@ mod tests {
             StarterTemplate::DocsFirst,
             StarterTemplate::RustOnly,
             StarterTemplate::PythonOnly,
+            StarterTemplate::RubyOnly,
             StarterTemplate::JavaOnly,
             StarterTemplate::Polyglot,
         ] {
