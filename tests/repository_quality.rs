@@ -847,9 +847,7 @@ fn repository_ships_example_workspaces() {
     assert!(typescript_example_config.contains(&format!("version: {current_version}")));
     assert!(typescript_example_requirement.contains("REQ-TS-001"));
     assert_eq!(typescript_example_nvmrc.trim(), "20");
-    assert!(
-        typescript_example_package.contains("TypeScript-first starter workspace for Node 20.")
-    );
+    assert!(typescript_example_package.contains("TypeScript-first starter workspace for Node 20."));
     assert!(typescript_example_package.contains("\"node\": \">=20 <21\""));
     assert!(typescript_example_package.contains("\"@types/node\""));
     assert!(typescript_example_readme.contains("typescriptRequirementTest"));
