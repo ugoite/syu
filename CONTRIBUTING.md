@@ -95,10 +95,11 @@ match your change:
    npm --prefix app ci
    ```
 
-   Normal Cargo-driven builds no longer run that install step for you. If the
-   embedded browser app dependencies are missing or stale, `build.rs` stops and
-   points back to the commands above so Rust-only or docs-only work does not
-   silently mutate your `app/node_modules` tree.
+Normal Cargo-driven builds no longer run that install step for you. If you are
+in a fresh clone or fresh worktree and the embedded browser app dependencies are
+missing or stale, `build.rs` stops and points back to the commands above so
+Rust-only or docs-only work does not silently mutate your `app/node_modules`
+tree.
 
    Then run the same freshness flow CI uses:
 
@@ -180,6 +181,9 @@ match your change:
    run branch 4's docs-site build.
 
 ### Node.js version strategy
+
+For the contributor-facing quick matrix, switching rules, and app/docs/editor
+commands in one place, start with [`docs/guide/node-workflow.md`](docs/guide/node-workflow.md).
 
 The repository intentionally uses different Node.js majors for different
 surfaces:
