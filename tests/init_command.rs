@@ -281,7 +281,9 @@ fn init_command_bootstraps_language_templates_that_validate_accept() {
             let package_json = fs::read_to_string(workspace.join("package.json"))
                 .expect("package.json should exist");
             assert!(package_json.contains("\"name\": \"typescript-only\""));
+            assert!(package_json.contains("TypeScript-first starter workspace for Node 20."));
             assert!(package_json.contains("\"node\": \">=20 <21\""));
+            assert!(package_json.contains("\"@types/node\""));
             assert!(package_json.contains("\"packageManager\": \"npm@11.8.0\""));
             assert!(requirement.contains("status: implemented"));
             assert!(requirement.contains("typescriptRequirementTest"));

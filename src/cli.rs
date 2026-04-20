@@ -43,6 +43,7 @@ Examples:
   syu init . --interactive
   syu init . --id-prefix store
   syu init . --template rust-only
+  syu init . --template typescript-only
   syu init . --template go-only
   syu init . --template java-only
   syu init . --spec-root docs/spec
@@ -609,7 +610,7 @@ pub enum StarterTemplate {
     PythonOnly,
     GoOnly,
     JavaOnly,
-    #[value(name = "typescript-only", alias = "type-script-only")]
+    #[value(name = "typescript-only")]
     TypeScriptOnly,
     Polyglot,
 }

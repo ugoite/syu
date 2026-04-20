@@ -1,5 +1,6 @@
 {
   "name": "typescript-only",
+  "description": "TypeScript-first starter workspace for Node 20.",
   "private": true,
   "type": "module",
   "engines": {
@@ -9,6 +10,7 @@
     "test": "node --import tsx --test src/app.test.ts"
   },
   "devDependencies": {
+    "@types/node": "^24.7.2",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3"
   },
