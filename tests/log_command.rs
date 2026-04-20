@@ -371,6 +371,55 @@ fn log_command_can_include_related_history_surface() {
 }
 
 #[test]
+fn log_command_keeps_related_definitions_when_path_scopes_code_history() {
+    let workspace = write_history_workspace();
+    update_file(
+        &workspace.path().join("docs/syu/features/cli/history.yaml"),
+        "category: History\nversion: 1\nfeatures:\n  - id: FEAT-HIST-001\n    title: Feature history lookup\n    summary: Feature history should show the traced implementation, linked requirement, and checked-in definition.\n    status: implemented\n    linked_requirements:\n      - REQ-HIST-001\n    implementations:\n      rust:\n        - file: src/history_feature.rs\n          symbols:\n            - feature_history\n",
+    );
+    git_commit(workspace.path(), "docs: refine related feature definition");
+
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .args([
+            "log",
+            "REQ-HIST-001",
+            workspace.path().to_str().expect("utf8 path"),
+            "--include-related",
+            "--path",
+            "src",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("command should run");
+
+    assert!(
+        output.status.success(),
+        "stdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let json: Value = serde_json::from_slice(&output.stdout).expect("output should be valid JSON");
+    let tracked_paths = json["tracked_paths"].as_array().expect("tracked paths");
+    assert!(tracked_paths.iter().any(|path| {
+        path["owner_id"] == "FEAT-HIST-001"
+            && path["kind"] == "definition"
+            && path["source"] == "related"
+            && path["path"] == "docs/syu/features/cli/history.yaml"
+    }));
+    let summaries = json["commits"]
+        .as_array()
+        .expect("commit array")
+        .iter()
+        .map(|commit| commit["summary"].as_str().expect("summary"))
+        .collect::<Vec<_>>();
+    assert!(summaries.contains(&"docs: refine related feature definition"));
+    assert!(summaries.contains(&"feat: update traced implementation"));
+}
+
+#[test]
 fn log_command_can_limit_history_to_an_explicit_range() {
     let workspace = write_history_workspace();
     let merge_base = git_stdout(workspace.path(), &["rev-parse", "HEAD~2"]);

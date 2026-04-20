@@ -466,7 +466,10 @@ fn collect_related_tracked_paths(
     }
 
     if let Some(path_filter) = path_filter {
-        tracked.retain(|tracked| normalized_tracked_path(&tracked.path).starts_with(path_filter));
+        tracked.retain(|tracked| {
+            tracked.kind == "definition"
+                || normalized_tracked_path(&tracked.path).starts_with(path_filter)
+        });
     }
 
     Ok(tracked)
