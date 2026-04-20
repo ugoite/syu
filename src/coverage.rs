@@ -1419,6 +1419,9 @@ mod tests {
         path::{Path, PathBuf},
     };
 
+    #[cfg(unix)]
+    use std::os::unix::fs::symlink;
+
     use tempfile::tempdir;
 
     use super::{
@@ -1426,7 +1429,7 @@ mod tests {
         collect_csharp_test_symbols, collect_feature_coverage,
         collect_files_recursive_by_extension, collect_go_public_symbols, collect_go_test_symbols,
         collect_java_public_symbols, collect_java_test_symbols, collect_requirement_coverage,
-        discover_csharp_targets, discover_go_targets, discover_java_targets,
+        csharp_files_under, discover_csharp_targets, discover_go_targets, discover_java_targets,
         discover_python_targets, discover_rust_targets, discover_typescript_targets,
         go_files_under, java_files_under, normalize_relative_path,
         normalized_symbol_trace_coverage_ignored_paths, path_matches_ignored_generated_directory,
@@ -1849,7 +1852,7 @@ mod tests {
     #[test]
     fn collect_csharp_public_symbols_covers_properties_fields_and_methods() {
         let symbols = collect_csharp_public_symbols(
-            "public interface FeatureTrace {\n    string EXPORTED_NAME { get; }\n    void FeatureTraceCSharp();\n}\npublic class FeatureTraceService {\n    public const string TraceLabel = \"ok\";\n    public Task FeatureTraceAsync() => Task.CompletedTask;\n}\n",
+            "public interface FeatureTrace {\n    string EXPORTED_NAME { get; }\n    void FeatureTraceCSharp();\n}\npublic class FeatureTraceService {\n    public FeatureTraceService() {}\n    public const string TraceLabel = \"ok\";\n    public Task FeatureTraceAsync() => Task.CompletedTask;\n}\n",
         );
 
         assert_eq!(
@@ -1868,7 +1871,7 @@ mod tests {
     #[test]
     fn collect_csharp_test_symbols_covers_xunit_nunit_and_mstest() {
         let symbols = collect_csharp_test_symbols(
-            "using Xunit;\nusing NUnit.Framework;\nusing Microsoft.VisualStudio.TestTools.UnitTesting;\n\npublic class TraceabilityTests {\n    [Fact]\n    public void ReqTraceCSharpFact() {}\n\n    [Test]\n    public void ReqTraceCSharpNUnit() {}\n\n    [TestMethod]\n    public async Task ReqTraceCSharpMsTest() => await Task.CompletedTask;\n}\n",
+            "using Xunit;\nusing NUnit.Framework;\nusing Microsoft.VisualStudio.TestTools.UnitTesting;\n\npublic class TraceabilityTests {\n    [Fact]\n    public void ReqTraceCSharpFact() {}\n\n    [Test]\n    public void ReqTraceCSharpNUnit() {}\n\n    [TestMethod]\n    public async Task ReqTraceCSharpMsTest() => await Task.CompletedTask;\n\n    public void TestLegacyTrace() {}\n}\n",
         );
 
         assert_eq!(
@@ -1876,9 +1879,43 @@ mod tests {
             vec![
                 "ReqTraceCSharpFact",
                 "ReqTraceCSharpMsTest",
-                "ReqTraceCSharpNUnit"
+                "ReqTraceCSharpNUnit",
+                "TestLegacyTrace"
             ]
         );
+    }
+
+    #[test]
+    fn collect_csharp_public_symbols_ignores_unclosed_interfaces() {
+        let symbols = collect_csharp_public_symbols(
+            "public interface FeatureTrace {\n    string EXPORTED_NAME { get; }\n",
+        );
+
+        assert_eq!(symbols, vec!["FeatureTrace"]);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn discover_csharp_targets_skips_unreadable_symlinks() {
+        let tempdir = tempdir().expect("tempdir");
+        fs::create_dir_all(tempdir.path().join("src")).expect("src");
+        fs::create_dir_all(tempdir.path().join("tests")).expect("tests");
+        symlink(
+            tempdir.path().join("missing/FeatureTrace.cs"),
+            tempdir.path().join("src/BrokenTrace.cs"),
+        )
+        .expect("symlink");
+        fs::write(
+            tempdir.path().join("tests/TraceabilityTests.cs"),
+            "using Xunit;\n\npublic class TraceabilityTests {\n    [Fact]\n    public void ReqTraceCSharpTest() {}\n}\n",
+        )
+        .expect("csharp tests");
+
+        let targets =
+            discover_csharp_targets(&SyuConfig::default(), tempdir.path()).expect("targets");
+
+        assert_eq!(targets.len(), 1);
+        assert_eq!(targets[0].symbol, "ReqTraceCSharpTest");
     }
 
     #[test]
@@ -1898,6 +1935,27 @@ mod tests {
         let file_root = tempdir.path().join("not-a-dir.rs");
         fs::write(&file_root, "pub fn nope() {}\n").expect("file");
         let issue = rust_files_under(tempdir.path(), &file_root, &ignored_paths)
+            .expect_err("file roots should fail");
+        assert_eq!(issue.code, "SYU-coverage-walk-001");
+    }
+
+    #[test]
+    fn csharp_files_under_handles_missing_and_invalid_roots() {
+        let tempdir = tempdir().expect("tempdir");
+        let ignored_paths = BTreeSet::new();
+        assert!(
+            csharp_files_under(
+                tempdir.path(),
+                &tempdir.path().join("missing"),
+                &ignored_paths
+            )
+            .expect("missing directories should be ignored")
+            .is_empty()
+        );
+
+        let file_root = tempdir.path().join("not-a-dir.cs");
+        fs::write(&file_root, "public class BrokenTrace {}\n").expect("file");
+        let issue = csharp_files_under(tempdir.path(), &file_root, &ignored_paths)
             .expect_err("file roots should fail");
         assert_eq!(issue.code, "SYU-coverage-walk-001");
     }
@@ -2580,6 +2638,47 @@ mod tests {
                     )))
                 },
                 csharp: no_targets,
+                typescript: discover_typescript_targets,
+            },
+        );
+
+        assert_eq!(issues.len(), 1);
+        assert_eq!(issues[0].code, "SYU-coverage-walk-001");
+    }
+
+    #[test]
+    fn validate_with_csharp_discovery_error_records_issue_and_returns() {
+        let tempdir = tempdir().expect("tempdir");
+        let mut config = SyuConfig::default();
+        config.validate.require_symbol_trace_coverage = true;
+        let workspace = Workspace {
+            root: tempdir.path().to_path_buf(),
+            spec_root: tempdir.path().join("docs/syu"),
+            config,
+            philosophies: Vec::new(),
+            policies: Vec::new(),
+            requirements: Vec::new(),
+            features: Vec::new(),
+        };
+
+        let mut issues = Vec::new();
+        validate_symbol_trace_coverage_with(
+            &workspace,
+            &mut issues,
+            CoverageDiscoverers {
+                rust: no_targets,
+                python: no_targets,
+                go: no_targets,
+                java: no_java_targets,
+                csharp: |_config, _root| {
+                    Err(Box::new(crate::model::Issue::error(
+                        "SYU-coverage-walk-001",
+                        "trace coverage inventory",
+                        None,
+                        "injected csharp discovery error".to_string(),
+                        None,
+                    )))
+                },
                 typescript: discover_typescript_targets,
             },
         );
