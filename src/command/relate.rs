@@ -17,7 +17,10 @@ use crate::{
     workspace::{Workspace, load_workspace},
 };
 
-use super::lookup::{EntitySummary, WorkspaceEntity, WorkspaceLookup};
+use super::{
+    log::resolve_git_range_changed_files,
+    lookup::{EntitySummary, WorkspaceEntity, WorkspaceLookup},
+};
 
 #[derive(Debug, Serialize)]
 struct JsonRelateOutput {
@@ -29,6 +32,27 @@ struct JsonRelateOutput {
     features: Vec<RelatedNode>,
     traces: Vec<RelatedTrace>,
     gaps: Vec<Gap>,
+}
+
+#[derive(Debug, Serialize)]
+struct JsonRelateRangeOutput {
+    range: String,
+    philosophies: Vec<RelatedNode>,
+    policies: Vec<RelatedNode>,
+    requirements: Vec<RelatedNode>,
+    features: Vec<RelatedNode>,
+    traces: Vec<RelatedTrace>,
+    gaps: Vec<Gap>,
+    summary: RelateRangeSummary,
+}
+
+#[derive(Debug, Serialize)]
+struct RelateRangeSummary {
+    total_files: usize,
+    total_philosophies: usize,
+    total_policies: usize,
+    total_requirements: usize,
+    total_features: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -109,7 +133,16 @@ struct RelatedIds {
 
 pub fn run_relate_command(args: &RelateArgs) -> Result<i32> {
     let workspace = load_workspace(&args.workspace)?;
-    let report = build_relation_report(&workspace, &args.selector)?;
+
+    if let Some(range) = &args.range {
+        return run_relate_range(&workspace, range, args.format);
+    }
+
+    let Some(selector) = &args.selector else {
+        bail!("either SELECTOR or --range must be provided");
+    };
+
+    let report = build_relation_report(&workspace, selector)?;
 
     match args.format {
         OutputFormat::Text => print!("{}", render_relation_text(&report)),
@@ -117,6 +150,99 @@ pub fn run_relate_command(args: &RelateArgs) -> Result<i32> {
             "{}",
             serde_json::to_string_pretty(&report)
                 .expect("serializing relate output to JSON should succeed")
+        ),
+    }
+
+    Ok(0)
+}
+
+fn run_relate_range(workspace: &Workspace, range: &str, format: OutputFormat) -> Result<i32> {
+    let changed_files = resolve_git_range_changed_files(&workspace.root, range)?;
+
+    if changed_files.is_empty() {
+        match format {
+            OutputFormat::Text => {
+                println!("Git range: {range}");
+                println!("No files changed in range");
+            }
+            OutputFormat::Json => {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&JsonRelateRangeOutput {
+                        range: range.to_string(),
+                        philosophies: Vec::new(),
+                        policies: Vec::new(),
+                        requirements: Vec::new(),
+                        features: Vec::new(),
+                        traces: Vec::new(),
+                        gaps: Vec::new(),
+                        summary: RelateRangeSummary {
+                            total_files: 0,
+                            total_philosophies: 0,
+                            total_policies: 0,
+                            total_requirements: 0,
+                            total_features: 0,
+                        },
+                    })
+                    .expect("serializing empty relate range output to JSON should succeed")
+                );
+            }
+        }
+        return Ok(0);
+    }
+
+    let lookup = WorkspaceLookup::new(workspace);
+    let catalog = RelationCatalog::load(lookup)?;
+
+    let mut combined_ids = RelatedIds::default();
+
+    for file in &changed_files {
+        let file_str = file.display().to_string();
+
+        if let Ok(normalized_path) = normalize_selector_path(&workspace.root, &file_str) {
+            let definitions = catalog.nodes_matching_path(&normalized_path);
+            for node in &definitions {
+                combined_ids.add(node.lookup_kind(), &node.id);
+            }
+
+            let traces = collect_matching_traces_for_path(workspace, &normalized_path);
+            for trace in &traces {
+                combined_ids.add(trace.owner_lookup_kind(), &trace.owner_id);
+            }
+        }
+    }
+
+    let expanded_ids = expand_related_ids(workspace, combined_ids);
+
+    let report = JsonRelateRangeOutput {
+        range: range.to_string(),
+        philosophies: catalog.nodes_for(LookupKind::Philosophy, &expanded_ids.philosophies),
+        policies: catalog.nodes_for(LookupKind::Policy, &expanded_ids.policies),
+        requirements: catalog.nodes_for(LookupKind::Requirement, &expanded_ids.requirements),
+        features: catalog.nodes_for(LookupKind::Feature, &expanded_ids.features),
+        traces: collect_related_traces(
+            workspace,
+            &expanded_ids,
+            &SelectionSource::Path {
+                path: "multiple files".to_string(),
+            },
+        ),
+        gaps: collect_gaps(workspace, &expanded_ids),
+        summary: RelateRangeSummary {
+            total_files: changed_files.len(),
+            total_philosophies: expanded_ids.philosophies.len(),
+            total_policies: expanded_ids.policies.len(),
+            total_requirements: expanded_ids.requirements.len(),
+            total_features: expanded_ids.features.len(),
+        },
+    };
+
+    match format {
+        OutputFormat::Text => print!("{}", render_range_relation_text(&report)),
+        OutputFormat::Json => println!(
+            "{}",
+            serde_json::to_string_pretty(&report)
+                .expect("serializing relate range output to JSON should succeed")
         ),
     }
 
@@ -605,6 +731,41 @@ fn render_relation_text(report: &JsonRelateOutput) -> String {
         "Direct trace matches",
         &report.direct_matches.traces,
     );
+    write_node_section(&mut output, "Philosophies", &report.philosophies);
+    write_node_section(&mut output, "Policies", &report.policies);
+    write_node_section(&mut output, "Requirements", &report.requirements);
+    write_node_section(&mut output, "Features", &report.features);
+    write_trace_section(&mut output, "Traces", &report.traces);
+    write_gap_section(&mut output, "Gaps", &report.gaps);
+    output
+}
+
+fn render_range_relation_text(report: &JsonRelateRangeOutput) -> String {
+    let mut output = String::new();
+    writeln!(output, "Git range: {}", report.range).expect("writing to String must succeed");
+    writeln!(output, "Changed files: {}", report.summary.total_files)
+        .expect("writing to String must succeed");
+    writeln!(output).expect("writing to String must succeed");
+
+    writeln!(output, "Summary:").expect("writing to String must succeed");
+    writeln!(
+        output,
+        "  Philosophies: {}",
+        report.summary.total_philosophies
+    )
+    .expect("writing to String must succeed");
+    writeln!(output, "  Policies: {}", report.summary.total_policies)
+        .expect("writing to String must succeed");
+    writeln!(
+        output,
+        "  Requirements: {}",
+        report.summary.total_requirements
+    )
+    .expect("writing to String must succeed");
+    writeln!(output, "  Features: {}", report.summary.total_features)
+        .expect("writing to String must succeed");
+    writeln!(output).expect("writing to String must succeed");
+
     write_node_section(&mut output, "Philosophies", &report.philosophies);
     write_node_section(&mut output, "Policies", &report.policies);
     write_node_section(&mut output, "Requirements", &report.requirements);

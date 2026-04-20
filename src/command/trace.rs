@@ -17,7 +17,10 @@ use crate::{
     workspace::{Workspace, load_workspace},
 };
 
-use super::lookup::{EntitySummary, WorkspaceLookup};
+use super::{
+    log::resolve_git_range_changed_files,
+    lookup::{EntitySummary, WorkspaceLookup},
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -98,6 +101,25 @@ struct TraceLookupOutput {
     philosophies: Vec<EntitySummary>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+struct TraceRangeOutput {
+    range: String,
+    files: Vec<TraceLookupOutput>,
+    summary: TraceRangeSummary,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct TraceRangeSummary {
+    total_files: usize,
+    owned_files: usize,
+    partial_files: usize,
+    unowned_files: usize,
+    total_requirements: usize,
+    total_features: usize,
+    total_policies: usize,
+    total_philosophies: usize,
+}
+
 #[derive(Debug, Clone, Copy)]
 struct TraceOwnerMetadata<'a> {
     kind: LookupKind,
@@ -107,6 +129,18 @@ struct TraceOwnerMetadata<'a> {
 }
 
 pub fn run_trace_command(args: &TraceArgs) -> Result<i32> {
+    if let Some(range) = &args.range {
+        let workspace = load_workspace(&args.workspace)?;
+        if args.symbol.is_some() {
+            bail!("--symbol cannot be used with --range");
+        }
+        return run_trace_range(&workspace, range, args.format);
+    }
+
+    let Some(file) = &args.file else {
+        bail!("either FILE or --range must be provided");
+    };
+
     let symbol = match args.symbol.as_deref() {
         Some(symbol) if symbol.trim().is_empty() => {
             bail!("trace symbol must not be empty or whitespace");
@@ -116,8 +150,8 @@ pub fn run_trace_command(args: &TraceArgs) -> Result<i32> {
     };
 
     let workspace = load_workspace(&args.workspace)?;
-    let file = normalize_lookup_file(&workspace, &args.file)?;
-    let output = lookup_trace(&workspace, &file, symbol);
+    let normalized_file = normalize_lookup_file(&workspace, file)?;
+    let output = lookup_trace(&workspace, &normalized_file, symbol);
 
     match args.format {
         OutputFormat::Text => print!("{}", render_text_output(&output)),
@@ -129,6 +163,176 @@ pub fn run_trace_command(args: &TraceArgs) -> Result<i32> {
     }
 
     Ok(0)
+}
+
+fn run_trace_range(workspace: &Workspace, range: &str, format: OutputFormat) -> Result<i32> {
+    let changed_files = resolve_git_range_changed_files(&workspace.root, range)?;
+
+    if changed_files.is_empty() {
+        match format {
+            OutputFormat::Text => {
+                println!("Git range: {range}");
+                println!("No files changed in range");
+            }
+            OutputFormat::Json => {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&TraceRangeOutput {
+                        range: range.to_string(),
+                        files: Vec::new(),
+                        summary: TraceRangeSummary {
+                            total_files: 0,
+                            owned_files: 0,
+                            partial_files: 0,
+                            unowned_files: 0,
+                            total_requirements: 0,
+                            total_features: 0,
+                            total_policies: 0,
+                            total_philosophies: 0,
+                        },
+                    })
+                    .expect("serializing empty trace range output to JSON should succeed")
+                );
+            }
+        }
+        return Ok(0);
+    }
+
+    let mut results = Vec::new();
+    for file in &changed_files {
+        match normalize_lookup_file(workspace, file) {
+            Ok(normalized) => {
+                let output = lookup_trace(workspace, &normalized, None);
+                results.push(output);
+            }
+            Err(_) => {
+                // Skip files outside workspace or with invalid paths
+                continue;
+            }
+        }
+    }
+
+    let summary = compute_range_summary(&results);
+
+    match format {
+        OutputFormat::Text => print!("{}", render_range_text(range, &results, &summary)),
+        OutputFormat::Json => println!(
+            "{}",
+            serde_json::to_string_pretty(&TraceRangeOutput {
+                range: range.to_string(),
+                files: results,
+                summary,
+            })
+            .expect("serializing trace range output to JSON should succeed")
+        ),
+    }
+
+    Ok(0)
+}
+
+fn compute_range_summary(results: &[TraceLookupOutput]) -> TraceRangeSummary {
+    let mut requirements = std::collections::BTreeSet::new();
+    let mut features = std::collections::BTreeSet::new();
+    let mut policies = std::collections::BTreeSet::new();
+    let mut philosophies = std::collections::BTreeSet::new();
+
+    let mut owned = 0;
+    let mut partial = 0;
+    let mut unowned = 0;
+
+    for result in results {
+        match result.status {
+            TraceLookupStatus::Owned => owned += 1,
+            TraceLookupStatus::Partial => partial += 1,
+            TraceLookupStatus::Unowned => unowned += 1,
+        }
+
+        for req in &result.requirements {
+            requirements.insert(&req.id);
+        }
+        for feat in &result.features {
+            features.insert(&feat.id);
+        }
+        for pol in &result.policies {
+            policies.insert(&pol.id);
+        }
+        for phil in &result.philosophies {
+            philosophies.insert(&phil.id);
+        }
+    }
+
+    TraceRangeSummary {
+        total_files: results.len(),
+        owned_files: owned,
+        partial_files: partial,
+        unowned_files: unowned,
+        total_requirements: requirements.len(),
+        total_features: features.len(),
+        total_policies: policies.len(),
+        total_philosophies: philosophies.len(),
+    }
+}
+
+fn render_range_text(
+    range: &str,
+    results: &[TraceLookupOutput],
+    summary: &TraceRangeSummary,
+) -> String {
+    let mut output = String::new();
+    writeln!(output, "Git range: {range}").unwrap();
+    writeln!(output, "Changed files: {}", summary.total_files).unwrap();
+    writeln!(
+        output,
+        "Coverage: {} owned, {} partial, {} unowned\n",
+        summary.owned_files, summary.partial_files, summary.unowned_files
+    )
+    .unwrap();
+
+    let mut by_owner = BTreeMap::<String, Vec<&TraceLookupOutput>>::new();
+    for result in results {
+        if result.matched_owners.is_empty() && result.file_only_owners.is_empty() {
+            by_owner
+                .entry("UNOWNED".to_string())
+                .or_default()
+                .push(result);
+        } else {
+            let owners = if !result.matched_owners.is_empty() {
+                &result.matched_owners
+            } else {
+                &result.file_only_owners
+            };
+            for owner in owners {
+                by_owner
+                    .entry(format!("{} {}", owner.kind, owner.id))
+                    .or_default()
+                    .push(result);
+            }
+        }
+    }
+
+    for (owner, files) in &by_owner {
+        writeln!(output, "{owner}:").unwrap();
+        for file in files {
+            writeln!(output, "  - {}", file.file).unwrap();
+        }
+        writeln!(output).unwrap();
+    }
+
+    writeln!(output, "Summary:").unwrap();
+    if summary.total_requirements > 0 {
+        writeln!(output, "  Requirements: {}", summary.total_requirements).unwrap();
+    }
+    if summary.total_features > 0 {
+        writeln!(output, "  Features: {}", summary.total_features).unwrap();
+    }
+    if summary.total_policies > 0 {
+        writeln!(output, "  Policies: {}", summary.total_policies).unwrap();
+    }
+    if summary.total_philosophies > 0 {
+        writeln!(output, "  Philosophies: {}", summary.total_philosophies).unwrap();
+    }
+
+    output
 }
 
 fn normalize_lookup_file(workspace: &Workspace, file: &Path) -> Result<PathBuf> {
@@ -701,9 +905,10 @@ mod tests {
     #[test]
     fn run_trace_command_rejects_blank_symbols_before_loading_the_workspace() {
         let error = super::run_trace_command(&TraceArgs {
-            file: PathBuf::from("src/lib.rs"),
+            file: Some(PathBuf::from("src/lib.rs")),
             workspace: PathBuf::from("."),
             symbol: Some("   ".to_string()),
+            range: None,
             format: OutputFormat::Text,
         })
         .expect_err("blank symbols should fail");
