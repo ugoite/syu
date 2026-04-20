@@ -308,6 +308,27 @@ mod tests {
     }
 
     #[test]
+    fn handle_request_returns_invalid_params_for_malformed_initialize_payload() {
+        let mut server = LspServer::new();
+        let response = server
+            .handle_request(Request {
+                jsonrpc: "2.0".to_string(),
+                id: super::super::protocol::RequestId::Number(4),
+                method: "initialize".to_string(),
+                params: Some(json!({
+                    "rootUri": 42
+                })),
+            })
+            .expect("bad params should produce an error response");
+        let error = response.error.expect("error response");
+        assert_eq!(
+            error.code,
+            super::super::protocol::error_codes::INVALID_PARAMS
+        );
+        assert!(error.message.contains("invalid type"));
+    }
+
+    #[test]
     fn handle_request_serializes_hover_results() {
         let tempdir = tempdir().expect("tempdir");
         let hover_file = tempdir.path().join("hover.txt");
