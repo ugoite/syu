@@ -65,9 +65,11 @@ GRAPHQL
 }
 
 fetch_merge_group_runs() {
-  local run_limit="$1"
+  local owner="$1"
+  local repo="$2"
+  local run_limit="$3"
 
-  env GH_PAGER=cat gh run list --event merge_group --limit "$run_limit" \
+  env GH_PAGER=cat gh run list --repo "$owner/$repo" --event merge_group --limit "$run_limit" \
     --json databaseId,workflowName,headBranch,status,conclusion
 }
 
@@ -221,7 +223,7 @@ check_merge_queue_health() {
 
   load_required_merge_queue_workflows "$repo_root/.github/merge-queue-checks.json" >"$workflows_txt"
   fetch_merge_queue_state "$owner" "$repo" >"$queue_json"
-  fetch_merge_group_runs "$run_limit" >"$runs_json"
+  fetch_merge_group_runs "$owner" "$repo" "$run_limit" >"$runs_json"
   render_watchdog_report "$workflows_txt" "$queue_json" "$runs_json"
 }
 

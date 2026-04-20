@@ -1067,7 +1067,8 @@ fn repository_declares_dependency_hygiene_and_ci_caching() {
     assert!(merge_queue_watchdog_script.contains("fetch_merge_queue_state"));
     assert!(merge_queue_watchdog_script.contains("fetch_merge_group_runs"));
     assert!(merge_queue_watchdog_script.contains("render_watchdog_report"));
-    assert!(merge_queue_watchdog_script.contains("gh run list --event merge_group"));
+    assert!(merge_queue_watchdog_script.contains("gh run list --repo"));
+    assert!(merge_queue_watchdog_script.contains("--event merge_group"));
     let merge_queue_manifest: serde_json::Value = serde_json::from_str(&merge_queue_checks)
         .expect("merge queue manifest should be valid JSON");
     let required_checks = merge_queue_manifest["required_checks"]
