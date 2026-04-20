@@ -11,7 +11,7 @@ ownership, maintenance, contributor workflow, and release delivery.
 The design goal is intentionally pragmatic:
 
 - specification-driven development that keeps looking after implementation and maintenance
-- a language-agnostic model that can fit Rust-only, Python-only, or polyglot repositories
+- a language-agnostic model that can fit Rust-only, Python-only, Ruby-only, or polyglot repositories
 - a simple, low-friction workflow that does not need to take over the whole project
 
 ## Why four layers?
@@ -296,13 +296,14 @@ That renders `PHIL-STORE-001`, `POL-STORE-001`, `REQ-STORE-001`, and
 `--feature-prefix`.
 
 Want a closer starting point for a repository that is already clearly
-docs-first, Rust-first, Python-first, Go-first, Java-first, or polyglot? Start with a
+docs-first, Rust-first, Python-first, Ruby-first, Go-first, Java-first, or polyglot? Start with a
 lightweight template:
 
 ```bash
 syu templates
 syu init . --template docs-first
 syu init . --template rust-only
+syu init . --template ruby-only
 syu init . --template go-only
 syu init . --template java-only
 syu init . --template python-only
@@ -667,10 +668,11 @@ The repository ships working example projects:
 - [`examples/java-only`](examples/java-only)
 - [`examples/rust-only`](examples/rust-only)
 - [`examples/python-only`](examples/python-only)
+- [`examples/ruby-only`](examples/ruby-only)
 - [`examples/polyglot`](examples/polyglot)
 - [`examples/team-scale`](examples/team-scale)
 
-`docs-first`, `rust-only`, `python-only`, `go-only`, `java-only`, and
+`docs-first`, `rust-only`, `python-only`, `ruby-only`, `go-only`, `java-only`, and
 `polyglot` match `syu init --template ...` starters directly.
 `csharp-fallback` remains the reference-only example for repositories whose
 main implementation language is still unsupported, and `team-scale` remains a

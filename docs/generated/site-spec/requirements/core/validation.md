@@ -93,7 +93,7 @@ description: "Generated reference for docs/syu/requirements/core/validation.yaml
     - |
       The `validate` command MUST verify requirement-to-test and
       feature-to-implementation traceability in the languages used by `syu`
-      today: Rust, Python, Go, Java, and TypeScript/JavaScript. A declared
+      today: Rust, Python, Ruby, Go, Java, and TypeScript/JavaScript. A declared
       trace is valid only when the file exists, the symbol exists, the trace
       path uses canonical repository-relative form, and any `doc_contains`
       snippets are present in the symbol documentation when the declared
@@ -159,6 +159,7 @@ description: "Generated reference for docs/syu/requirements/core/validation.yaml
       - **file**: tests/example_workspaces.rs
         - **symbols**:
           - python_only_example_validates
+          - ruby_only_example_validates
           - polyglot_example_validates
     - **python**:
       - **file**: tests/fixtures/workspaces/passing/python/test_traceability.py
@@ -315,7 +316,7 @@ requirements:
     description: |
       The `validate` command MUST verify requirement-to-test and
       feature-to-implementation traceability in the languages used by `syu`
-      today: Rust, Python, Go, Java, and TypeScript/JavaScript. A declared
+      today: Rust, Python, Ruby, Go, Java, and TypeScript/JavaScript. A declared
       trace is valid only when the file exists, the symbol exists, the trace
       path uses canonical repository-relative form, and any `doc_contains`
       snippets are present in the symbol documentation when the declared
@@ -381,6 +382,7 @@ requirements:
         - file: tests/example_workspaces.rs
           symbols:
             - python_only_example_validates
+            - ruby_only_example_validates
             - polyglot_example_validates
       python:
         - file: tests/fixtures/workspaces/passing/python/test_traceability.py
