@@ -106,15 +106,20 @@ fn summarize_findings(findings: &[AuditFinding]) -> AuditSummary {
 }
 
 fn print_text_results(workspace: &str, findings: &[AuditFinding]) {
+    print!("{}", render_text_results(workspace, findings));
+}
+
+fn render_text_results(workspace: &str, findings: &[AuditFinding]) -> String {
     let summary = summarize_findings(findings);
-    println!("audit workspace: {workspace}");
-    println!(
+    let mut output = format!("audit workspace: {workspace}\n");
+    output.push_str(&format!(
         "summary: {} overlap candidate(s), {} tension candidate(s), {} orphaned policy candidate(s)",
         summary.overlap_candidates, summary.tension_candidates, summary.orphaned_policies
-    );
+    ));
     if findings.is_empty() {
-        println!("no audit findings");
-        return;
+        output.push('\n');
+        output.push_str("no audit findings\n");
+        return output;
     }
     for finding in findings {
         let kind = match finding.kind {
@@ -122,17 +127,21 @@ fn print_text_results(workspace: &str, findings: &[AuditFinding]) {
             AuditFindingKind::Tension => "tension",
             AuditFindingKind::OrphanedPolicy => "orphaned-policy",
         };
-        println!();
-        println!("[{kind}] {}", finding.summary);
-        println!("  ids: {}", finding.related_ids.join(", "));
+        output.push_str("\n\n");
+        output.push_str(&format!("[{kind}] {}\n", finding.summary));
+        output.push_str(&format!("  ids: {}\n", finding.related_ids.join(", ")));
         if !finding.shared_terms.is_empty() {
-            println!("  shared terms: {}", finding.shared_terms.join(", "));
+            output.push_str(&format!(
+                "  shared terms: {}\n",
+                finding.shared_terms.join(", ")
+            ));
         }
         if finding.score > 0.0 {
-            println!("  score: {:.2}", finding.score);
+            output.push_str(&format!("  score: {:.2}\n", finding.score));
         }
-        println!("  {}", finding.details);
+        output.push_str(&format!("  {}\n", finding.details));
     }
+    output
 }
 
 fn overlap_findings(requirements: &[Requirement]) -> Vec<AuditFinding> {
@@ -305,10 +314,16 @@ fn first_opposing_term_pair<'a>(
 mod tests {
     use super::{
         AuditFindingKind, first_opposing_term_pair, jaccard_score, orphaned_policy_findings,
-        tokenize,
+        render_text_results, tension_findings, tokenize,
     };
-    use crate::model::{Policy, Requirement};
-    use std::collections::{BTreeMap, HashSet};
+    use crate::{
+        model::{Feature, Philosophy, Policy, Requirement},
+        workspace::Workspace,
+    };
+    use std::{
+        collections::{BTreeMap, HashSet},
+        path::PathBuf,
+    };
 
     #[test]
     fn tokenize_drops_short_and_common_terms() {
@@ -331,6 +346,16 @@ mod tests {
         assert_eq!(
             first_opposing_term_pair(&left, &right),
             Some(("manual", "automatic"))
+        );
+    }
+
+    #[test]
+    fn detects_reversed_opposing_term_pairs() {
+        let left = HashSet::from(["automatic".to_string(), "checks".to_string()]);
+        let right = HashSet::from(["manual".to_string(), "workflow".to_string()]);
+        assert_eq!(
+            first_opposing_term_pair(&left, &right),
+            Some(("automatic", "manual"))
         );
     }
 
@@ -359,5 +384,56 @@ mod tests {
 
         assert_eq!(findings.len(), 1);
         assert!(matches!(findings[0].kind, AuditFindingKind::OrphanedPolicy));
+    }
+
+    #[test]
+    fn render_text_results_reports_empty_audits() {
+        let rendered = render_text_results("workspace", &[]);
+        assert!(rendered.contains("summary: 0 overlap candidate(s), 0 tension candidate(s), 0 orphaned policy candidate(s)"));
+        assert!(rendered.contains("no audit findings"));
+    }
+
+    #[test]
+    fn skips_tension_checks_for_features_without_searchable_terms() {
+        let workspace = Workspace {
+            root: PathBuf::from("."),
+            spec_root: PathBuf::from("docs/syu"),
+            config: crate::config::SyuConfig::default(),
+            philosophies: vec![Philosophy {
+                id: "PHIL-001".to_string(),
+                title: "Explainable".to_string(),
+                product_design_principle: "Explainable".to_string(),
+                coding_guideline: "Explicit".to_string(),
+                linked_policies: vec!["POL-001".to_string()],
+            }],
+            policies: vec![Policy {
+                id: "POL-001".to_string(),
+                title: "Prefer automatic checks".to_string(),
+                summary: "Automatic checks".to_string(),
+                description: "Automatic checks".to_string(),
+                linked_philosophies: vec!["PHIL-001".to_string()],
+                linked_requirements: vec!["REQ-001".to_string()],
+            }],
+            requirements: vec![Requirement {
+                id: "REQ-001".to_string(),
+                title: "Keep review flow".to_string(),
+                description: "Keep review flow explainable.".to_string(),
+                priority: "medium".to_string(),
+                status: "implemented".to_string(),
+                linked_policies: vec!["POL-001".to_string()],
+                linked_features: vec!["FEAT-001".to_string()],
+                tests: BTreeMap::new(),
+            }],
+            features: vec![Feature {
+                id: "FEAT-001".to_string(),
+                title: "and the".to_string(),
+                summary: "to of in".to_string(),
+                status: "implemented".to_string(),
+                linked_requirements: vec!["REQ-001".to_string()],
+                implementations: BTreeMap::new(),
+            }],
+        };
+
+        assert!(tension_findings(&workspace).is_empty());
     }
 }
