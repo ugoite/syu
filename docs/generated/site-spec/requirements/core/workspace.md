@@ -455,6 +455,7 @@ description: "Generated reference for docs/syu/requirements/core/workspace.yaml"
           - assessment_labels_stay_stable
           - explain_text_handles_gaps_and_empty_sections
           - explain_text_renders_file_only_traces_and_definition_matches
+          - explain_text_renders_direct_trace_symbols
 
 ## Source YAML
 
@@ -889,4 +890,5 @@ requirements:
             - assessment_labels_stay_stable
             - explain_text_handles_gaps_and_empty_sections
             - explain_text_renders_file_only_traces_and_definition_matches
+            - explain_text_renders_direct_trace_symbols
 ```

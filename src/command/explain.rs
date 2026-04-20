@@ -300,4 +300,36 @@ mod tests {
         assert!(rendered.contains("README.md (file-only)"));
         assert!(rendered.contains("(direct match)"));
     }
+
+    #[test]
+    fn explain_text_renders_direct_trace_symbols() {
+        let output = build_explain_output(JsonRelateOutput {
+            selection: SelectionSummary {
+                kind: "symbol",
+                query: "run_check_command".to_string(),
+            },
+            direct_matches: DirectMatches {
+                definitions: Vec::new(),
+                traces: vec![RelatedTrace {
+                    owner_kind: "feature",
+                    owner_id: "FEAT-CHECK-001".to_string(),
+                    relation_kind: "implementation",
+                    language: "rust".to_string(),
+                    file: "src/command/check.rs".to_string(),
+                    symbols: vec!["run_check_command".to_string()],
+                    direct_match: true,
+                }],
+            },
+            philosophies: Vec::new(),
+            policies: Vec::new(),
+            requirements: Vec::new(),
+            features: Vec::new(),
+            traces: Vec::new(),
+            gaps: Vec::new(),
+        });
+
+        let rendered = render_explain_text(&output);
+        assert!(rendered.contains("run_check_command"));
+        assert!(rendered.contains("src/command/check.rs"));
+    }
 }
