@@ -38,13 +38,11 @@ If you are still deciding whether to adopt `syu`, start with the
 [repository-fit guide in the README](https://github.com/ugoite/syu/blob/main/README.md#is-syu-right-for-this-repository)
 before installing anything.
 
-## Quick start path
+## Quick start path {#quick-start-commands}
 
 Use this when you already know `syu` fits the repository and want the shortest
 site-local route into `syu validate .`. This section deliberately skips the
 longer installer discussion in [Before you begin](#before-you-begin).
-
-<div id="quick-start-commands" />
 
 ```bash
 RELEASE=v0.0.1-alpha.8
