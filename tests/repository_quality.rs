@@ -653,6 +653,8 @@ fn repository_declares_documentation_guides() {
     assert!(merge_queue_playbook.contains("autoMergeRequest"));
     assert!(merge_queue_playbook.contains("reviewDecision"));
     assert!(merge_queue_playbook.contains("AWAITING_CHECKS"));
+    assert!(merge_queue_playbook.contains("scripts/ci/check-merge-queue-health.sh"));
+    assert!(merge_queue_playbook.contains("merge-queue-watchdog.yml"));
     assert!(merge_queue_playbook.contains("All comments must be resolved"));
     assert!(merge_queue_playbook.contains("gh pr merge 123 --auto --squash"));
     assert!(merge_queue_playbook.contains("gh-readonly-queue/main/pr-123-<sha>"));
@@ -1009,11 +1011,13 @@ fn repository_declares_dependency_hygiene_and_ci_caching() {
     let ci_workflow = read_file(".github/workflows/ci.yml");
     let setup_rust_action = read_file(".github/actions/setup-rust/action.yml");
     let codeql_workflow = read_file(".github/workflows/codeql.yml");
+    let merge_queue_watchdog = read_file(".github/workflows/merge-queue-watchdog.yml");
     let merge_queue_checks = read_file(".github/merge-queue-checks.json");
     let docs_build_action = read_file(".github/actions/build-docs-site/action.yml");
     let docs_lock = read_file("website/package-lock.json");
     let release_artifacts = read_file(".github/workflows/release-artifacts.yml");
     let browser_app_freshness = read_file("scripts/ci/check-browser-app-freshness.sh");
+    let merge_queue_watchdog_script = read_file("scripts/ci/check-merge-queue-health.sh");
     let dependabot = read_file(".github/dependabot.yml");
 
     assert!(ci_workflow.contains("concurrency:"));
@@ -1055,6 +1059,15 @@ fn repository_declares_dependency_hygiene_and_ci_caching() {
     assert!(codeql_workflow.contains("github/codeql-action/init@v4"));
     assert!(codeql_workflow.contains("github/codeql-action/autobuild@v4"));
     assert!(codeql_workflow.contains("github/codeql-action/analyze@v4"));
+    assert!(merge_queue_watchdog.contains("workflow_dispatch:"));
+    assert!(merge_queue_watchdog.contains("schedule:"));
+    assert!(merge_queue_watchdog.contains("scripts/ci/check-merge-queue-health.sh"));
+    assert!(merge_queue_watchdog.contains("GH_TOKEN"));
+    assert!(merge_queue_watchdog_script.contains("load_required_merge_queue_workflows"));
+    assert!(merge_queue_watchdog_script.contains("fetch_merge_queue_state"));
+    assert!(merge_queue_watchdog_script.contains("fetch_merge_group_runs"));
+    assert!(merge_queue_watchdog_script.contains("render_watchdog_report"));
+    assert!(merge_queue_watchdog_script.contains("gh run list --event merge_group"));
     let merge_queue_manifest: serde_json::Value = serde_json::from_str(&merge_queue_checks)
         .expect("merge queue manifest should be valid JSON");
     let required_checks = merge_queue_manifest["required_checks"]

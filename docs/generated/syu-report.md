@@ -15,7 +15,7 @@
 ## Traceability
 
 - Requirement-to-test traceability: 99/99
-- Feature-to-implementation traceability: 112/112
+- Feature-to-implementation traceability: 114/114
 
 ## Issues
 

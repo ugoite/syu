@@ -47,6 +47,14 @@ description: "Generated reference for docs/syu/features/repository/quality.yaml"
       - **file**: scripts/ci/check-browser-app-freshness.sh
         - **symbols**:
           - check_browser_app_freshness
+      - **file**: scripts/ci/check-merge-queue-health.sh
+        - **symbols**:
+          - load_required_merge_queue_workflows
+          - fetch_merge_queue_state
+          - fetch_merge_group_runs
+          - render_watchdog_report
+          - check_merge_queue_health
+          - main
       - **file**: scripts/ci/pinned-npm.sh
         - **symbols**:
           - FEAT-QUALITY-001
@@ -89,6 +97,11 @@ description: "Generated reference for docs/syu/features/repository/quality.yaml"
           - merge_group
           - Analyze (rust)
           - github/codeql-action/init@v4
+      - **file**: .github/workflows/merge-queue-watchdog.yml
+        - **symbols**:
+          - schedule
+          - workflow_dispatch
+          - scripts/ci/check-merge-queue-health.sh
       - **file**: .github/dependabot.yml
         - **symbols**:
           - FEAT-QUALITY-001
@@ -134,6 +147,14 @@ features:
         - file: scripts/ci/check-browser-app-freshness.sh
           symbols:
             - check_browser_app_freshness
+        - file: scripts/ci/check-merge-queue-health.sh
+          symbols:
+            - load_required_merge_queue_workflows
+            - fetch_merge_queue_state
+            - fetch_merge_group_runs
+            - render_watchdog_report
+            - check_merge_queue_health
+            - main
         - file: scripts/ci/pinned-npm.sh
           symbols:
             - FEAT-QUALITY-001
@@ -176,6 +197,11 @@ features:
             - merge_group
             - Analyze (rust)
             - github/codeql-action/init@v4
+        - file: .github/workflows/merge-queue-watchdog.yml
+          symbols:
+            - schedule
+            - workflow_dispatch
+            - scripts/ci/check-merge-queue-health.sh
         - file: .github/dependabot.yml
           symbols:
             - FEAT-QUALITY-001

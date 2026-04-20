@@ -190,6 +190,10 @@ description: "Generated reference for docs/syu/requirements/core/repository.yaml
       - **file**: tests/repository_quality.rs
         - **symbols**:
           - repository_declares_dependency_hygiene_and_ci_caching
+      - **file**: tests/merge_queue_watchdog_script.rs
+        - **symbols**:
+          - merge_queue_watchdog_reports_healthy_queue
+          - merge_queue_watchdog_fails_for_stuck_awaiting_checks_entries
 
 ## Source YAML
 
@@ -362,4 +366,8 @@ requirements:
         - file: tests/repository_quality.rs
           symbols:
             - repository_declares_dependency_hygiene_and_ci_caching
+        - file: tests/merge_queue_watchdog_script.rs
+          symbols:
+            - merge_queue_watchdog_reports_healthy_queue
+            - merge_queue_watchdog_fails_for_stuck_awaiting_checks_entries
 ```
