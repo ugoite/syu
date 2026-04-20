@@ -582,6 +582,10 @@ fn repository_declares_documentation_guides() {
     assert!(vscode_guide.contains("syu validate . --format json"));
     assert!(vscode_guide.contains("Trace active file"));
     assert!(vscode_guide.contains("syu.binaryPath"));
+    assert!(vscode_guide.contains("editors/vscode/.nvmrc"));
+    assert!(vscode_guide.contains("nvm use"));
+    assert!(vscode_guide.contains("scripts/ci/pinned-npm.sh install editors/vscode"));
+    assert!(vscode_guide.contains("npm --prefix editors/vscode ci"));
     let tutorial = read_file("docs/guide/tutorial.md");
     assert!(tutorial.contains("Want a different entry point?"));
     assert!(tutorial.contains("[getting started](./getting-started.md)"));
@@ -593,6 +597,8 @@ fn repository_declares_documentation_guides() {
     assert!(reviewer_workflow.contains("currently traced"));
     assert!(reviewer_workflow.contains("the whole PR diff is covered"));
     assert!(reviewer_workflow.contains("too-small log result with the PR diff"));
+    assert!(reviewer_workflow.contains("filtered down to that item"));
+    assert!(reviewer_workflow.contains("not a smaller or faster"));
     assert!(trace_adapter_support.contains("# Trace adapter capability matrix"));
     assert!(trace_adapter_support.contains("validate.require_symbol_trace_coverage"));
     assert!(trace_adapter_support.contains("TypeScript / JavaScript"));
@@ -706,6 +712,7 @@ fn repository_declares_documentation_guides() {
 fn repository_ships_vscode_extension() {
     let extension_package = read_file("editors/vscode/package.json");
     let extension_lock = read_file("editors/vscode/package-lock.json");
+    let extension_nvmrc = read_file("editors/vscode/.nvmrc");
     let extension_readme = read_file("editors/vscode/README.md");
     let extension_launch = read_file("editors/vscode/.vscode/launch.json");
     let extension_entry = read_file("editors/vscode/src/extension.js");
@@ -720,10 +727,15 @@ fn repository_ships_vscode_extension() {
     assert!(extension_package.contains("\"syu.showRelatedFilesForSpecId\""));
     assert!(extension_package.contains("\"syuContext\""));
     assert!(extension_package.contains("\"yaml\""));
+    assert!(extension_package.contains("\"node\": \">=20 <21\""));
+    assert!(extension_package.contains("\"packageManager\": \"npm@11.8.0\""));
     assert!(extension_lock.contains("\"name\": \"syu-vscode\""));
     assert!(extension_lock.contains("\"yaml\""));
+    assert!(extension_nvmrc.contains("20"));
     assert!(extension_readme.contains("Problems panel"));
     assert!(extension_readme.contains("syu Context"));
+    assert!(extension_readme.contains("scripts/ci/pinned-npm.sh install editors/vscode"));
+    assert!(extension_readme.contains("npm --prefix editors/vscode ci"));
     assert!(extension_readme.contains("inline CodeLens actions"));
     assert!(extension_readme.contains("Extension Development Host"));
     assert!(extension_launch.contains("\"extensionHost\""));
@@ -800,6 +812,15 @@ fn repository_ships_example_workspaces() {
             "{} should use the current CLI version",
             relative.display()
         );
+        let example_name = relative
+            .parent()
+            .and_then(|path| path.file_name())
+            .and_then(|name| name.to_str())
+            .expect("example config should live under examples/<name>/");
+        assert!(
+            example_tests.contains(&format!("example_path(\"{example_name}\")")),
+            "example {example_name} should have a dedicated validation smoke test"
+        );
     }
 
     assert!(rust_example_requirement.contains("REQ-RUST-001"));
@@ -820,14 +841,6 @@ fn repository_ships_example_workspaces() {
     assert!(polyglot_config.contains(&format!("version: {current_version}")));
     assert!(polyglot_feature.contains("FEAT-MIX-001"));
     assert!(polyglot_feature.contains("status: implemented"));
-    assert!(example_tests.contains("docs_first_example_validates"));
-    assert!(example_tests.contains("csharp_fallback_example_validates"));
-    assert!(example_tests.contains("rust_only_example_validates"));
-    assert!(example_tests.contains("python_only_example_validates"));
-    assert!(example_tests.contains("go_only_example_validates"));
-    assert!(example_tests.contains("java_only_example_validates"));
-    assert!(example_tests.contains("polyglot_example_validates"));
-    assert!(example_tests.contains("team_scale_example_validates"));
 }
 
 #[test]
