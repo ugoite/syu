@@ -199,11 +199,105 @@ fn render_nodes(rendered: &mut String, label: &str, nodes: &[RelatedNode]) {
 
 #[cfg(test)]
 mod tests {
-    use super::ExplainAssessment;
+    use super::{
+        DirectMatches, ExplainAssessment, Gap, JsonRelateOutput, RelatedNode, RelatedTrace,
+        SelectionSummary, build_explain_output, render_explain_text,
+    };
 
     #[test]
     fn assessment_labels_stay_stable() {
         assert_eq!(ExplainAssessment::Aligned.label(), "aligned");
         assert_eq!(ExplainAssessment::NeedsAttention.label(), "needs-attention");
+        assert!(
+            ExplainAssessment::NeedsAttention
+                .summary()
+                .contains("needs review")
+        );
+    }
+
+    #[test]
+    fn explain_text_handles_gaps_and_empty_sections() {
+        let output = build_explain_output(JsonRelateOutput {
+            selection: SelectionSummary {
+                kind: "symbol",
+                query: "missing_selector".to_string(),
+            },
+            direct_matches: DirectMatches::default(),
+            philosophies: Vec::new(),
+            policies: Vec::new(),
+            requirements: Vec::new(),
+            features: Vec::new(),
+            traces: Vec::new(),
+            gaps: vec![Gap {
+                kind: "requirement",
+                id: "REQ-GAP-001".to_string(),
+                message: "missing trace coverage".to_string(),
+            }],
+        });
+
+        let rendered = render_explain_text(&output);
+        assert_eq!(output.assessment.label(), "needs-attention");
+        assert!(rendered.contains("Assessment: needs-attention"));
+        assert!(rendered.contains("Direct matches:\n- none"));
+        assert!(rendered.contains("Traces in scope:\n- none"));
+        assert!(
+            rendered.contains("Obvious gaps:\n- requirement REQ-GAP-001 — missing trace coverage")
+        );
+    }
+
+    #[test]
+    fn explain_text_renders_file_only_traces_and_definition_matches() {
+        let output = build_explain_output(JsonRelateOutput {
+            selection: SelectionSummary {
+                kind: "path",
+                query: "README.md".to_string(),
+            },
+            direct_matches: DirectMatches {
+                definitions: vec![RelatedNode {
+                    kind: "feature",
+                    id: "FEAT-DOCS-001".to_string(),
+                    title: "Docs feature".to_string(),
+                    document_path: "docs/syu/features/docs.yaml".to_string(),
+                }],
+                traces: vec![RelatedTrace {
+                    owner_kind: "feature",
+                    owner_id: "FEAT-DOCS-001".to_string(),
+                    relation_kind: "implementation".to_string(),
+                    language: "markdown".to_string(),
+                    file: "README.md".to_string(),
+                    symbols: Vec::new(),
+                    direct_match: true,
+                }],
+            },
+            philosophies: vec![RelatedNode {
+                kind: "philosophy",
+                id: "PHIL-001".to_string(),
+                title: "Stay explicit".to_string(),
+                document_path: "docs/syu/philosophy/foundation.yaml".to_string(),
+            }],
+            policies: Vec::new(),
+            requirements: Vec::new(),
+            features: vec![RelatedNode {
+                kind: "feature",
+                id: "FEAT-DOCS-001".to_string(),
+                title: "Docs feature".to_string(),
+                document_path: "docs/syu/features/docs.yaml".to_string(),
+            }],
+            traces: vec![RelatedTrace {
+                owner_kind: "feature",
+                owner_id: "FEAT-DOCS-001".to_string(),
+                relation_kind: "implementation".to_string(),
+                language: "markdown".to_string(),
+                file: "README.md".to_string(),
+                symbols: Vec::new(),
+                direct_match: true,
+            }],
+            gaps: Vec::new(),
+        });
+
+        let rendered = render_explain_text(&output);
+        assert!(rendered.contains("feature FEAT-DOCS-001 — Docs feature"));
+        assert!(rendered.contains("README.md (file-only)"));
+        assert!(rendered.contains("(direct match)"));
     }
 }
