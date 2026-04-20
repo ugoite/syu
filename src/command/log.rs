@@ -116,12 +116,9 @@ pub fn run_log_command(args: &LogArgs) -> Result<i32> {
         path_filter.as_deref(),
     )?;
     if args.include_related {
-        target.tracked_paths.extend(collect_related_tracked_paths(
-            &workspace,
-            &args.id,
-            args.kind,
-            path_filter.as_deref(),
-        )?);
+        let related =
+            collect_related_tracked_paths(&workspace, &args.id, args.kind, path_filter.as_deref())?;
+        target.tracked_paths.extend(related);
         dedupe_tracked_paths(&mut target.tracked_paths);
     }
     let repository_root = resolve_git_repository_root(&workspace.root)?;
@@ -1194,6 +1191,29 @@ mod tests {
     }
 
     #[test]
+    fn resolve_history_scope_reports_merge_base_failures() {
+        let fake_bin = tempdir().expect("tempdir should exist");
+        let _path_guard = PathGuard::set(vec![fake_bin.path().to_path_buf()]);
+        write_fake_git_for_scope_merge_base_failure(fake_bin.path());
+
+        let error = resolve_history_scope(Path::new("/repo"), None, Some("origin/main"))
+            .expect_err("merge-base failures should be reported");
+        assert!(error.to_string().contains("failed to compute merge-base"));
+        assert!(error.to_string().contains("synthetic merge-base failure"));
+    }
+
+    #[test]
+    fn resolve_history_scope_rejects_empty_merge_base_output() {
+        let fake_bin = tempdir().expect("tempdir should exist");
+        let _path_guard = PathGuard::set(vec![fake_bin.path().to_path_buf()]);
+        write_fake_git_for_scope_merge_base_empty_output(fake_bin.path());
+
+        let error = resolve_history_scope(Path::new("/repo"), None, Some("origin/main"))
+            .expect_err("empty merge-base output should fail");
+        assert!(error.to_string().contains("empty base SHA"));
+    }
+
+    #[test]
     fn collect_related_tracked_paths_excludes_selected_definition_from_related_set() {
         let workspace_root = tempdir().expect("tempdir should exist");
         write_related_workspace_fixture(workspace_root.path());
@@ -1821,6 +1841,39 @@ mod tests {
             "// FEAT-HIST-001\nfn feature_history() {}\n",
         )
         .expect("history feature file");
+    }
+
+    fn write_fake_git_for_scope_merge_base_failure(script_dir: &Path) {
+        let script_path = script_dir.join("git");
+        fs::write(
+            &script_path,
+            "#!/bin/sh\nset -eu\nif [ \"$3\" = \"merge-base\" ]; then\n  echo 'synthetic merge-base failure' >&2\n  exit 2\nfi\necho 'unexpected git invocation' >&2\nexit 1\n",
+        )
+        .expect("fake git script");
+        set_executable(&script_path);
+    }
+
+    fn write_fake_git_for_scope_merge_base_empty_output(script_dir: &Path) {
+        let script_path = script_dir.join("git");
+        fs::write(
+            &script_path,
+            "#!/bin/sh\nset -eu\nif [ \"$3\" = \"merge-base\" ]; then\n  exit 0\nfi\necho 'unexpected git invocation' >&2\nexit 1\n",
+        )
+        .expect("fake git script");
+        set_executable(&script_path);
+    }
+
+    fn set_executable(path: &Path) {
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+
+            let mut permissions = fs::metadata(path)
+                .expect("metadata should exist")
+                .permissions();
+            permissions.set_mode(0o755);
+            fs::set_permissions(path, permissions).expect("permissions should update");
+        }
     }
 
     fn init_test_git_repository(path: &Path) {
