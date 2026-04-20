@@ -179,6 +179,15 @@ fn create_hover_for_spec_id(workspace: &Workspace, spec_id: &str) -> Option<Hove
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::lsp::protocol::{Position, TextDocumentIdentifier};
+    use std::{fs, path::PathBuf};
+    use tempfile::tempdir;
+
+    fn fixture_path(name: &str) -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/workspaces")
+            .join(name)
+    }
 
     #[test]
     fn test_find_spec_id_at_position() {
@@ -195,5 +204,158 @@ mod tests {
         let uri = "file:///home/user/file.txt";
         let path = uri_to_path(uri).unwrap();
         assert_eq!(path.to_str().unwrap(), "/home/user/file.txt");
+    }
+
+    #[test]
+    fn uri_to_path_accepts_plain_paths() {
+        let path = uri_to_path("/tmp/plain.txt").unwrap();
+        assert_eq!(path.to_str().unwrap(), "/tmp/plain.txt");
+    }
+
+    #[test]
+    fn handle_hover_requires_initialization() {
+        let handlers = LspHandlers::new();
+        let error = handlers
+            .handle_hover(TextDocumentPositionParams {
+                text_document: TextDocumentIdentifier {
+                    uri: "file:///tmp/example.rs".to_string(),
+                },
+                position: Position {
+                    line: 0,
+                    character: 0,
+                },
+            })
+            .expect_err("hover should require initialization");
+        assert!(error.to_string().contains("workspace not initialized"));
+    }
+
+    #[test]
+    fn handle_initialize_loads_workspace_from_root_uri() {
+        let mut handlers = LspHandlers::new();
+        let workspace = fixture_path("passing");
+        let value = handlers
+            .handle_initialize(InitializeParams {
+                process_id: None,
+                root_uri: Some(format!("file://{}", workspace.display())),
+                capabilities: None,
+            })
+            .expect("initialize should succeed");
+
+        assert_eq!(value["capabilities"]["hoverProvider"], true);
+        assert!(handlers.workspace.is_some());
+    }
+
+    #[test]
+    fn handle_hover_returns_none_for_out_of_bounds_positions() {
+        let mut handlers = LspHandlers::new();
+        let workspace = fixture_path("passing");
+        handlers
+            .handle_initialize(InitializeParams {
+                process_id: None,
+                root_uri: Some(format!("file://{}", workspace.display())),
+                capabilities: None,
+            })
+            .expect("initialize should succeed");
+
+        let tempdir = tempdir().expect("tempdir");
+        let file_path = tempdir.path().join("notes.txt");
+        fs::write(&file_path, "plain text\n").expect("write file");
+
+        let hover = handlers
+            .handle_hover(TextDocumentPositionParams {
+                text_document: TextDocumentIdentifier {
+                    uri: format!("file://{}", file_path.display()),
+                },
+                position: Position {
+                    line: 10,
+                    character: 0,
+                },
+            })
+            .expect("hover should succeed");
+        assert!(hover.is_none());
+    }
+
+    #[test]
+    fn handle_hover_renders_each_spec_layer() {
+        let mut handlers = LspHandlers::new();
+        let workspace = fixture_path("passing");
+        handlers
+            .handle_initialize(InitializeParams {
+                process_id: None,
+                root_uri: Some(format!("file://{}", workspace.display())),
+                capabilities: None,
+            })
+            .expect("initialize should succeed");
+
+        let tempdir = tempdir().expect("tempdir");
+        let file_path = tempdir.path().join("spec-ids.txt");
+        fs::write(
+            &file_path,
+            "PHIL-TRACE-001\nPOL-TRACE-001\nREQ-TRACE-001\nFEAT-TRACE-001\n",
+        )
+        .expect("write file");
+
+        for (line, expected) in [
+            (0, "Product Design Principle"),
+            (1, "## Summary"),
+            (2, "**Priority:**"),
+            (3, "**Status:**"),
+        ] {
+            let hover = handlers
+                .handle_hover(TextDocumentPositionParams {
+                    text_document: TextDocumentIdentifier {
+                        uri: format!("file://{}", file_path.display()),
+                    },
+                    position: Position { line, character: 2 },
+                })
+                .expect("hover should succeed")
+                .expect("hover should exist");
+            assert!(hover.contents.value.contains(expected));
+        }
+    }
+
+    #[test]
+    fn handle_hover_returns_none_when_no_spec_id_matches() {
+        let mut handlers = LspHandlers::new();
+        let workspace = fixture_path("passing");
+        handlers
+            .handle_initialize(InitializeParams {
+                process_id: None,
+                root_uri: Some(format!("file://{}", workspace.display())),
+                capabilities: None,
+            })
+            .expect("initialize should succeed");
+
+        let tempdir = tempdir().expect("tempdir");
+        let file_path = tempdir.path().join("notes.txt");
+        fs::write(&file_path, "nothing to hover here\n").expect("write file");
+
+        let hover = handlers
+            .handle_hover(TextDocumentPositionParams {
+                text_document: TextDocumentIdentifier {
+                    uri: format!("file://{}", file_path.display()),
+                },
+                position: Position {
+                    line: 0,
+                    character: 1,
+                },
+            })
+            .expect("hover should succeed");
+        assert!(hover.is_none());
+    }
+
+    #[test]
+    fn handle_initialized_and_shutdown_flip_state() {
+        let mut handlers = LspHandlers::new();
+        handlers.handle_initialized().expect("initialized");
+        assert!(handlers.initialized);
+        assert_eq!(handlers.handle_shutdown().expect("shutdown"), Value::Null);
+        assert!(!handlers.initialized);
+    }
+
+    #[test]
+    fn create_hover_returns_none_for_unknown_ids() {
+        let workspace = load_workspace(&fixture_path("passing")).expect("workspace");
+        assert!(create_hover_for_spec_id(&workspace, "NOTE-UNKNOWN-001").is_none());
     }
 }

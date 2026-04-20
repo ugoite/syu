@@ -147,3 +147,207 @@ impl LspServer {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    use std::{fs, io::Cursor, path::PathBuf};
+    use tempfile::tempdir;
+
+    fn fixture_path(name: &str) -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/workspaces")
+            .join(name)
+    }
+
+    fn message_bytes(value: serde_json::Value) -> Vec<u8> {
+        let json = serde_json::to_string(&value).expect("serialize message");
+        format!("Content-Length: {}\r\n\r\n{}", json.len(), json).into_bytes()
+    }
+
+    #[test]
+    fn read_message_returns_none_on_eof() {
+        let server = LspServer::new();
+        let mut reader = Cursor::new(Vec::<u8>::new());
+        assert!(
+            server
+                .read_message(&mut reader)
+                .expect("read eof")
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn read_message_requires_content_length_header() {
+        let server = LspServer::new();
+        let mut reader = Cursor::new(b"Header: nope\r\n\r\n{}".to_vec());
+        let error = server
+            .read_message(&mut reader)
+            .expect_err("missing header should fail");
+        assert!(error.to_string().contains("missing Content-Length header"));
+    }
+
+    #[test]
+    fn write_message_serializes_lsp_envelope() {
+        let server = LspServer::new();
+        let mut output = Vec::new();
+        server
+            .write_message(
+                &mut output,
+                &Message::Response(Response {
+                    jsonrpc: "2.0".to_string(),
+                    id: super::super::protocol::RequestId::Number(1),
+                    result: Some(json!({"ok": true})),
+                    error: None,
+                }),
+            )
+            .expect("write should succeed");
+        let text = String::from_utf8(output).expect("utf8 output");
+        assert!(text.starts_with("Content-Length: "));
+        assert!(text.contains("\"ok\":true"));
+    }
+
+    #[test]
+    fn handle_message_ignores_responses() {
+        let mut server = LspServer::new();
+        let response = Message::Response(Response {
+            jsonrpc: "2.0".to_string(),
+            id: super::super::protocol::RequestId::Number(1),
+            result: Some(json!(null)),
+            error: None,
+        });
+        assert!(
+            server
+                .handle_message(response)
+                .expect("response handling")
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn handle_request_returns_error_for_unknown_methods() {
+        let mut server = LspServer::new();
+        let response = server
+            .handle_request(Request {
+                jsonrpc: "2.0".to_string(),
+                id: super::super::protocol::RequestId::Number(1),
+                method: "workspace/unknown".to_string(),
+                params: None,
+            })
+            .expect("request should produce response");
+        assert!(response.result.is_none());
+        assert_eq!(
+            response.error.expect("error response").message,
+            "method not found: workspace/unknown"
+        );
+    }
+
+    #[test]
+    fn handle_request_returns_error_when_hover_params_are_missing() {
+        let mut server = LspServer::new();
+        let error = server
+            .handle_request(Request {
+                jsonrpc: "2.0".to_string(),
+                id: super::super::protocol::RequestId::Number(2),
+                method: "textDocument/hover".to_string(),
+                params: None,
+            })
+            .expect_err("missing params should fail before a response is built");
+        assert!(error.to_string().contains("missing params"));
+    }
+
+    #[test]
+    fn handle_request_serializes_hover_results() {
+        let tempdir = tempdir().expect("tempdir");
+        let hover_file = tempdir.path().join("hover.txt");
+        fs::write(&hover_file, "REQ-TRACE-001\n").expect("hover file");
+
+        let mut server = LspServer::new();
+        server
+            .handle_request(Request {
+                jsonrpc: "2.0".to_string(),
+                id: super::super::protocol::RequestId::Number(1),
+                method: "initialize".to_string(),
+                params: Some(json!({
+                    "rootUri": format!("file://{}", fixture_path("passing").display())
+                })),
+            })
+            .expect("initialize response");
+
+        let response = server
+            .handle_request(Request {
+                jsonrpc: "2.0".to_string(),
+                id: super::super::protocol::RequestId::Number(2),
+                method: "textDocument/hover".to_string(),
+                params: Some(json!({
+                    "textDocument": {"uri": format!("file://{}", hover_file.display())},
+                    "position": {"line": 0, "character": 2}
+                })),
+            })
+            .expect("hover response");
+
+        assert!(response.error.is_none());
+        assert_eq!(
+            response.result.expect("hover result")["contents"]["kind"],
+            "markdown"
+        );
+    }
+
+    #[test]
+    fn handle_notification_updates_server_exit_state() {
+        let mut server = LspServer::new();
+        server
+            .handle_notification(Notification {
+                jsonrpc: "2.0".to_string(),
+                method: "exit".to_string(),
+                params: None,
+            })
+            .expect("exit notification");
+        assert!(server.should_exit);
+    }
+
+    #[test]
+    fn handle_notification_accepts_initialized() {
+        let mut server = LspServer::new();
+        server
+            .handle_notification(Notification {
+                jsonrpc: "2.0".to_string(),
+                method: "initialized".to_string(),
+                params: Some(json!({})),
+            })
+            .expect("initialized notification");
+        assert!(!server.should_exit);
+    }
+
+    #[test]
+    fn handle_notification_ignores_unknown_methods() {
+        let mut server = LspServer::new();
+        server
+            .handle_notification(Notification {
+                jsonrpc: "2.0".to_string(),
+                method: "workspace/didChangeConfiguration".to_string(),
+                params: None,
+            })
+            .expect("unknown notification should be ignored");
+        assert!(!server.should_exit);
+    }
+
+    #[test]
+    fn read_message_round_trips_requests() {
+        let server = LspServer::new();
+        let bytes = message_bytes(json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "shutdown"
+        }));
+        let mut reader = Cursor::new(bytes);
+        let message = server
+            .read_message(&mut reader)
+            .expect("message should parse");
+        assert!(matches!(
+            message,
+            Some(Message::Request(Request { method, .. })) if method == "shutdown"
+        ));
+    }
+}

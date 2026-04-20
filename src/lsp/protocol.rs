@@ -132,3 +132,15 @@ impl MarkupContent {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::MarkupContent;
+
+    #[test]
+    fn markdown_content_uses_markdown_kind() {
+        let content = MarkupContent::markdown("hello".to_string());
+        assert_eq!(content.kind, "markdown");
+        assert_eq!(content.value, "hello");
+    }
+}

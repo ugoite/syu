@@ -104,6 +104,24 @@ fn test_lsp_lifecycle() {
     let _ = child.wait();
 }
 
+#[test]
+fn test_lsp_exits_cleanly_on_immediate_eof() {
+    let output = Command::new(env!("CARGO_BIN_EXE_syu"))
+        .arg("lsp")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .expect("failed to run syu lsp");
+
+    assert!(
+        output.status.success(),
+        "stdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
 fn send_message<W: Write>(writer: &mut W, message: &serde_json::Value) -> std::io::Result<()> {
     let json = serde_json::to_string(message)?;
     write!(writer, "Content-Length: {}\r\n\r\n{}", json.len(), json)?;
