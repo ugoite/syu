@@ -121,13 +121,13 @@ fn build_doctor_report(workspace: &Path) -> Result<DoctorReport> {
         &workspace_root,
         "app",
         "Browser app",
-        "scripts/ci/pinned-npm.sh install app && npm --prefix app ci",
+        "scripts/ci/pinned-npm.sh install app && scripts/ci/pinned-npm.sh exec app ci",
     ));
     checks.extend(surface_checks(
         &workspace_root,
         "website",
         "Docs site",
-        "bash scripts/ci/install-docs-site-deps.sh && npm --prefix website ci",
+        "scripts/ci/pinned-npm.sh install website && scripts/ci/pinned-npm.sh exec website ci",
     ));
     checks.push(playwright_check(&workspace_root));
 
@@ -260,12 +260,13 @@ fn surface_checks(
         ];
     }
 
-    let metadata = PackageMetadata::from_path(&package_json).unwrap_or_default();
+    let expected_npm_version = PackageMetadata::from_path(&package_json)
+        .map(|metadata| expected_npm_version(&metadata))
+        .map_err(|error| error.to_string());
     let expected_node_major = fs::read_to_string(&nvmrc)
         .ok()
         .map(|raw| raw.trim().to_string())
         .filter(|value| !value.is_empty());
-    let expected_npm_version = expected_npm_version(&metadata);
 
     vec![
         surface_node_check(
@@ -277,7 +278,7 @@ fn surface_checks(
         surface_npm_check(
             label_prefix,
             relative_dir,
-            expected_npm_version.as_deref(),
+            expected_npm_version,
             &package_json,
         ),
         surface_dependency_check(label_prefix, relative_dir, &surface_root, install_fix),
@@ -311,14 +312,30 @@ fn surface_node_check(
 fn surface_npm_check(
     label_prefix: &'static str,
     relative_dir: &'static str,
-    expected_version: Option<&str>,
+    expected_version: std::result::Result<Option<String>, String>,
     package_json_path: &Path,
 ) -> DoctorCheck {
+    let expected_version = match expected_version {
+        Ok(expected_version) => expected_version,
+        Err(message) => {
+            return DoctorCheck {
+                id: surface_check_id(relative_dir, "npm"),
+                label: surface_label(label_prefix, "npm"),
+                status: DoctorStatus::Error,
+                message,
+                fix: Some(format!(
+                    "Fix the JSON syntax in `{}` so the pinned npm requirement can be read.",
+                    package_json_path.display()
+                )),
+            };
+        }
+    };
+
     match command_version(npm_executable(), &["--version"]) {
         Ok(current) => build_npm_check(
             label_prefix,
             relative_dir,
-            expected_version,
+            expected_version.as_deref(),
             package_json_path,
             &current,
         ),
@@ -669,7 +686,7 @@ fn build_playwright_check(app_root: &Path, chromium_path: Option<&Path>) -> Doct
             message: "app dependencies are missing, so browser readiness cannot be checked yet"
                 .to_string(),
             fix: Some(
-                "Run `scripts/ci/pinned-npm.sh install app && npm --prefix app ci` first."
+                "Run `scripts/ci/pinned-npm.sh install app && scripts/ci/pinned-npm.sh exec app ci` first."
                     .to_string(),
             ),
         };
@@ -695,7 +712,7 @@ fn build_playwright_check(app_root: &Path, chromium_path: Option<&Path>) -> Doct
                 "no installed Playwright Chromium bundle was found in the standard cache locations"
                     .to_string(),
             fix: Some(
-                "Run `npx --prefix app playwright install --with-deps chromium`.".to_string(),
+                "Run `scripts/ci/pinned-npm.sh install app && scripts/ci/pinned-npm.sh exec app exec playwright install --with-deps chromium`.".to_string(),
             ),
         }
     }
@@ -988,6 +1005,34 @@ mod tests {
     }
 
     #[test]
+    fn surface_checks_report_invalid_package_metadata_as_an_error() {
+        let tempdir = tempdir().expect("tempdir");
+        let app_root = tempdir.path().join("app");
+        fs::create_dir_all(&app_root).expect("app root");
+        fs::write(app_root.join("package.json"), "{invalid").expect("invalid package");
+        fs::write(app_root.join(".nvmrc"), "25\n").expect("nvmrc");
+
+        let checks = surface_checks(tempdir.path(), "app", "Browser app", "install");
+        let npm_check = checks
+            .iter()
+            .find(|check| check.id == "app-npm")
+            .expect("npm check should exist");
+
+        assert_eq!(npm_check.status, DoctorStatus::Error);
+        assert!(
+            npm_check
+                .message
+                .contains("failed to parse package metadata")
+        );
+        assert!(
+            npm_check
+                .fix
+                .as_deref()
+                .is_some_and(|fix| fix.contains("pinned npm requirement"))
+        );
+    }
+
+    #[test]
     fn command_version_reports_missing_failure_and_success() {
         let tempdir = tempdir().expect("tempdir");
         let success =
@@ -1105,6 +1150,12 @@ mod tests {
         let warning = build_playwright_check(&app_root, None);
         assert_eq!(warning.status, DoctorStatus::Warning);
         assert!(warning.message.contains("app dependencies are missing"));
+        assert!(
+            warning
+                .fix
+                .as_deref()
+                .is_some_and(|fix| fix.contains("pinned-npm.sh exec app ci"))
+        );
 
         fs::create_dir_all(app_root.join("node_modules")).expect("node_modules");
         let no_cache = build_playwright_check(&app_root, None);
@@ -1113,6 +1164,12 @@ mod tests {
             no_cache
                 .message
                 .contains("no installed Playwright Chromium bundle")
+        );
+        assert!(
+            no_cache
+                .fix
+                .as_deref()
+                .is_some_and(|fix| fix.contains("pinned-npm.sh exec app exec playwright"))
         );
 
         let chromium = tempdir.path().join("pw-cache/chromium-1000");

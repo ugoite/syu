@@ -5,6 +5,7 @@ set -euo pipefail
 
 usage() {
   echo "Usage: scripts/ci/pinned-npm.sh <check|install> <package-dir>" >&2
+  echo "       scripts/ci/pinned-npm.sh exec <package-dir> <npm-args...>" >&2
 }
 
 repo_root() {
@@ -32,21 +33,36 @@ required_npm_version() {
 }
 
 main() {
-  if [[ $# -ne 2 ]]; then
+  if [[ $# -lt 2 ]]; then
     usage
     exit 1
   fi
 
   local mode=$1
   local package_dir=$2
+  local -a npm_args=()
   local root
   local package_json
   local required
   local current
 
-  if [[ $mode != "check" && $mode != "install" ]]; then
+  if [[ $mode != "check" && $mode != "install" && $mode != "exec" ]]; then
     usage
     exit 1
+  fi
+
+  if [[ $mode == "exec" && $# -lt 3 ]]; then
+    usage
+    exit 1
+  fi
+
+  if [[ $mode != "exec" && $# -ne 2 ]]; then
+    usage
+    exit 1
+  fi
+
+  if [[ $mode == "exec" ]]; then
+    npm_args=("${@:3}")
   fi
 
   root="$(repo_root)"
@@ -70,6 +86,10 @@ main() {
     echo "Expected npm ${required} for ${package_dir}/package.json, found ${current}." >&2
     echo "Run 'scripts/ci/pinned-npm.sh install ${package_dir}' before invoking npm for ${package_dir}/." >&2
     exit 1
+  fi
+
+  if [[ $mode == "exec" ]]; then
+    npm --prefix "$package_dir" "${npm_args[@]}"
   fi
 }
 
