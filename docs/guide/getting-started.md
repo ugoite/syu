@@ -44,6 +44,8 @@ Use this when you already know `syu` fits the repository and want the shortest
 site-local route into `syu validate .`. This section deliberately skips the
 longer installer discussion in [Before you begin](#before-you-begin).
 
+<div id="quick-start-commands" />
+
 ```bash
 RELEASE=v0.0.1-alpha.8
 curl -fsSL "https://github.com/ugoite/syu/releases/download/${RELEASE}/install-syu.sh" | env SYU_VERSION=alpha bash

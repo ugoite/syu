@@ -691,7 +691,7 @@ fn repository_declares_documentation_guides() {
     assert!(docs_home.contains("Stay close to checked-in source"));
     assert!(docs_home.contains("Choose your path"));
     assert!(docs_home.contains("Getting started"));
-    assert!(docs_home.contains("/docs/guide/getting-started#quick-start-path"));
+    assert!(docs_home.contains("/docs/guide/getting-started#quick-start-commands"));
     assert!(docs_home.contains("Reviewer workflow"));
     assert!(docs_home.contains("Troubleshooting"));
     assert!(docs_home.contains("Follow a full tutorial"));

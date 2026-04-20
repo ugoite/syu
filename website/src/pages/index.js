@@ -37,7 +37,7 @@ const chooseYourPath = [
     title: 'Quick start',
     description:
       'Stay on the shortest site-local install-to-validate path when you want the fastest route into `syu validate .`.',
-    to: '/docs/guide/getting-started#quick-start-path'
+    to: '/docs/guide/getting-started#quick-start-commands'
   },
   {
     title: 'Tutorial',
