@@ -70,6 +70,9 @@ fn repository_declares_precommit_and_quality_gates() {
     assert!(contributor_bootstrap_script.contains("bash scripts/ci/install-docs-site-deps.sh"));
     assert!(contributor_bootstrap_script.contains("npm --prefix editors/vscode ci"));
     assert!(contributor_bootstrap_script.contains("playwright install --with-deps chromium"));
+    assert!(contributor_bootstrap_script.contains("current shell's Node major"));
+    assert!(contributor_bootstrap_script.contains("app/.nvmrc"));
+    assert!(contributor_bootstrap_script.contains("website/.nvmrc"));
     assert!(contributor_bootstrap_script.contains("--all"));
     assert!(install_docs_site_deps_script.contains("Branch switches can leave behind"));
     assert!(install_docs_site_deps_script.contains("website/node_modules"));
@@ -876,6 +879,7 @@ fn repository_declares_contribution_workflow_assets() {
     assert!(contributing.contains("scripts/ci/check-browser-app-freshness.sh"));
     assert!(contributing.contains("scripts/ci/pinned-npm.sh install app"));
     assert!(contributing.contains("scripts/ci/bootstrap-contributor-tooling.sh"));
+    assert!(contributing.contains("matches the current shell major"));
     assert!(contributing.contains("--vscode"));
     assert!(contributing.contains("--playwright"));
     assert!(contributing.contains("--all"));

@@ -7,9 +7,10 @@ usage() {
   cat >&2 <<'EOF'
 Usage: scripts/ci/bootstrap-contributor-tooling.sh [--app] [--website] [--vscode] [--playwright] [--all]
 
-Without flags, installs the default optional contributor surfaces:
-  --app       Install browser-app npm dependencies
-  --website   Install docs-site npm dependencies
+Without flags, install the surfaces whose checked-in `.nvmrc` matches the
+current shell's Node major:
+  Node 25 => browser app
+  Node 20 => docs site + VS Code extension
 
 Additional opt-in flags:
   --vscode      Install VS Code extension npm dependencies
@@ -24,6 +25,44 @@ repo_root() {
 
 log_step() {
   printf '\n[bootstrap] %s\n' "$1"
+}
+
+read_nvm_major() {
+  local path="$1"
+
+  head -n 1 "$path" | tr -dc '0-9'
+}
+
+current_node_major() {
+  node -p 'process.versions.node.split(".")[0]'
+}
+
+select_default_surfaces() {
+  local current_major app_major website_major vscode_major
+
+  current_major="$(current_node_major)"
+  app_major="$(read_nvm_major app/.nvmrc)"
+  website_major="$(read_nvm_major website/.nvmrc)"
+  vscode_major="$(read_nvm_major editors/vscode/.nvmrc)"
+
+  if [[ "$current_major" == "$app_major" ]]; then
+    install_app=1
+  fi
+  if [[ "$current_major" == "$website_major" ]]; then
+    install_website=1
+  fi
+  if [[ "$current_major" == "$vscode_major" ]]; then
+    install_vscode=1
+  fi
+
+  if [[ "$install_app" -eq 0 && "$install_website" -eq 0 && "$install_vscode" -eq 0 ]]; then
+    cat >&2 <<EOF
+[bootstrap] Current Node major ${current_major} does not match any checked-in optional surface.
+[bootstrap] Switch to Node ${app_major} for app/.nvmrc, or Node ${website_major} for website/.nvmrc and editors/vscode/.nvmrc.
+[bootstrap] Alternatively, rerun with explicit flags after switching shells for each surface you need.
+EOF
+    exit 1
+  fi
 }
 
 install_app_deps() {
@@ -82,8 +121,7 @@ main() {
   cd "$root"
 
   if [[ $# -eq 0 ]]; then
-    install_app=1
-    install_website=1
+    select_default_surfaces
   fi
 
   while [[ $# -gt 0 ]]; do

@@ -740,10 +740,11 @@ scripts/ci/pinned-npm.sh install app
 npm --prefix app ci
 ```
 
-If you also want the docs-site tooling ready in the same pass, use:
+If you prefer the checked-in bootstrap entrypoint for the same app-only setup,
+switch to Node 25 first and use:
 
 ```bash
-scripts/ci/bootstrap-contributor-tooling.sh
+scripts/ci/bootstrap-contributor-tooling.sh --app
 ```
 
 Cargo no longer runs `npm ci` for you during normal builds. If `app/node_modules`
@@ -779,12 +780,17 @@ bash scripts/ci/install-docs-site-deps.sh
 npm --prefix website run start
 ```
 
-That same contributor bootstrap installs the docs-site dependencies plus the
-browser-app dependencies together:
+If you want the bootstrap entrypoint instead of the raw docs-site commands,
+switch to Node 20 first and use:
 
 ```bash
 scripts/ci/bootstrap-contributor-tooling.sh
 ```
+
+Without flags, the bootstrap only installs the surfaces that match the current
+shell major from the checked-in `.nvmrc` files. In this repository that means
+Node 25 selects the browser app, while Node 20 selects the docs site plus the
+VS Code extension.
 
 The install script removes `website/node_modules` first so repeated docs-site
 setup stays deterministic across branch switches and reused worktrees.

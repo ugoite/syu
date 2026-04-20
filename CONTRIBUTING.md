@@ -53,10 +53,13 @@ run:
 scripts/ci/bootstrap-contributor-tooling.sh
 ```
 
-That default path installs the browser-app and docs-site dependencies together.
-Add `--vscode` when you are working on `editors/vscode/`, `--playwright` when
-you want local end-to-end browser coverage, or `--all` when you want every
-checked-in optional npm surface ready at once.
+Without flags, the script installs only the surfaces whose checked-in `.nvmrc`
+matches the current shell major. In this repository that means Node 25 selects
+the browser app, while Node 20 selects the docs site plus the VS Code
+extension. Add `--vscode` when you are working on `editors/vscode/`,
+`--playwright` when you want local end-to-end browser coverage, or `--all`
+when you intentionally want every checked-in optional npm surface ready at
+once.
 
 1. **Every change**
 
