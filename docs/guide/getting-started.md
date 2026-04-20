@@ -508,6 +508,7 @@ syu report . --output reports/syu.md
 
 The repository includes complete examples:
 
+- `examples/browser-ui`
 - `examples/rust-only`
 - `examples/python-only`
 - `examples/go-only`

@@ -158,6 +158,7 @@ description: "Generated reference for docs/syu/requirements/core/validation.yaml
           - *
       - **file**: tests/example_workspaces.rs
         - **symbols**:
+          - browser_ui_example_validates
           - python_only_example_validates
           - polyglot_example_validates
     - **python**:
@@ -380,6 +381,7 @@ requirements:
             - '*'
         - file: tests/example_workspaces.rs
           symbols:
+            - browser_ui_example_validates
             - python_only_example_validates
             - polyglot_example_validates
       python:
