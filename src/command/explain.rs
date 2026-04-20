@@ -262,7 +262,7 @@ mod tests {
                 traces: vec![RelatedTrace {
                     owner_kind: "feature",
                     owner_id: "FEAT-DOCS-001".to_string(),
-                    relation_kind: "implementation".to_string(),
+                    relation_kind: "implementation",
                     language: "markdown".to_string(),
                     file: "README.md".to_string(),
                     symbols: Vec::new(),
@@ -286,7 +286,7 @@ mod tests {
             traces: vec![RelatedTrace {
                 owner_kind: "feature",
                 owner_id: "FEAT-DOCS-001".to_string(),
-                relation_kind: "implementation".to_string(),
+                relation_kind: "implementation",
                 language: "markdown".to_string(),
                 file: "README.md".to_string(),
                 symbols: Vec::new(),
