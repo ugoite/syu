@@ -37,6 +37,9 @@ Pick the newcomer path that matches what you need next:
 - **Quick start**: stay in this README when you want a compact, self-contained
   reference card, are happy with a short layer refresher, and want the fastest
   install-to-`syu validate .` path in about 5 minutes.
+- **Command card**: open [`docs/guide/command-card.md`](docs/guide/command-card.md)
+  when you already know the model and want one compact guide page for the core
+  install / init / validate / browse / app / review commands.
 - **Tutorial**: follow [`docs/guide/tutorial.md`](docs/guide/tutorial.md) when you
   learn best from a realistic repository story, want more narrative context than
   Quick start, and do not mind a longer walkthrough.
@@ -68,6 +71,7 @@ Keep the detailed guides close:
 
 - [`docs/guide/concepts.md`](docs/guide/concepts.md)
 - [`docs/guide/getting-started.md`](docs/guide/getting-started.md)
+- [`docs/guide/command-card.md`](docs/guide/command-card.md)
 - [`docs/guide/tutorial.md`](docs/guide/tutorial.md)
 - [`docs/guide/migration.md`](docs/guide/migration.md)
 - [`docs/guide/app.md`](docs/guide/app.md)
@@ -296,7 +300,7 @@ That renders `PHIL-STORE-001`, `POL-STORE-001`, `REQ-STORE-001`, and
 `--feature-prefix`.
 
 Want a closer starting point for a repository that is already clearly
-docs-first, Rust-first, Python-first, Go-first, Java-first, or polyglot? Start with a
+docs-first, Rust-first, Python-first, Go-first, Java-first, TypeScript-first, or polyglot? Start with a
 lightweight template:
 
 ```bash
@@ -306,6 +310,7 @@ syu init . --template rust-only
 syu init . --template go-only
 syu init . --template java-only
 syu init . --template python-only
+syu init . --template typescript-only
 syu init . --template polyglot
 ```
 
@@ -334,6 +339,7 @@ syu init . --template docs-first
 syu init . --template rust-only
 syu init . --template go-only
 syu init . --template java-only
+syu init . --template typescript-only
 syu init . --spec-root docs/spec
 syu init . --requirement-prefix REQ-STORE --feature-prefix FEAT-STORE
 ```
@@ -443,7 +449,7 @@ Render list-shaped output without entering the interactive browser:
 Use `syu list` when you want list-shaped output that can be narrowed to one
 layer or emitted as JSON for automation. Use `syu browse --non-interactive`
 when you want the browse snapshot instead: workspace metadata, per-layer
-counts, and the current validation errors in plain text.
+counts, grouped items, and the current validation errors in text or JSON.
 
 ```bash
 syu list philosophy
@@ -612,7 +618,7 @@ Key behaviors:
 - `validate.allow_planned` controls whether `planned` requirements and features are allowed at all
 - `validate.require_non_orphaned_items` turns isolated layered definitions into validation errors
 - `validate.require_reciprocal_links` keeps adjacent-layer backlinks mandatory by default while still allowing phased migration when disabled
-- `validate.require_symbol_trace_coverage` opt-in checks that public Rust, Python, Go, Java, and TypeScript/JavaScript symbols belong to features and tests belong to requirements, while still skipping configured repository-relative generated paths
+- `validate.require_symbol_trace_coverage` opt-in checks that public Rust, Python, Go, Java, C#, and TypeScript/JavaScript symbols belong to features and tests belong to requirements, while still skipping configured repository-relative generated paths
 - `report.output` sets the default `syu report` destination while `--output` still takes precedence
 - `app.bind` and `app.port` define the default local browser-app address and port unless `--bind` / `--port` override them
 - `report.output` sets the default `syu report` destination while `--output` still takes precedence
@@ -668,15 +674,17 @@ The repository ships working example projects:
 - [`examples/java-only`](examples/java-only)
 - [`examples/rust-only`](examples/rust-only)
 - [`examples/python-only`](examples/python-only)
+- [`examples/typescript-only`](examples/typescript-only)
 - [`examples/polyglot`](examples/polyglot)
 - [`examples/team-scale`](examples/team-scale)
 
 `browser-ui` is the reference-only frontend example for traced React/TypeScript UI work.
-`docs-first`, `rust-only`, `python-only`, `go-only`, `java-only`, and
+`docs-first`, `rust-only`, `python-only`, `go-only`, `java-only`, `typescript-only`, and
 `polyglot` match `syu init --template ...` starters directly.
-`csharp-fallback` remains the reference-only example for repositories whose
-main implementation language is still unsupported, and `team-scale` remains a
-reference-only example for studying a larger split-by-area repository shape.
+`csharp-fallback` remains the reference-only example for teams that want a
+lighter staged C# adoption path before tracing every C# symbol directly, and
+`team-scale` remains a reference-only example for studying a larger
+split-by-area repository shape.
 
 Each one is validated in the automated test suite. If you are deciding between a
 checked-in example and a scaffold template, start with

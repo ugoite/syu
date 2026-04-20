@@ -17,6 +17,9 @@ Need a different level of guidance?
   [README quick start on GitHub](https://github.com/ugoite/syu/blob/main/README.md#choose-your-path)
   when you want the shortest install-to-validate path and are happy with a
   compact command card.
+- Open the [command card](./command-card.md) when you already understand the
+  model and want one docs-site page that keeps the core install / init /
+  validate / report / browse / app / review commands close at hand.
 - Follow [existing repository adoption](./existing-repository.md) when the
   repository already has code and history and you want to add `syu` without
   treating it like a blank workspace.
@@ -152,7 +155,7 @@ syu init . --id-prefix store
 ```
 
 Need a closer starting point for a repository that is already docs-first,
-Rust-first, Python-first, Go-first, Java-first, or polyglot?
+Rust-first, Python-first, Go-first, Java-first, TypeScript-first, or polyglot?
 
 ```bash
 syu templates
@@ -160,6 +163,7 @@ syu init . --template docs-first
 syu init . --template rust-only
 syu init . --template go-only
 syu init . --template java-only
+syu init . --template typescript-only
 ```
 
 Run `syu templates` first if you want the starter names, one-line descriptions,
@@ -192,7 +196,7 @@ For a genuinely mixed-language repository, keep the first adoption step small:
 - keep unsupported implementation-language areas connected through the spec
   layers until adapter support lands
 - turn stricter symbol coverage on later for the supported implementation
-  languages you are tracing (Rust, Python, Go, Java, or
+  languages you are tracing (Rust, Python, Go, Java, C#, or
   TypeScript/JavaScript) once those traces are stable
 
 That keeps the repository connected to the spec from day one without forcing a
@@ -204,17 +208,17 @@ until you are ready to declare real tests and implementation traces.
 
 ### Unsupported implementation languages can still adopt the spec layers first
 
-`syu` can validate code-level traces today in Rust, Python, Go, Java, and
+`syu` can validate code-level traces today in Rust, Python, Go, Java, C#, and
 TypeScript/JavaScript, plus lighter file/symbol ownership in `shell`, `yaml`,
-`json`, `markdown`, and `gitignore`. Repositories that are mostly C# or another
-unsupported implementation language can still adopt `syu` today, but they
+`json`, `markdown`, and `gitignore`. Repositories that still contain other
+unsupported implementation languages can still adopt `syu` today, but they
 should treat code-level mappings for those files as future work.
 
-Go and Java already have built-in symbol validation and participate in strict
+Go, Java, and C# already participate in strict
 `validate.require_symbol_trace_coverage` inventory. Go now supports
-`doc_contains` checks as well, while Java still stops at symbol validation. The
-[trace adapter capability matrix](./trace-adapter-support.md) summarizes that
-language-by-language support.
+`doc_contains` checks as well, while Java and C# still stop at symbol
+validation. The [trace adapter capability matrix](./trace-adapter-support.md)
+summarizes that language-by-language support.
 
 Today you can still:
 
@@ -248,10 +252,9 @@ implementations:
 ```
 
 What you should avoid for unsupported-language files today is adding
-language-specific `tests:` or `implementations:` entries such as `csharp:`.
-Those keys still fail validation before `doc_contains` support even becomes
-relevant. If you need code-level tracing immediately with `doc_contains`, stay
-with Rust, Python, Go, or TypeScript/JavaScript for now. For Go-first repositories,
+language-specific `tests:` or `implementations:` entries before the adapter
+exists at all. If you need code-level tracing with `doc_contains`, stay with
+Rust, Python, Go, or TypeScript/JavaScript for now. For Go-first repositories,
 use [`examples/go-only` workspace on GitHub](https://github.com/ugoite/syu/tree/main/examples/go-only)
 or `syu init . --template go-only`: both use real Go files plus symbol-level
 trace mappings that validate today.
@@ -260,9 +263,9 @@ For Java-first repositories, use
 or `syu init . --template java-only`: both use real Java files plus
 symbol-level trace mappings that validate today, even though `doc_contains`
 is still out of scope for Java.
-For unsupported-language repositories, use the
+For C#-first repositories that want a staged rollout, use the
 [`examples/csharp-fallback` workspace on GitHub](https://github.com/ugoite/syu/tree/main/examples/csharp-fallback)
-to study the fallback pattern.
+to study the lighter adoption pattern before tracing every C# file directly.
 
 Keep this adoption path in mind for mixed-language repositories too: start with
 declared traces, keep `validate.require_symbol_trace_coverage: false`, then turn
@@ -270,12 +273,9 @@ strict coverage on later for the languages `syu` can already scan deeply.
 
 When `SYU-trace-docsupport-001` fires, read it as “this mapping can stay, but
 without `doc_contains`, only if the language adapter already exists.” That
-works for `go`, `java`, `shell`, `yaml`, `json`, `markdown`, and `gitignore`;
-it does not bypass `SYU-trace-language-001` for C#.
-
-Language-support roadmap:
-
-- [C# trace validation and symbol ownership (#314)](https://github.com/ugoite/syu/issues/314)
+works for `csharp`, `go`, `java`, `shell`, `yaml`, `json`, `markdown`, and
+`gitignore`; it does not bypass `SYU-trace-language-001` for truly unsupported
+languages.
 
 Not sure whether you should scaffold a template or study a working repository
 first? Use the [examples and templates guide](./examples-and-templates.md) to
@@ -428,7 +428,7 @@ syu app .
 Use `syu list` when you want list-shaped output that can be narrowed to one
 layer or emitted as JSON for automation. Use `syu browse --non-interactive`
 when you want the browse snapshot instead: workspace metadata, per-layer
-counts, and the current validation errors in plain text.
+counts, grouped items, and the current validation errors in text or JSON.
 
 If you only remember the task and not the command name yet, use this chooser:
 
@@ -513,6 +513,7 @@ The repository includes complete examples:
 - `examples/python-only`
 - `examples/go-only`
 - `examples/java-only`
+- `examples/typescript-only`
 - `examples/polyglot`
 
 If one of those examples is already close to your repository, use the matching
@@ -534,6 +535,10 @@ it scaffolds the same minimal spec plus `pom.xml`,
 `src/test/java/example/app/OrderSummaryTest.java`, while the checked-in example
 shows the same shape in a repository you can inspect before generating files
 locally.
+Use `syu init . --template typescript-only` when your repository is TypeScript-first today:
+it scaffolds the same minimal spec plus `package.json`, `tsconfig.json`,
+`src/app.ts`, and `src/app.test.ts`, while the checked-in example shows the same
+shape in a repository you can inspect before generating files locally.
 
 For a side-by-side decision table that explains which paths are template-backed,
 example-backed, or both, see the
