@@ -74,6 +74,16 @@ fn pinned_npm_script(manifest_dir: &Path) -> PathBuf {
         .join("pinned-npm.sh")
 }
 
+fn pinned_npm_command(script: &Path) -> Command {
+    if cfg!(windows) {
+        let mut command = Command::new("bash");
+        command.arg(script);
+        command
+    } else {
+        Command::new(script)
+    }
+}
+
 fn package_manager_for(package_json: &Path) -> Result<String, String> {
     let package = fs::read_to_string(package_json)
         .map_err(|error| format!("failed to read {}: {error}", package_json.display()))?;
@@ -109,7 +119,7 @@ fn ensure_pinned_npm_ready(manifest_dir: &Path, app_dir: &Path) -> Result<(), St
         .to_string_lossy()
         .into_owned();
     let script = pinned_npm_script(manifest_dir);
-    let output = Command::new(&script)
+    let output = pinned_npm_command(&script)
         .arg("check")
         .arg(&app_arg)
         .current_dir(manifest_dir)
@@ -164,7 +174,7 @@ fn run_npm(
     extra_env: &[(&str, String)],
 ) -> Result<(), String> {
     let script = pinned_npm_script(manifest_dir);
-    let mut command = Command::new(&script);
+    let mut command = pinned_npm_command(&script);
     command.arg("exec").arg(package_dir).arg("--").args(args);
     let command_display = format!(
         "{} exec {} -- {}",
