@@ -892,11 +892,8 @@ fn discover_csharp_targets(
 ) -> Result<Vec<CoverageTarget>, Box<Issue>> {
     let ignored_paths = normalized_symbol_trace_coverage_ignored_paths(config);
     let mut files = csharp_files_under(root, &root.join("src"), &ignored_paths)?;
-    files.extend(csharp_files_under(
-        root,
-        &root.join("tests"),
-        &ignored_paths,
-    )?);
+    let test_files = csharp_files_under(root, &root.join("tests"), &ignored_paths)?;
+    files.extend(test_files);
     files.sort();
 
     if files.is_empty() {
