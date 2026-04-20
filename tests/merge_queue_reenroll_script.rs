@@ -125,6 +125,49 @@ fn merge_queue_reenroll_dry_run_reports_candidates_without_merging() {
 }
 
 #[test]
+fn merge_queue_reenroll_skips_prs_without_successful_status_rollup() {
+    let tempdir = tempdir().expect("tempdir");
+    let bin_dir = tempdir.path().join("bin");
+    fs::create_dir_all(&bin_dir).expect("bin dir");
+    write_mock_gh_script(&bin_dir);
+
+    let queue_json = tempdir.path().join("queue.json");
+    fs::write(
+        &queue_json,
+        r#"{"data":{"repository":{"pullRequests":{"nodes":[{"number":369,"title":"Missing rollup","state":"OPEN","baseRefName":"main","mergeStateStatus":"CLEAN","reviewDecision":"APPROVED","isInMergeQueue":false,"autoMergeRequest":null,"mergeQueueEntry":null,"commits":{"nodes":[{"commit":{"statusCheckRollup":null}}]}}]}}}}"#,
+    )
+    .expect("queue json");
+    let merge_log = tempdir.path().join("merge.log");
+
+    let output = Command::new("bash")
+        .arg(repo_root().join("scripts/ci/requeue-dropped-merge-queue-prs.sh"))
+        .env(
+            "PATH",
+            format!("{}:{}", bin_dir.display(), std::env::var("PATH").unwrap()),
+        )
+        .env("MOCK_GH_QUEUE_JSON", &queue_json)
+        .env("MOCK_GH_MERGE_LOG", &merge_log)
+        .env("MERGE_QUEUE_REQUEUE_DRY_RUN", "true")
+        .output()
+        .expect("script should run");
+
+    assert!(
+        output.status.success(),
+        "stdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        String::from_utf8_lossy(&output.stdout).contains("no dropped clean PRs found"),
+        "missing rollup should not count as a requeue candidate"
+    );
+    assert!(
+        !merge_log.exists(),
+        "PR without a successful status rollup should not be merged"
+    );
+}
+
+#[test]
 fn merge_queue_reenroll_requeues_dropped_clean_prs() {
     let tempdir = tempdir().expect("tempdir");
     let bin_dir = tempdir.path().join("bin");

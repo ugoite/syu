@@ -76,9 +76,8 @@ for pr in prs:
         pr.get("commits", {})
         .get("nodes", [{}])[-1]
         .get("commit", {})
-        .get("statusCheckRollup", {})
-        .get("state")
-    )
+        .get("statusCheckRollup") or {}
+    ).get("state")
     if pr.get("state") != "OPEN":
         continue
     if pr.get("baseRefName") != "main":
@@ -93,7 +92,7 @@ for pr in prs:
         continue
     if pr.get("mergeQueueEntry") is not None:
         continue
-    if rollup not in {"SUCCESS", None}:
+    if rollup != "SUCCESS":
         continue
 
     candidates.append(
