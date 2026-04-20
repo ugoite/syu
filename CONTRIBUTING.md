@@ -116,10 +116,11 @@ once.
     scripts/ci/bootstrap-contributor-tooling.sh --app
     ```
 
-   Normal Cargo-driven builds no longer run that install step for you. If the
-   embedded browser app dependencies are missing or stale, `build.rs` stops and
-   points back to the commands above so Rust-only or docs-only work does not
-   silently mutate your `app/node_modules` tree.
+Normal Cargo-driven builds no longer run that install step for you. If you are
+in a fresh clone or fresh worktree and the embedded browser app dependencies are
+missing or stale, `build.rs` stops and points back to the commands above so
+Rust-only or docs-only work does not silently mutate your `app/node_modules`
+tree.
 
    Then run the same freshness flow CI uses:
 
@@ -207,6 +208,9 @@ once.
    run branch 4's docs-site build.
 
 ### Node.js version strategy
+
+For the contributor-facing quick matrix, switching rules, and app/docs/editor
+commands in one place, start with [`docs/guide/node-workflow.md`](docs/guide/node-workflow.md).
 
 The repository intentionally uses different Node.js majors for different
 surfaces:
@@ -300,6 +304,10 @@ story validation pass.
 Maintainers triaging stuck merge-queue entries should use the
 [merge queue playbook](docs/guide/merge-queue-playbook.md) to inspect
 `merge_group` runs, queue state, and required workflow coverage.
+
+When queue enrollment disappears for a clean PR, prefer the checked-in
+`scripts/ci/requeue-dropped-merge-queue-prs.sh` workflow path before manually
+toggling auto-merge in the UI so the recovery flow stays auditable.
 
 When maintainers intentionally rename merge-queue check contexts or add/remove
 `merge_group` workflows, update `.github/merge-queue-checks.json` and the
