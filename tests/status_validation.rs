@@ -159,6 +159,12 @@ fn validate_spec_only_accepts_implemented_entries_without_traces() {
     );
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(!stdout.contains("SYU-delivery-implemented-001"));
+    assert!(stdout.contains(
+        "traceability: skipped (--spec-only disables requirement and feature trace enforcement)"
+    ));
+    assert!(!stdout.contains(
+        "traceability: requirements=0/0 traces validated; features=0/0 traces validated"
+    ));
 }
 
 #[test]

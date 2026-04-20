@@ -400,6 +400,7 @@ pub fn run_check_command(args: &CheckArgs) -> Result<i32> {
                     args.workspace.as_path(),
                     filtered_view.as_ref(),
                     text_summary.as_ref(),
+                    args.spec_only,
                     args.quiet,
                 )
             );
@@ -814,6 +815,7 @@ fn render_text_report(
     workspace_arg: &Path,
     filtered_view: Option<&FilteredIssueView>,
     text_summary: Option<&TextReportSummary>,
+    spec_only: bool,
     quiet: bool,
 ) -> String {
     let mut output = String::new();
@@ -876,15 +878,23 @@ fn render_text_report(
                 .expect("writing to String must succeed");
             }
         }
-        writeln!(
-            &mut output,
-            "traceability: requirements={}/{} traces validated; features={}/{} traces validated",
-            result.trace_summary.requirement_traces.validated,
-            result.trace_summary.requirement_traces.declared,
-            result.trace_summary.feature_traces.validated,
-            result.trace_summary.feature_traces.declared
-        )
-        .expect("writing to String must succeed");
+        if spec_only {
+            writeln!(
+                &mut output,
+                "traceability: skipped (--spec-only disables requirement and feature trace enforcement)"
+            )
+            .expect("writing to String must succeed");
+        } else {
+            writeln!(
+                &mut output,
+                "traceability: requirements={}/{} traces validated; features={}/{} traces validated",
+                result.trace_summary.requirement_traces.validated,
+                result.trace_summary.requirement_traces.declared,
+                result.trace_summary.feature_traces.validated,
+                result.trace_summary.feature_traces.declared
+            )
+            .expect("writing to String must succeed");
+        }
     }
 
     if !quiet_success && let Some(filtered_view) = filtered_view {
@@ -2934,7 +2944,7 @@ mod tests {
             referenced_rules: Vec::new(),
         };
 
-        let report = render_text_report(true, &result, Path::new("."), None, None, false);
+        let report = render_text_report(true, &result, Path::new("."), None, None, false, false);
         assert!(report.contains("syu validate passed"));
         assert!(report.contains("issues:"));
         assert!(report.contains("[Warning] warn subject: message"));
@@ -3008,7 +3018,15 @@ mod tests {
             referenced_rules: Vec::new(),
         };
 
-        let report = render_text_report(true, &result, Path::new("."), None, Some(&summary), false);
+        let report = render_text_report(
+            true,
+            &result,
+            Path::new("."),
+            None,
+            Some(&summary),
+            false,
+            false,
+        );
 
         assert!(report.contains("note: 1 built-in rule is disabled by current config"));
     }
@@ -3071,6 +3089,7 @@ mod tests {
             Some(&filtered_view),
             None,
             false,
+            false,
         );
 
         assert!(report.contains("syu validate failed (filtered view)"));
@@ -3104,6 +3123,7 @@ mod tests {
             Path::new("."),
             Some(&filtered_view),
             None,
+            false,
             true,
         );
 
