@@ -37,6 +37,7 @@ struct ExplainChain {
 #[serde(rename_all = "kebab-case")]
 enum ExplainAssessment {
     Aligned,
+    Ambiguous,
     NeedsAttention,
 }
 
@@ -44,6 +45,7 @@ impl ExplainAssessment {
     const fn label(self) -> &'static str {
         match self {
             Self::Aligned => "aligned",
+            Self::Ambiguous => "ambiguous",
             Self::NeedsAttention => "needs-attention",
         }
     }
@@ -52,6 +54,9 @@ impl ExplainAssessment {
         match self {
             Self::Aligned => {
                 "The connected philosophy, policy, requirement, and feature chain is present with no obvious graph gaps."
+            }
+            Self::Ambiguous => {
+                "The selector matched multiple direct candidates, so the connected chain still needs human review."
             }
             Self::NeedsAttention => {
                 "The connected chain is present, but at least one obvious gap or mismatch still needs review."
@@ -78,7 +83,9 @@ pub fn run_explain_command(args: &ExplainArgs) -> Result<i32> {
 }
 
 fn build_explain_output(relation: JsonRelateOutput) -> ExplainOutput {
-    let assessment = if relation.gaps.is_empty() {
+    let assessment = if selector_is_ambiguous(&relation) {
+        ExplainAssessment::Ambiguous
+    } else if relation.gaps.is_empty() {
         ExplainAssessment::Aligned
     } else {
         ExplainAssessment::NeedsAttention
@@ -97,6 +104,11 @@ fn build_explain_output(relation: JsonRelateOutput) -> ExplainOutput {
         traces: relation.traces,
         gaps: relation.gaps,
     }
+}
+
+fn selector_is_ambiguous(relation: &JsonRelateOutput) -> bool {
+    relation.selection.kind != "definition"
+        && relation.direct_matches.definitions.len() + relation.direct_matches.traces.len() > 1
 }
 
 fn render_explain_text(output: &ExplainOutput) -> String {
@@ -207,12 +219,57 @@ mod tests {
     #[test]
     fn assessment_labels_stay_stable() {
         assert_eq!(ExplainAssessment::Aligned.label(), "aligned");
+        assert_eq!(ExplainAssessment::Ambiguous.label(), "ambiguous");
         assert_eq!(ExplainAssessment::NeedsAttention.label(), "needs-attention");
         assert!(
             ExplainAssessment::NeedsAttention
                 .summary()
                 .contains("needs review")
         );
+    }
+
+    #[test]
+    fn explain_marks_ambiguous_non_definition_selectors() {
+        let output = build_explain_output(JsonRelateOutput {
+            selection: SelectionSummary {
+                kind: "symbol",
+                query: "shared_selector".to_string(),
+            },
+            direct_matches: DirectMatches {
+                definitions: Vec::new(),
+                traces: vec![
+                    RelatedTrace {
+                        owner_kind: "requirement",
+                        owner_id: "REQ-TRACE-001".to_string(),
+                        relation_kind: "test",
+                        language: "rust".to_string(),
+                        file: "src/rust_trace_tests.rs".to_string(),
+                        symbols: vec!["shared_selector".to_string()],
+                        direct_match: true,
+                    },
+                    RelatedTrace {
+                        owner_kind: "feature",
+                        owner_id: "FEAT-TRACE-001".to_string(),
+                        relation_kind: "implementation",
+                        language: "rust".to_string(),
+                        file: "src/rust_feature.rs".to_string(),
+                        symbols: vec!["shared_selector".to_string()],
+                        direct_match: true,
+                    },
+                ],
+            },
+            philosophies: Vec::new(),
+            policies: Vec::new(),
+            requirements: Vec::new(),
+            features: Vec::new(),
+            traces: Vec::new(),
+            gaps: Vec::new(),
+        });
+
+        let rendered = render_explain_text(&output);
+        assert_eq!(output.assessment.label(), "ambiguous");
+        assert!(rendered.contains("Assessment: ambiguous"));
+        assert!(rendered.contains("multiple direct candidates"));
     }
 
     #[test]

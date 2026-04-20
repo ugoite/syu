@@ -453,6 +453,7 @@ description: "Generated reference for docs/syu/requirements/core/workspace.yaml"
       - **file**: src/command/explain.rs
         - **symbols**:
           - assessment_labels_stay_stable
+          - explain_marks_ambiguous_non_definition_selectors
           - explain_text_handles_gaps_and_empty_sections
           - explain_text_renders_file_only_traces_and_definition_matches
           - explain_text_renders_direct_trace_symbols
@@ -888,6 +889,7 @@ requirements:
         - file: src/command/explain.rs
           symbols:
             - assessment_labels_stay_stable
+            - explain_marks_ambiguous_non_definition_selectors
             - explain_text_handles_gaps_and_empty_sections
             - explain_text_renders_file_only_traces_and_definition_matches
             - explain_text_renders_direct_trace_symbols
