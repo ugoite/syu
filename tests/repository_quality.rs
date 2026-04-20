@@ -372,6 +372,7 @@ fn repository_declares_documentation_guides() {
     let merge_queue_playbook = read_file("docs/guide/merge-queue-playbook.md");
     let getting_started = read_file("docs/guide/getting-started.md");
     let node_workflow = read_file("docs/guide/node-workflow.md");
+    let command_card = read_file("docs/guide/command-card.md");
     let trace_adapter_support = read_file("docs/guide/trace-adapter-support.md");
     let vscode_guide = read_file("docs/guide/vscode-extension.md");
     let configuration = read_file("docs/guide/configuration.md");
@@ -439,6 +440,7 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("--template rust-only"));
     assert!(readme.contains("--template go-only"));
     assert!(readme.contains("--template java-only"));
+    assert!(readme.contains("--template typescript-only"));
     assert!(readme.contains("syu templates"));
     assert!(readme.contains("starter-only"));
     assert!(readme.contains("syu validate"));
@@ -450,7 +452,7 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("review what changed for one spec item in Git history"));
     assert!(readme.contains("list-shaped output"));
     assert!(readme.contains("workspace metadata, per-layer"));
-    assert!(readme.contains("current validation errors in plain text"));
+    assert!(readme.contains("current validation errors in text or JSON"));
     assert!(readme.contains("syu show"));
     assert!(readme.contains("syu show REQ-001"));
     assert!(!readme.contains("syu show REQ-CORE-015"));
@@ -458,6 +460,7 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("examples/csharp-fallback"));
     assert!(readme.contains("examples/go-only"));
     assert!(readme.contains("examples/java-only"));
+    assert!(readme.contains("examples/typescript-only"));
     assert!(readme.contains("examples/polyglot"));
     assert!(readme.contains("examples/team-scale"));
     assert!(readme.contains("examples-and-templates.md"));
@@ -497,6 +500,7 @@ fn repository_declares_documentation_guides() {
     assert!(!app_guide.contains("`planned`, `implemented`, or `deprecated`"));
     assert!(getting_started.contains("New to `syu`?"));
     assert!(getting_started.contains("Need a different level of guidance?"));
+    assert!(getting_started.contains("[command card](./command-card.md)"));
     assert!(getting_started.contains("README quick start"));
     assert!(
         getting_started.contains("[trace adapter capability matrix](./trace-adapter-support.md)")
@@ -532,6 +536,7 @@ fn repository_declares_documentation_guides() {
     assert!(getting_started.contains("--template rust-only"));
     assert!(getting_started.contains("--template go-only"));
     assert!(getting_started.contains("--template java-only"));
+    assert!(getting_started.contains("--template typescript-only"));
     assert!(getting_started.contains("syu templates"));
     assert!(getting_started.contains("--id-prefix"));
     assert!(getting_started.contains("syu validate . --fix"));
@@ -544,7 +549,7 @@ fn repository_declares_documentation_guides() {
     assert!(getting_started.contains("syu validate ."));
     assert!(getting_started.contains("emitted as JSON for automation"));
     assert!(getting_started.contains("workspace metadata, per-layer"));
-    assert!(getting_started.contains("current validation errors in plain text"));
+    assert!(getting_started.contains("current validation errors in text or JSON"));
     assert!(getting_started.contains("review change history for one requirement or feature"));
     assert!(getting_started.contains("syu list feature"));
     assert!(getting_started.contains("syu show REQ-001"));
@@ -570,6 +575,7 @@ fn repository_declares_documentation_guides() {
     assert!(getting_started.contains("examples/csharp-fallback"));
     assert!(getting_started.contains("examples/go-only"));
     assert!(getting_started.contains("examples/java-only"));
+    assert!(getting_started.contains("examples/typescript-only"));
     assert!(getting_started.contains("examples/polyglot"));
     assert!(
         getting_started.contains("[examples and templates guide](./examples-and-templates.md)")
@@ -591,6 +597,13 @@ fn repository_declares_documentation_guides() {
     assert!(node_workflow.contains("scripts/ci/pinned-npm.sh install app"));
     assert!(node_workflow.contains("bash scripts/ci/install-docs-site-deps.sh"));
     assert!(node_workflow.contains("scripts/ci/pinned-npm.sh install editors/vscode"));
+    assert!(command_card.contains("# syu command card"));
+    assert!(command_card.contains("| Task | Command | Choose it when |"));
+    assert!(command_card.contains("syu templates"));
+    assert!(command_card.contains("syu validate . --id FEAT-CHECK-001"));
+    assert!(command_card.contains("syu app ."));
+    assert!(command_card.contains("[reviewer workflow](./reviewer-workflow.md)"));
+    assert!(command_card.contains("[configuration](./configuration.md)"));
     assert!(vscode_guide.contains("syu Context"));
     assert!(vscode_guide.contains("syu validate . --format json"));
     assert!(vscode_guide.contains("Trace active file"));
@@ -608,6 +621,7 @@ fn repository_declares_documentation_guides() {
     assert!(tutorial.contains("starter registry entry"));
     assert!(tutorial.contains("Only add another `files` entry"));
     let reviewer_workflow = read_file("docs/guide/reviewer-workflow.md");
+    assert!(reviewer_workflow.contains("[command card](./command-card.md)"));
     assert!(reviewer_workflow.contains("currently traced"));
     assert!(reviewer_workflow.contains("the whole PR diff is covered"));
     assert!(reviewer_workflow.contains("too-small log result with the PR diff"));
@@ -626,8 +640,10 @@ fn repository_declares_documentation_guides() {
     assert!(examples_and_templates.contains("`syu init . --template rust-only`"));
     assert!(examples_and_templates.contains("`syu init . --template go-only`"));
     assert!(examples_and_templates.contains("`syu init . --template java-only`"));
+    assert!(examples_and_templates.contains("`syu init . --template typescript-only`"));
     assert!(examples_and_templates.contains("examples/go-only"));
     assert!(examples_and_templates.contains("examples/java-only"));
+    assert!(examples_and_templates.contains("examples/typescript-only"));
     assert!(examples_and_templates.contains("examples/polyglot"));
     assert!(examples_and_templates.contains("examples/team-scale"));
     assert!(merge_queue_playbook.contains("merge_group"));
@@ -642,7 +658,7 @@ fn repository_declares_documentation_guides() {
     assert!(configuration.contains("--allow-remote"));
     assert!(configuration.contains("trace-adapter-support.md"));
     assert!(configuration.contains("validate.allow_planned"));
-    assert!(configuration.contains("Rust, Python, Go, Java, and TypeScript/JavaScript"));
+    assert!(configuration.contains("Rust, Python, Go, Java, C#, and TypeScript/JavaScript"));
     assert!(configuration.contains("--spec-root"));
     assert!(configuration.contains(&format!("version: {current_version}")));
     assert!(configuration.contains("docs/syu/config/overview.yaml"));
@@ -652,14 +668,14 @@ fn repository_declares_documentation_guides() {
     assert!(config_spec.contains("spec.root"));
     assert!(config_validate.contains("validate.default_fix"));
     assert!(config_validate.contains("validate.require_symbol_trace_coverage"));
-    assert!(config_validate.contains("Rust, Python, Go, Java, and TypeScript/JavaScript"));
+    assert!(config_validate.contains("Rust, Python, Go, Java, C#, and TypeScript/JavaScript"));
     assert!(config_runtimes.contains("runtimes.python.command"));
     assert!(generated_config_overview.contains("docs/syu/config/overview.yaml"));
     assert!(generated_config_overview.contains("current CLI version"));
     assert!(generated_config_spec.contains("docs/syu/config/spec.yaml"));
     assert!(generated_config_validate.contains("validate.default_fix"));
     assert!(
-        generated_config_validate.contains("Rust, Python, Go, Java, and TypeScript/JavaScript")
+        generated_config_validate.contains("Rust, Python, Go, Java, C#, and TypeScript/JavaScript")
     );
     assert!(generated_config_validate.contains("array&lt;path&gt;"));
     assert!(generated_config_runtimes.contains("docs/syu/config/runtimes.yaml"));
@@ -669,8 +685,9 @@ fn repository_declares_documentation_guides() {
     assert!(generated_validation.contains("docs/syu/features/validation/validation.yaml"));
     assert!(generated_validation.contains("SYU-graph-reference-001"));
     assert!(
-        generated_validation
-            .contains("Rust, Python, Go, Java, and TypeScript/JavaScript source and test files")
+        generated_validation.contains(
+            "Rust, Python, Go, Java, C#, and TypeScript/JavaScript source and test files"
+        )
     );
     assert!(generated_docs_freshness.contains("FEAT-QUALITY-001"));
     assert!(generated_docs_freshness.contains("check_generated_docs_freshness"));
@@ -702,6 +719,8 @@ fn repository_declares_documentation_guides() {
     assert!(docs_home.contains("Four specification layers"));
     assert!(docs_home.contains("Common journeys"));
     assert!(docs_home.contains("Stay close to checked-in source"));
+    assert!(docs_home.contains("Keep a command card open"));
+    assert!(docs_home.contains("/docs/guide/command-card"));
     assert!(docs_home.contains("Follow a full tutorial"));
     assert!(docs_home.contains("Troubleshoot a broken workspace"));
     assert!(docs_home.contains("Stay in VS Code"));
@@ -806,6 +825,12 @@ fn repository_ships_example_workspaces() {
     let java_example_requirement =
         read_file("examples/java-only/docs/syu/requirements/core/java.yaml");
     let java_example_readme = read_file("examples/java-only/README.md");
+    let typescript_example_config = read_file("examples/typescript-only/syu.yaml");
+    let typescript_example_requirement =
+        read_file("examples/typescript-only/docs/syu/requirements/core/typescript.yaml");
+    let typescript_example_nvmrc = read_file("examples/typescript-only/.nvmrc");
+    let typescript_example_package = read_file("examples/typescript-only/package.json");
+    let typescript_example_readme = read_file("examples/typescript-only/README.md");
     let polyglot_config = read_file("examples/polyglot/syu.yaml");
     let polyglot_feature = read_file("examples/polyglot/docs/syu/features/languages/polyglot.yaml");
     let example_tests = read_file("tests/example_workspaces.rs");
@@ -836,7 +861,7 @@ fn repository_ships_example_workspaces() {
     assert!(python_example_requirement.contains("REQ-PY-001"));
     assert!(csharp_fallback_requirement.contains("REQ-CSHARP-001"));
     assert!(csharp_fallback_readme.contains("CsharpFallbackAcceptanceChecklist"));
-    assert!(csharp_fallback_readme.contains("SYU-trace-language-001"));
+    assert!(csharp_fallback_readme.contains("staged adoption pattern"));
     assert!(docs_first_requirement.contains("REQ-DOCS-001"));
     assert!(docs_first_requirement.contains("DocsFirstAcceptanceChecklist"));
     assert!(docs_first_readme.contains("syu init --template docs-first"));
@@ -847,9 +872,27 @@ fn repository_ships_example_workspaces() {
     assert!(java_example_requirement.contains("REQ-JAVA-001"));
     assert!(java_example_readme.contains("JavaRequirementTest"));
     assert!(java_example_readme.contains("JavaFeatureImpl"));
+    assert!(typescript_example_config.contains(&format!("version: {current_version}")));
+    assert!(typescript_example_requirement.contains("REQ-TS-001"));
+    assert_eq!(typescript_example_nvmrc.trim(), "20");
+    assert!(typescript_example_package.contains("TypeScript-first starter workspace for Node 20."));
+    assert!(typescript_example_package.contains("\"node\": \">=20 <21\""));
+    assert!(typescript_example_package.contains("\"@types/node\""));
+    assert!(typescript_example_readme.contains("typescriptRequirementTest"));
+    assert!(typescript_example_readme.contains("typescriptFeature"));
+    assert!(typescript_example_readme.contains("nvm use \"$(cat .nvmrc)\""));
     assert!(polyglot_config.contains(&format!("version: {current_version}")));
     assert!(polyglot_feature.contains("FEAT-MIX-001"));
     assert!(polyglot_feature.contains("status: implemented"));
+    assert!(example_tests.contains("docs_first_example_validates"));
+    assert!(example_tests.contains("csharp_fallback_example_validates"));
+    assert!(example_tests.contains("rust_only_example_validates"));
+    assert!(example_tests.contains("python_only_example_validates"));
+    assert!(example_tests.contains("typescript_only_example_validates"));
+    assert!(example_tests.contains("go_only_example_validates"));
+    assert!(example_tests.contains("java_only_example_validates"));
+    assert!(example_tests.contains("polyglot_example_validates"));
+    assert!(example_tests.contains("team_scale_example_validates"));
 }
 
 #[test]
