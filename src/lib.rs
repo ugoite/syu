@@ -74,6 +74,7 @@ enum Dispatch {
     Report(cli::ReportArgs),
     Init(cli::InitArgs),
     Templates(cli::TemplatesArgs),
+    Completion(cli::CompletionArgs),
     Add(cli::AddArgs),
 }
 
@@ -95,6 +96,7 @@ fn dispatch(cli: cli::Cli, stdin_is_terminal: bool, stdout_is_terminal: bool) ->
         Some(cli::Commands::Report(args)) => Dispatch::Report(args),
         Some(cli::Commands::Init(args)) => Dispatch::Init(args),
         Some(cli::Commands::Templates(args)) => Dispatch::Templates(args),
+        Some(cli::Commands::Completion(args)) => Dispatch::Completion(args),
         Some(cli::Commands::Add(args)) => Dispatch::Add(args),
     }
 }
@@ -119,6 +121,7 @@ fn run_dispatch(dispatch: Dispatch) -> Result<i32> {
         Dispatch::Report(args) => command::report::run_report_command(&args),
         Dispatch::Init(args) => command::init::run_init_command(&args),
         Dispatch::Templates(args) => command::templates::run_templates_command(&args),
+        Dispatch::Completion(args) => command::completion::run_completion_command(&args),
         Dispatch::Add(args) => command::add::run_add_command(&args),
     }
 }
@@ -137,9 +140,10 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     use crate::cli::{
-        AddArgs, AppArgs, Cli, Commands, HistoryKind, ListArgs, LogArgs, LookupKind, OutputFormat,
-        RelateArgs, SearchArgs, ShowArgs, TemplatesArgs, TraceArgs,
+        AddArgs, AppArgs, Cli, Commands, CompletionArgs, HistoryKind, ListArgs, LogArgs,
+        LookupKind, OutputFormat, RelateArgs, SearchArgs, ShowArgs, TemplatesArgs, TraceArgs,
     };
+    use clap_complete::Shell;
 
     // REQ-CORE-015
     #[test]
@@ -236,6 +240,19 @@ mod tests {
             templates,
             super::Dispatch::Templates(crate::cli::TemplatesArgs { format })
                 if format == OutputFormat::Json
+        ));
+
+        let completion = super::dispatch(
+            Cli {
+                command: Some(Commands::Completion(CompletionArgs { shell: Shell::Fish })),
+            },
+            true,
+            true,
+        );
+        assert!(matches!(
+            completion,
+            super::Dispatch::Completion(crate::cli::CompletionArgs { shell })
+                if shell == Shell::Fish
         ));
     }
 

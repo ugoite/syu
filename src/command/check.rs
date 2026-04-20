@@ -51,6 +51,19 @@ struct TraceValidationTarget<'a> {
     status: Option<DeliveryStatus>,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct ValidationResources<'a> {
+    config: &'a SyuConfig,
+    root: &'a Path,
+    spec_only: bool,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct RequirementValidationIndex<'a> {
+    policies_by_id: &'a HashMap<&'a str, &'a Policy>,
+    features_by_id: &'a HashMap<&'a str, &'a Feature>,
+}
+
 #[derive(Debug, Default, Clone)]
 struct AutofixSummary {
     updated_files: BTreeSet<PathBuf>,
@@ -346,7 +359,8 @@ pub fn run_check_command(args: &CheckArgs) -> Result<i32> {
             } else {
                 with_validate_overrides(workspace, args)
             };
-            let mut result = collect_check_result_from_workspace(&workspace);
+            let mut result =
+                collect_check_result_from_workspace_with_mode(&workspace, args.spec_only);
             apply_cli_override_issue_guidance(&mut result, args);
             let text_summary =
                 TextReportSummary::from_config(&workspace.config, &result.definition_counts);
@@ -428,6 +442,13 @@ pub fn collect_check_result(workspace_path: &Path) -> CheckResult {
 }
 
 pub(crate) fn collect_check_result_from_workspace(workspace: &Workspace) -> CheckResult {
+    collect_check_result_from_workspace_with_mode(workspace, false)
+}
+
+fn collect_check_result_from_workspace_with_mode(
+    workspace: &Workspace,
+    spec_only: bool,
+) -> CheckResult {
     let definition_counts = DefinitionCounts {
         philosophies: workspace.philosophies.len(),
         policies: workspace.policies.len(),
@@ -480,6 +501,15 @@ pub(crate) fn collect_check_result_from_workspace(workspace: &Workspace) -> Chec
         .iter()
         .map(|item| (item.id.as_str(), item))
         .collect();
+    let validation_resources = ValidationResources {
+        config: &workspace.config,
+        root: &workspace.root,
+        spec_only,
+    };
+    let requirement_validation_index = RequirementValidationIndex {
+        policies_by_id: &policies_by_id,
+        features_by_id: &features_by_id,
+    };
 
     for philosophy in &workspace.philosophies {
         validate_philosophy(philosophy, &policies_by_id, &workspace.config, &mut issues);
@@ -498,10 +528,8 @@ pub(crate) fn collect_check_result_from_workspace(workspace: &Workspace) -> Chec
     for requirement in &workspace.requirements {
         validate_requirement(
             requirement,
-            &policies_by_id,
-            &features_by_id,
-            &workspace.config,
-            &workspace.root,
+            requirement_validation_index,
+            validation_resources,
             &mut issues,
             &mut trace_summary.requirement_traces,
         );
@@ -511,15 +539,16 @@ pub(crate) fn collect_check_result_from_workspace(workspace: &Workspace) -> Chec
         validate_feature(
             feature,
             &requirements_by_id,
-            &workspace.config,
-            &workspace.root,
+            validation_resources,
             &mut issues,
             &mut trace_summary.feature_traces,
         );
     }
 
     validate_orphaned_definitions(workspace, &mut issues);
-    validate_symbol_trace_coverage(workspace, &mut issues);
+    if !spec_only {
+        validate_symbol_trace_coverage(workspace, &mut issues);
+    }
 
     issues.sort_by(|left, right| {
         (
@@ -1799,10 +1828,8 @@ fn validate_policy(
 
 fn validate_requirement(
     requirement: &Requirement,
-    policies_by_id: &HashMap<&str, &Policy>,
-    features_by_id: &HashMap<&str, &Feature>,
-    config: &SyuConfig,
-    root: &Path,
+    index: RequirementValidationIndex<'_>,
+    resources: ValidationResources<'_>,
     issues: &mut Vec<Issue>,
     trace_count: &mut TraceCount,
 ) {
@@ -1820,7 +1847,7 @@ fn validate_requirement(
         "requirement",
         &requirement.id,
         &requirement.status,
-        config,
+        resources.config,
         issues,
     );
     validate_duplicate_links(
@@ -1867,9 +1894,9 @@ fn validate_requirement(
     }
 
     for policy_id in &requirement.linked_policies {
-        match policies_by_id.get(policy_id.as_str()) {
+        match index.policies_by_id.get(policy_id.as_str()) {
             Some(policy) => {
-                if config.validate.require_reciprocal_links
+                if resources.config.validate.require_reciprocal_links
                     && !policy
                         .linked_requirements
                         .iter()
@@ -1904,9 +1931,9 @@ fn validate_requirement(
     }
 
     for feature_id in &requirement.linked_features {
-        match features_by_id.get(feature_id.as_str()) {
+        match index.features_by_id.get(feature_id.as_str()) {
             Some(feature) => {
-                if config.validate.require_reciprocal_links
+                if resources.config.validate.require_reciprocal_links
                     && !feature
                         .linked_requirements
                         .iter()
@@ -1949,36 +1976,40 @@ fn validate_requirement(
             .linked_features
             .iter()
             .filter_map(|feature_id| {
-                features_by_id.get(feature_id.as_str()).map(|feature| {
-                    (
-                        feature_id.as_str(),
-                        normalize_delivery_status(&feature.status),
-                    )
-                })
+                index
+                    .features_by_id
+                    .get(feature_id.as_str())
+                    .map(|feature| {
+                        (
+                            feature_id.as_str(),
+                            normalize_delivery_status(&feature.status),
+                        )
+                    })
             })
             .collect(),
         issues,
     );
 
-    validate_trace_map(
-        root,
-        config,
-        TraceValidationTarget {
-            owner_id: &requirement.id,
-            role: TraceRole::RequirementTest,
-            status,
-        },
-        &requirement.tests,
-        issues,
-        trace_count,
-    );
+    if !resources.spec_only {
+        validate_trace_map(
+            resources.root,
+            resources.config,
+            TraceValidationTarget {
+                owner_id: &requirement.id,
+                role: TraceRole::RequirementTest,
+                status,
+            },
+            &requirement.tests,
+            issues,
+            trace_count,
+        );
+    }
 }
 
 fn validate_feature(
     feature: &Feature,
     requirements_by_id: &HashMap<&str, &Requirement>,
-    config: &SyuConfig,
-    root: &Path,
+    resources: ValidationResources<'_>,
     issues: &mut Vec<Issue>,
     trace_count: &mut TraceCount,
 ) {
@@ -1986,7 +2017,13 @@ fn validate_feature(
     validate_non_empty_field("feature", "title", &feature.title, issues);
     validate_non_empty_field("feature", "summary", &feature.summary, issues);
     validate_non_empty_field("feature", "status", &feature.status, issues);
-    let status = validate_delivery_status("feature", &feature.id, &feature.status, config, issues);
+    let status = validate_delivery_status(
+        "feature",
+        &feature.id,
+        &feature.status,
+        resources.config,
+        issues,
+    );
     validate_duplicate_links(
         "feature",
         &feature.id,
@@ -2012,7 +2049,7 @@ fn validate_feature(
     for requirement_id in &feature.linked_requirements {
         match requirements_by_id.get(requirement_id.as_str()) {
             Some(requirement) => {
-                if config.validate.require_reciprocal_links
+                if resources.config.validate.require_reciprocal_links
                     && !requirement
                         .linked_features
                         .iter()
@@ -2068,18 +2105,20 @@ fn validate_feature(
         issues,
     );
 
-    validate_trace_map(
-        root,
-        config,
-        TraceValidationTarget {
-            owner_id: &feature.id,
-            role: TraceRole::FeatureImplementation,
-            status,
-        },
-        &feature.implementations,
-        issues,
-        trace_count,
-    );
+    if !resources.spec_only {
+        validate_trace_map(
+            resources.root,
+            resources.config,
+            TraceValidationTarget {
+                owner_id: &feature.id,
+                role: TraceRole::FeatureImplementation,
+                status,
+            },
+            &feature.implementations,
+            issues,
+            trace_count,
+        );
+    }
 }
 
 fn validate_trace_map(
@@ -2641,15 +2680,15 @@ mod tests {
 
     use super::{
         FilteredIssueView, IssueFilters, ORPHAN_RULE_CODES, RECIPROCAL_RULE_CODES,
-        TextReportSummary, TraceRole, apply_autofix, apply_autofix_for_reference,
-        collect_check_result, collect_feature_yaml_paths, describe_trace_reference,
-        entry_covers_symbols, filter_check_result, format_reference_location,
-        looks_like_feature_document, merge_ownership_entry, ownership_symbols_hint,
-        preferred_trace_file_path, render_text_report, required_ownership_symbols,
-        run_check_command, validate_duplicate_links, validate_duplicate_trace_references,
-        validate_feature, validate_feature_registry_entries, validate_non_empty_field,
-        validate_philosophy, validate_policy, validate_requirement, validate_unique_ids,
-        verify_trace_reference,
+        RequirementValidationIndex, TextReportSummary, TraceRole, ValidationResources,
+        apply_autofix, apply_autofix_for_reference, collect_check_result,
+        collect_feature_yaml_paths, describe_trace_reference, entry_covers_symbols,
+        filter_check_result, format_reference_location, looks_like_feature_document,
+        merge_ownership_entry, ownership_symbols_hint, preferred_trace_file_path,
+        render_text_report, required_ownership_symbols, run_check_command,
+        validate_duplicate_links, validate_duplicate_trace_references, validate_feature,
+        validate_feature_registry_entries, validate_non_empty_field, validate_philosophy,
+        validate_policy, validate_requirement, validate_unique_ids, verify_trace_reference,
     };
 
     fn philosophy(id: &str) -> Philosophy {
@@ -2694,6 +2733,24 @@ mod tests {
             status: "implemented".to_string(),
             linked_requirements: Vec::new(),
             implementations: BTreeMap::new(),
+        }
+    }
+
+    fn validation_resources<'a>(config: &'a SyuConfig) -> ValidationResources<'a> {
+        ValidationResources {
+            config,
+            root: Path::new("."),
+            spec_only: false,
+        }
+    }
+
+    fn requirement_validation_index<'a>(
+        policies_by_id: &'a HashMap<&'a str, &'a Policy>,
+        features_by_id: &'a HashMap<&'a str, &'a Feature>,
+    ) -> RequirementValidationIndex<'a> {
+        RequirementValidationIndex {
+            policies_by_id,
+            features_by_id,
         }
     }
 
@@ -2757,6 +2814,7 @@ mod tests {
             genre: Vec::new(),
             rule: Vec::new(),
             id: Vec::new(),
+            spec_only: false,
             fix: false,
             no_fix: false,
             allow_planned: None,
@@ -2824,6 +2882,7 @@ mod tests {
             genre: Vec::new(),
             rule: Vec::new(),
             id: Vec::new(),
+            spec_only: false,
             fix: true,
             no_fix: false,
             allow_planned: None,
@@ -2850,6 +2909,7 @@ mod tests {
             genre: Vec::new(),
             rule: Vec::new(),
             id: Vec::new(),
+            spec_only: false,
             fix: true,
             no_fix: false,
             allow_planned: Some(false),
@@ -3444,10 +3504,8 @@ mod tests {
         let mut trace_count = Default::default();
         validate_requirement(
             &entry,
-            &HashMap::new(),
-            &HashMap::new(),
-            &SyuConfig::default(),
-            Path::new("."),
+            requirement_validation_index(&HashMap::new(), &HashMap::new()),
+            validation_resources(&SyuConfig::default()),
             &mut issues,
             &mut trace_count,
         );
@@ -3488,10 +3546,8 @@ mod tests {
         let mut trace_count = Default::default();
         validate_requirement(
             &entry,
-            &policies,
-            &features,
-            &SyuConfig::default(),
-            Path::new("."),
+            requirement_validation_index(&policies, &features),
+            validation_resources(&SyuConfig::default()),
             &mut issues,
             &mut trace_count,
         );
@@ -3522,8 +3578,7 @@ mod tests {
         validate_feature(
             &entry,
             &HashMap::new(),
-            &SyuConfig::default(),
-            Path::new("."),
+            validation_resources(&SyuConfig::default()),
             &mut issues,
             &mut trace_count,
         );
@@ -3563,10 +3618,8 @@ mod tests {
         let mut trace_count = Default::default();
         validate_requirement(
             &entry,
-            &HashMap::new(),
-            &HashMap::new(),
-            &SyuConfig::default(),
-            Path::new("."),
+            requirement_validation_index(&HashMap::new(), &HashMap::new()),
+            validation_resources(&SyuConfig::default()),
             &mut issues,
             &mut trace_count,
         );
@@ -3588,10 +3641,8 @@ mod tests {
         let mut trace_count = Default::default();
         validate_requirement(
             &entry,
-            &HashMap::new(),
-            &HashMap::new(),
-            &SyuConfig::default(),
-            Path::new("."),
+            requirement_validation_index(&HashMap::new(), &HashMap::new()),
+            validation_resources(&SyuConfig::default()),
             &mut issues,
             &mut trace_count,
         );
@@ -3621,10 +3672,8 @@ mod tests {
         let mut trace_count = Default::default();
         validate_requirement(
             &entry,
-            &HashMap::new(),
-            &features,
-            &SyuConfig::default(),
-            Path::new("."),
+            requirement_validation_index(&HashMap::new(), &features),
+            validation_resources(&SyuConfig::default()),
             &mut issues,
             &mut trace_count,
         );
@@ -3654,10 +3703,8 @@ mod tests {
         let mut trace_count = Default::default();
         validate_requirement(
             &entry,
-            &HashMap::new(),
-            &features,
-            &SyuConfig::default(),
-            Path::new("."),
+            requirement_validation_index(&HashMap::new(), &features),
+            validation_resources(&SyuConfig::default()),
             &mut issues,
             &mut trace_count,
         );
@@ -3686,10 +3733,8 @@ mod tests {
         let mut trace_count = Default::default();
         validate_requirement(
             &entry,
-            &HashMap::new(),
-            &HashMap::new(),
-            &SyuConfig::default(),
-            Path::new("."),
+            requirement_validation_index(&HashMap::new(), &HashMap::new()),
+            validation_resources(&SyuConfig::default()),
             &mut issues,
             &mut trace_count,
         );
@@ -3720,8 +3765,7 @@ mod tests {
         validate_feature(
             &entry,
             &HashMap::new(),
-            &config,
-            Path::new("."),
+            validation_resources(&config),
             &mut issues,
             &mut trace_count,
         );
@@ -3752,8 +3796,7 @@ mod tests {
         validate_feature(
             &entry,
             &requirements,
-            &SyuConfig::default(),
-            Path::new("."),
+            validation_resources(&SyuConfig::default()),
             &mut issues,
             &mut trace_count,
         );
@@ -3785,8 +3828,7 @@ mod tests {
         validate_feature(
             &entry,
             &requirements,
-            &SyuConfig::default(),
-            Path::new("."),
+            validation_resources(&SyuConfig::default()),
             &mut issues,
             &mut trace_count,
         );
@@ -3817,8 +3859,7 @@ mod tests {
         validate_feature(
             &entry,
             &requirements,
-            &SyuConfig::default(),
-            Path::new("."),
+            validation_resources(&SyuConfig::default()),
             &mut issues,
             &mut trace_count,
         );
@@ -3846,8 +3887,7 @@ mod tests {
         validate_feature(
             &entry,
             &requirements,
-            &SyuConfig::default(),
-            Path::new("."),
+            validation_resources(&SyuConfig::default()),
             &mut issues,
             &mut trace_count,
         );
