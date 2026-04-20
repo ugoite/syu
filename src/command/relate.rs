@@ -4,7 +4,7 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
     fmt::Write,
-    path::{Component, Path},
+    path::{Component, Path, PathBuf},
 };
 
 use anyhow::{Context, Result, bail};
@@ -194,23 +194,7 @@ fn run_relate_range(workspace: &Workspace, range: &str, format: OutputFormat) ->
     let lookup = WorkspaceLookup::new(workspace);
     let catalog = RelationCatalog::load(lookup)?;
 
-    let mut combined_ids = RelatedIds::default();
-
-    for file in &changed_files {
-        let file_str = file.display().to_string();
-
-        if let Ok(normalized_path) = normalize_selector_path(&workspace.root, &file_str) {
-            let definitions = catalog.nodes_matching_path(&normalized_path);
-            for node in &definitions {
-                combined_ids.add(node.lookup_kind(), &node.id);
-            }
-
-            let traces = collect_matching_traces_for_path(workspace, &normalized_path);
-            for trace in &traces {
-                combined_ids.add(trace.owner_lookup_kind(), &trace.owner_id);
-            }
-        }
-    }
+    let combined_ids = collect_related_ids_for_changed_files(workspace, &catalog, &changed_files);
 
     let expanded_ids = expand_related_ids(workspace, combined_ids);
 
@@ -247,6 +231,32 @@ fn run_relate_range(workspace: &Workspace, range: &str, format: OutputFormat) ->
     }
 
     Ok(0)
+}
+
+fn collect_related_ids_for_changed_files(
+    workspace: &Workspace,
+    catalog: &RelationCatalog,
+    changed_files: &[PathBuf],
+) -> RelatedIds {
+    let mut combined_ids = RelatedIds::default();
+
+    for file in changed_files {
+        let file_str = file.display().to_string();
+
+        if let Ok(normalized_path) = normalize_selector_path(&workspace.root, &file_str) {
+            let definitions = catalog.nodes_matching_path(&normalized_path);
+            for node in &definitions {
+                combined_ids.add(node.lookup_kind(), &node.id);
+            }
+
+            let traces = collect_matching_traces_for_path(workspace, &normalized_path);
+            for trace in &traces {
+                combined_ids.add(trace.owner_lookup_kind(), &trace.owner_id);
+            }
+        }
+    }
+
+    combined_ids
 }
 
 fn build_relation_report(workspace: &Workspace, selector: &str) -> Result<JsonRelateOutput> {
@@ -1509,6 +1519,43 @@ mod tests {
             direct_match: false,
         };
         assert!(std::panic::catch_unwind(|| invalid_trace.owner_lookup_kind()).is_err());
+    }
+
+    #[test]
+    fn run_relate_command_requires_a_selector_or_range() {
+        let error = super::run_relate_command(&crate::cli::RelateArgs {
+            selector: None,
+            workspace: PathBuf::from("."),
+            range: None,
+            format: crate::cli::OutputFormat::Text,
+        })
+        .expect_err("missing selector and range should fail");
+
+        assert!(
+            error
+                .to_string()
+                .contains("either SELECTOR or --range must be provided")
+        );
+    }
+
+    #[test]
+    fn run_relate_range_collects_definition_ids_from_changed_documents() {
+        let workspace_root =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/workspaces/passing");
+        let workspace = crate::workspace::load_workspace(&workspace_root).expect("workspace");
+        let lookup = crate::command::lookup::WorkspaceLookup::new(&workspace);
+        let document_path = lookup
+            .document_path_for_id("FEAT-TRACE-001")
+            .expect("feature path lookup")
+            .expect("feature document path");
+        let catalog = RelationCatalog::load(lookup).expect("catalog");
+        let related_ids = super::collect_related_ids_for_changed_files(
+            &workspace,
+            &catalog,
+            &[workspace_root.join(document_path)],
+        );
+
+        assert!(related_ids.features.contains("FEAT-TRACE-001"));
     }
 
     fn demo_workspace() -> Workspace {

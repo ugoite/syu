@@ -771,6 +771,7 @@ mod tests {
 
     use crate::{
         cli::{OutputFormat, TraceArgs},
+        command::lookup::EntitySummary,
         config::SyuConfig,
         model::TraceReference,
         workspace::Workspace,
@@ -1136,5 +1137,142 @@ mod tests {
         assert!(rendered.contains("matched by symbol `run_trace_command`"));
         assert!(rendered.contains("matched by wildcard `*`"));
         assert!(rendered.contains("Requirements:\n- none"));
+    }
+
+    #[test]
+    fn run_trace_command_requires_a_file_or_range() {
+        let error = super::run_trace_command(&TraceArgs {
+            file: None,
+            workspace: PathBuf::from("."),
+            symbol: None,
+            range: None,
+            format: OutputFormat::Text,
+        })
+        .expect_err("missing file and range should fail");
+
+        assert!(
+            error
+                .to_string()
+                .contains("either FILE or --range must be provided")
+        );
+    }
+
+    #[test]
+    fn compute_range_summary_counts_partial_results() {
+        let summary = super::compute_range_summary(&[
+            TraceLookupOutput {
+                file: "owned.rs".to_string(),
+                symbol: None,
+                status: TraceLookupStatus::Owned,
+                matched_owners: Vec::new(),
+                file_only_owners: Vec::new(),
+                requirements: vec![EntitySummary {
+                    id: "REQ-1".to_string(),
+                    title: "Req".to_string(),
+                    document_path: None,
+                }],
+                features: Vec::new(),
+                policies: Vec::new(),
+                philosophies: Vec::new(),
+            },
+            TraceLookupOutput {
+                file: "partial.rs".to_string(),
+                symbol: None,
+                status: TraceLookupStatus::Partial,
+                matched_owners: Vec::new(),
+                file_only_owners: Vec::new(),
+                requirements: Vec::new(),
+                features: vec![EntitySummary {
+                    id: "FEAT-1".to_string(),
+                    title: "Feat".to_string(),
+                    document_path: None,
+                }],
+                policies: Vec::new(),
+                philosophies: Vec::new(),
+            },
+            TraceLookupOutput {
+                file: "unowned.rs".to_string(),
+                symbol: None,
+                status: TraceLookupStatus::Unowned,
+                matched_owners: Vec::new(),
+                file_only_owners: Vec::new(),
+                requirements: Vec::new(),
+                features: Vec::new(),
+                policies: vec![EntitySummary {
+                    id: "POL-1".to_string(),
+                    title: "Pol".to_string(),
+                    document_path: None,
+                }],
+                philosophies: vec![EntitySummary {
+                    id: "PHIL-1".to_string(),
+                    title: "Phil".to_string(),
+                    document_path: None,
+                }],
+            },
+        ]);
+
+        assert_eq!(summary.total_files, 3);
+        assert_eq!(summary.owned_files, 1);
+        assert_eq!(summary.partial_files, 1);
+        assert_eq!(summary.unowned_files, 1);
+        assert_eq!(summary.total_requirements, 1);
+        assert_eq!(summary.total_features, 1);
+        assert_eq!(summary.total_policies, 1);
+        assert_eq!(summary.total_philosophies, 1);
+    }
+
+    #[test]
+    fn render_range_text_groups_file_only_and_unowned_results() {
+        let rendered = super::render_range_text(
+            "HEAD~1..HEAD",
+            &[
+                TraceLookupOutput {
+                    file: "file-only.rs".to_string(),
+                    symbol: None,
+                    status: TraceLookupStatus::Owned,
+                    matched_owners: Vec::new(),
+                    file_only_owners: vec![TraceOwnerMatch {
+                        kind: "feature",
+                        id: "FEAT-1".to_string(),
+                        title: "Feature".to_string(),
+                        trace_role: "implementation".to_string(),
+                        language: "rust".to_string(),
+                        file: "file-only.rs".to_string(),
+                        declared_symbols: Vec::new(),
+                        matched_symbol: None,
+                        match_mode: "file",
+                    }],
+                    requirements: Vec::new(),
+                    features: Vec::new(),
+                    policies: Vec::new(),
+                    philosophies: Vec::new(),
+                },
+                TraceLookupOutput {
+                    file: "unowned.rs".to_string(),
+                    symbol: None,
+                    status: TraceLookupStatus::Unowned,
+                    matched_owners: Vec::new(),
+                    file_only_owners: Vec::new(),
+                    requirements: Vec::new(),
+                    features: Vec::new(),
+                    policies: Vec::new(),
+                    philosophies: Vec::new(),
+                },
+            ],
+            &super::TraceRangeSummary {
+                total_files: 2,
+                owned_files: 1,
+                partial_files: 0,
+                unowned_files: 1,
+                total_requirements: 0,
+                total_features: 1,
+                total_policies: 0,
+                total_philosophies: 0,
+            },
+        );
+
+        assert!(rendered.contains("feature FEAT-1:"));
+        assert!(rendered.contains("UNOWNED:"));
+        assert!(rendered.contains("Features: 1"));
     }
 }
