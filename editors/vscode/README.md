@@ -10,6 +10,8 @@ through a terminal:
   philosophies in the **syu Context** explorer view
 - jump from a spec ID to its YAML document
 - open the traced files that belong to a requirement or feature
+- use inline CodeLens actions on YAML spec IDs, traced files, and traced symbols
+  without opening the command palette first
 
 ## Current protocol
 
@@ -24,6 +26,16 @@ That keeps the extension usable today while leaving room for a shared LSP server
 later.
 
 ## Running from source
+
+Switch your shell to the checked-in Node 20 version from
+`editors/vscode/.nvmrc`, then use the pinned npm release from
+`editors/vscode/package.json` to install dependencies from the repository root:
+
+```bash
+nvm use "$(cat editors/vscode/.nvmrc)"
+scripts/ci/pinned-npm.sh install editors/vscode
+npm --prefix editors/vscode ci
+```
 
 1. Open `editors/vscode/` in VS Code.
 2. Press `F5` to start an Extension Development Host.
