@@ -23,11 +23,12 @@ editor protocol later.
 
 ## Run it from source
 
-Use the checked-in Node 20 version from `editors/vscode/.nvmrc` and the pinned
-npm release from `editors/vscode/package.json`, then install dependencies from
-the repository root:
+Switch your shell to the checked-in Node 20 version from
+`editors/vscode/.nvmrc`, then use the pinned npm release from
+`editors/vscode/package.json` to install dependencies from the repository root:
 
 ```bash
+nvm use "$(cat editors/vscode/.nvmrc)"
 scripts/ci/pinned-npm.sh install editors/vscode
 npm --prefix editors/vscode ci
 ```

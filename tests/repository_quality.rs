@@ -571,6 +571,7 @@ fn repository_declares_documentation_guides() {
     assert!(vscode_guide.contains("Trace active file"));
     assert!(vscode_guide.contains("syu.binaryPath"));
     assert!(vscode_guide.contains("editors/vscode/.nvmrc"));
+    assert!(vscode_guide.contains("nvm use"));
     assert!(vscode_guide.contains("scripts/ci/pinned-npm.sh install editors/vscode"));
     assert!(vscode_guide.contains("npm --prefix editors/vscode ci"));
     let tutorial = read_file("docs/guide/tutorial.md");
