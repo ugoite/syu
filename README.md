@@ -37,6 +37,9 @@ Pick the newcomer path that matches what you need next:
 - **Quick start**: stay in this README when you want a compact, self-contained
   reference card, are happy with a short layer refresher, and want the fastest
   install-to-`syu validate .` path in about 5 minutes.
+- **Command card**: open [`docs/guide/command-card.md`](docs/guide/command-card.md)
+  when you already know the model and want one compact guide page for the core
+  install / init / validate / browse / app / review commands.
 - **Tutorial**: follow [`docs/guide/tutorial.md`](docs/guide/tutorial.md) when you
   learn best from a realistic repository story, want more narrative context than
   Quick start, and do not mind a longer walkthrough.
@@ -54,6 +57,10 @@ Pick the newcomer path that matches what you need next:
   [`docs/guide/reviewer-workflow.md`](docs/guide/reviewer-workflow.md) when a
   PR already exists and you want one concrete loop for moving between spec IDs,
   traced code, and recent Git history.
+- **Contributor runtime setup**: open
+  [`docs/guide/node-workflow.md`](docs/guide/node-workflow.md) when you are
+  contributing to this repository and need one place to see which Node major
+  the browser app, docs site, and VS Code extension expect today.
 - **Trace adapter matrix**: open
   [`docs/guide/trace-adapter-support.md`](docs/guide/trace-adapter-support.md)
   when you already have a workspace and need a capability reference for which
@@ -68,10 +75,12 @@ Keep the detailed guides close:
 
 - [`docs/guide/concepts.md`](docs/guide/concepts.md)
 - [`docs/guide/getting-started.md`](docs/guide/getting-started.md)
+- [`docs/guide/command-card.md`](docs/guide/command-card.md)
 - [`docs/guide/tutorial.md`](docs/guide/tutorial.md)
 - [`docs/guide/migration.md`](docs/guide/migration.md)
 - [`docs/guide/app.md`](docs/guide/app.md)
 - [`docs/guide/reviewer-workflow.md`](docs/guide/reviewer-workflow.md)
+- [`docs/guide/node-workflow.md`](docs/guide/node-workflow.md)
 - [`docs/guide/trace-adapter-support.md`](docs/guide/trace-adapter-support.md)
 - [`docs/guide/configuration.md`](docs/guide/configuration.md)
 - [`docs/guide/spec-antipatterns.md`](docs/guide/spec-antipatterns.md)
@@ -296,7 +305,7 @@ That renders `PHIL-STORE-001`, `POL-STORE-001`, `REQ-STORE-001`, and
 `--feature-prefix`.
 
 Want a closer starting point for a repository that is already clearly
-docs-first, Rust-first, Python-first, Ruby-first, Go-first, Java-first, or polyglot? Start with a
+docs-first, Rust-first, Python-first, Ruby-first, Go-first, Java-first, TypeScript-first, or polyglot? Start with a
 lightweight template:
 
 ```bash
@@ -307,6 +316,7 @@ syu init . --template ruby-only
 syu init . --template go-only
 syu init . --template java-only
 syu init . --template python-only
+syu init . --template typescript-only
 syu init . --template polyglot
 ```
 
@@ -335,6 +345,7 @@ syu init . --template docs-first
 syu init . --template rust-only
 syu init . --template go-only
 syu init . --template java-only
+syu init . --template typescript-only
 syu init . --spec-root docs/spec
 syu init . --requirement-prefix REQ-STORE --feature-prefix FEAT-STORE
 ```
@@ -444,7 +455,7 @@ Render list-shaped output without entering the interactive browser:
 Use `syu list` when you want list-shaped output that can be narrowed to one
 layer or emitted as JSON for automation. Use `syu browse --non-interactive`
 when you want the browse snapshot instead: workspace metadata, per-layer
-counts, and the current validation errors in plain text.
+counts, grouped items, and the current validation errors in text or JSON.
 
 ```bash
 syu list philosophy
@@ -613,7 +624,7 @@ Key behaviors:
 - `validate.allow_planned` controls whether `planned` requirements and features are allowed at all
 - `validate.require_non_orphaned_items` turns isolated layered definitions into validation errors
 - `validate.require_reciprocal_links` keeps adjacent-layer backlinks mandatory by default while still allowing phased migration when disabled
-- `validate.require_symbol_trace_coverage` opt-in checks that public Rust, Python, Go, Java, and TypeScript/JavaScript symbols belong to features and tests belong to requirements, while still skipping configured repository-relative generated paths
+- `validate.require_symbol_trace_coverage` opt-in checks that public Rust, Python, Go, Java, C#, and TypeScript/JavaScript symbols belong to features and tests belong to requirements, while still skipping configured repository-relative generated paths
 - `report.output` sets the default `syu report` destination while `--output` still takes precedence
 - `app.bind` and `app.port` define the default local browser-app address and port unless `--bind` / `--port` override them
 - `report.output` sets the default `syu report` destination while `--output` still takes precedence
@@ -662,6 +673,7 @@ missing files.
 
 The repository ships working example projects:
 
+- [`examples/browser-ui`](examples/browser-ui)
 - [`examples/csharp-fallback`](examples/csharp-fallback)
 - [`examples/docs-first`](examples/docs-first)
 - [`examples/go-only`](examples/go-only)
@@ -669,14 +681,16 @@ The repository ships working example projects:
 - [`examples/rust-only`](examples/rust-only)
 - [`examples/python-only`](examples/python-only)
 - [`examples/ruby-only`](examples/ruby-only)
+- [`examples/typescript-only`](examples/typescript-only)
 - [`examples/polyglot`](examples/polyglot)
 - [`examples/team-scale`](examples/team-scale)
-
-`docs-first`, `rust-only`, `python-only`, `ruby-only`, `go-only`, `java-only`, and
+`browser-ui` is the reference-only frontend example for traced React/TypeScript UI work.
+`docs-first`, `rust-only`, `python-only`, `ruby-only`, `go-only`, `java-only`, `typescript-only`, and
 `polyglot` match `syu init --template ...` starters directly.
-`csharp-fallback` remains the reference-only example for repositories whose
-main implementation language is still unsupported, and `team-scale` remains a
-reference-only example for studying a larger split-by-area repository shape.
+`csharp-fallback` remains the reference-only example for teams that want a
+lighter staged C# adoption path before tracing every C# symbol directly, and
+`team-scale` remains a reference-only example for studying a larger
+split-by-area repository shape.
 
 Each one is validated in the automated test suite. If you are deciding between a
 checked-in example and a scaffold template, start with
@@ -731,9 +745,10 @@ binaries without checking `app/dist/` into `main`.
 
 Use the checked-in Node 25 version from `app/package.json` and `app/.nvmrc`
 when working in `app/`; that is the local contributor expectation, not only a
-CI matrix detail. Before you run the install commands below, switch your shell
-to that Node major with a version manager such as `nvm`, `fnm`, or `Volta`
-using the checked-in `app/.nvmrc`.
+CI matrix detail. For the repo-wide app/docs/editor version map, use the
+[repository Node workflow guide](docs/guide/node-workflow.md). Before you run
+the install commands below, switch your shell to that Node major with a version
+manager such as `nvm`, `fnm`, or `Volta` using the checked-in `app/.nvmrc`.
 Before you run Cargo commands that embed the browser app, provision the app
 dependencies intentionally from the repository root:
 
@@ -766,8 +781,10 @@ checked-in `docs/` tree directly, and the published site is available at
 `https://ugoite.github.io/syu/`.
 
 Use the checked-in Node 20 version from `website/package.json` and
-`website/.nvmrc` when working in `website/`, and use the helper below so local
-installs follow the same pinned npm flow CI uses:
+`website/.nvmrc` when working in `website/`, and use the
+[repository Node workflow guide](docs/guide/node-workflow.md) when you need the
+full app/docs/editor runtime map in one place. Then use the helper below so
+local installs follow the same pinned npm flow CI uses:
 
 ```bash
 bash scripts/ci/install-docs-site-deps.sh
