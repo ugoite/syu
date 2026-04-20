@@ -609,6 +609,8 @@ pub enum StarterTemplate {
     PythonOnly,
     GoOnly,
     JavaOnly,
+    #[value(name = "typescript-only", alias = "type-script-only")]
+    TypeScriptOnly,
     Polyglot,
 }
 
@@ -621,6 +623,7 @@ impl StarterTemplate {
             Self::PythonOnly => "python-only",
             Self::GoOnly => "go-only",
             Self::JavaOnly => "java-only",
+            Self::TypeScriptOnly => "typescript-only",
             Self::Polyglot => "polyglot",
         }
     }
@@ -687,6 +690,7 @@ mod tests {
         assert_eq!(StarterTemplate::PythonOnly.label(), "python-only");
         assert_eq!(StarterTemplate::GoOnly.label(), "go-only");
         assert_eq!(StarterTemplate::JavaOnly.label(), "java-only");
+        assert_eq!(StarterTemplate::TypeScriptOnly.label(), "typescript-only");
         assert_eq!(StarterTemplate::Polyglot.label(), "polyglot");
         assert_eq!(ValidationSeverityFilter::Error.as_str(), "error");
         assert_eq!(ValidationSeverityFilter::Warning.as_str(), "warning");

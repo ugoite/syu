@@ -296,7 +296,7 @@ That renders `PHIL-STORE-001`, `POL-STORE-001`, `REQ-STORE-001`, and
 `--feature-prefix`.
 
 Want a closer starting point for a repository that is already clearly
-docs-first, Rust-first, Python-first, Go-first, Java-first, or polyglot? Start with a
+docs-first, Rust-first, Python-first, Go-first, Java-first, TypeScript-first, or polyglot? Start with a
 lightweight template:
 
 ```bash
@@ -306,6 +306,7 @@ syu init . --template rust-only
 syu init . --template go-only
 syu init . --template java-only
 syu init . --template python-only
+syu init . --template typescript-only
 syu init . --template polyglot
 ```
 
@@ -334,6 +335,7 @@ syu init . --template docs-first
 syu init . --template rust-only
 syu init . --template go-only
 syu init . --template java-only
+syu init . --template typescript-only
 syu init . --spec-root docs/spec
 syu init . --requirement-prefix REQ-STORE --feature-prefix FEAT-STORE
 ```
@@ -667,10 +669,11 @@ The repository ships working example projects:
 - [`examples/java-only`](examples/java-only)
 - [`examples/rust-only`](examples/rust-only)
 - [`examples/python-only`](examples/python-only)
+- [`examples/typescript-only`](examples/typescript-only)
 - [`examples/polyglot`](examples/polyglot)
 - [`examples/team-scale`](examples/team-scale)
 
-`docs-first`, `rust-only`, `python-only`, `go-only`, `java-only`, and
+`docs-first`, `rust-only`, `python-only`, `go-only`, `java-only`, `typescript-only`, and
 `polyglot` match `syu init --template ...` starters directly.
 `csharp-fallback` remains the reference-only example for repositories whose
 main implementation language is still unsupported, and `team-scale` remains a

@@ -1,0 +1,13 @@
+{
+  "name": "typescript-only",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --import tsx --test src/app.test.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  },
+  "packageManager": "npm@11.8.0"
+}

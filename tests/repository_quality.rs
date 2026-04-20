@@ -436,6 +436,7 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("--template rust-only"));
     assert!(readme.contains("--template go-only"));
     assert!(readme.contains("--template java-only"));
+    assert!(readme.contains("--template typescript-only"));
     assert!(readme.contains("syu templates"));
     assert!(readme.contains("starter-only"));
     assert!(readme.contains("syu validate"));
@@ -455,6 +456,7 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("examples/csharp-fallback"));
     assert!(readme.contains("examples/go-only"));
     assert!(readme.contains("examples/java-only"));
+    assert!(readme.contains("examples/typescript-only"));
     assert!(readme.contains("examples/polyglot"));
     assert!(readme.contains("examples/team-scale"));
     assert!(readme.contains("examples-and-templates.md"));
@@ -528,6 +530,7 @@ fn repository_declares_documentation_guides() {
     assert!(getting_started.contains("--template rust-only"));
     assert!(getting_started.contains("--template go-only"));
     assert!(getting_started.contains("--template java-only"));
+    assert!(getting_started.contains("--template typescript-only"));
     assert!(getting_started.contains("syu templates"));
     assert!(getting_started.contains("--id-prefix"));
     assert!(getting_started.contains("syu validate . --fix"));
@@ -566,6 +569,7 @@ fn repository_declares_documentation_guides() {
     assert!(getting_started.contains("examples/csharp-fallback"));
     assert!(getting_started.contains("examples/go-only"));
     assert!(getting_started.contains("examples/java-only"));
+    assert!(getting_started.contains("examples/typescript-only"));
     assert!(getting_started.contains("examples/polyglot"));
     assert!(
         getting_started.contains("[examples and templates guide](./examples-and-templates.md)")
@@ -606,8 +610,10 @@ fn repository_declares_documentation_guides() {
     assert!(examples_and_templates.contains("`syu init . --template rust-only`"));
     assert!(examples_and_templates.contains("`syu init . --template go-only`"));
     assert!(examples_and_templates.contains("`syu init . --template java-only`"));
+    assert!(examples_and_templates.contains("`syu init . --template typescript-only`"));
     assert!(examples_and_templates.contains("examples/go-only"));
     assert!(examples_and_templates.contains("examples/java-only"));
+    assert!(examples_and_templates.contains("examples/typescript-only"));
     assert!(examples_and_templates.contains("examples/polyglot"));
     assert!(examples_and_templates.contains("examples/team-scale"));
     assert!(merge_queue_playbook.contains("merge_group"));
@@ -779,6 +785,10 @@ fn repository_ships_example_workspaces() {
     let java_example_requirement =
         read_file("examples/java-only/docs/syu/requirements/core/java.yaml");
     let java_example_readme = read_file("examples/java-only/README.md");
+    let typescript_example_config = read_file("examples/typescript-only/syu.yaml");
+    let typescript_example_requirement =
+        read_file("examples/typescript-only/docs/syu/requirements/core/typescript.yaml");
+    let typescript_example_readme = read_file("examples/typescript-only/README.md");
     let polyglot_config = read_file("examples/polyglot/syu.yaml");
     let polyglot_feature = read_file("examples/polyglot/docs/syu/features/languages/polyglot.yaml");
     let example_tests = read_file("tests/example_workspaces.rs");
@@ -811,6 +821,10 @@ fn repository_ships_example_workspaces() {
     assert!(java_example_requirement.contains("REQ-JAVA-001"));
     assert!(java_example_readme.contains("JavaRequirementTest"));
     assert!(java_example_readme.contains("JavaFeatureImpl"));
+    assert!(typescript_example_config.contains(&format!("version: {current_version}")));
+    assert!(typescript_example_requirement.contains("REQ-TS-001"));
+    assert!(typescript_example_readme.contains("typescriptRequirementTest"));
+    assert!(typescript_example_readme.contains("typescriptFeature"));
     assert!(polyglot_config.contains(&format!("version: {current_version}")));
     assert!(polyglot_feature.contains("FEAT-MIX-001"));
     assert!(polyglot_feature.contains("status: implemented"));
@@ -818,6 +832,7 @@ fn repository_ships_example_workspaces() {
     assert!(example_tests.contains("csharp_fallback_example_validates"));
     assert!(example_tests.contains("rust_only_example_validates"));
     assert!(example_tests.contains("python_only_example_validates"));
+    assert!(example_tests.contains("typescript_only_example_validates"));
     assert!(example_tests.contains("go_only_example_validates"));
     assert!(example_tests.contains("java_only_example_validates"));
     assert!(example_tests.contains("polyglot_example_validates"));
