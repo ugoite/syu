@@ -223,16 +223,19 @@ impl LanguageAdapter for CSharpAdapter {
 
     fn patterns(&self, symbol: &str) -> Vec<String> {
         let escaped = regex::escape(symbol);
+        let visibility = r"(?:public|protected|internal|private)(?:\s+(?:protected|internal))?";
         vec![
             format!(
-                r"(?m)\b(?:public|protected|internal|private)?\s*(?:sealed\s+|abstract\s+|static\s+|partial\s+)*(?:class|interface|enum|record|struct)\s+{escaped}\b"
+                r"(?m)\b(?:{visibility}\s+)?(?:sealed\s+|abstract\s+|static\s+|partial\s+)*(?:class|interface|enum|record|struct)\s+{escaped}\b"
             ),
             format!(
-                r"(?m)\bpublic\s+(?:static\s+)?(?:sealed\s+|override\s+|virtual\s+|abstract\s+|async\s+|partial\s+|new\s+)*(?:<[^>{{}}]+>\s*)?(?:[\w<>\[\],?.]+\s+)+{escaped}\s*\("
+                r"(?m)\b{visibility}\s+(?:static\s+)?(?:sealed\s+|override\s+|virtual\s+|abstract\s+|async\s+|partial\s+|new\s+)*(?:<[^>{{}}]+>\s*)?(?:[\w<>\[\],?.]+\s+)+{escaped}\s*\("
             ),
-            format!(r"(?m)\bpublic\s+(?:static\s+)?(?:[\w<>\[\],?.]+\s+)+{escaped}\s*(?:\{{|=>)"),
             format!(
-                r"(?m)\bpublic\s+(?:static\s+)?(?:readonly\s+|const\s+)?(?:[\w<>\[\],?.]+\s+)+{escaped}\s*(?:=|;)"
+                r"(?m)\b{visibility}\s+(?:static\s+)?(?:[\w<>\[\],?.]+\s+)+{escaped}\s*(?:\{{|=>)"
+            ),
+            format!(
+                r"(?m)\b{visibility}\s+(?:static\s+)?(?:readonly\s+|const\s+)?(?:[\w<>\[\],?.]+\s+)+{escaped}\s*(?:=|;)"
             ),
             format!(r"(?m)\b{escaped}\b"),
         ]
@@ -498,6 +501,18 @@ mod tests {
         assert!(csharp.symbol_exists(
             "public class FeatureTraceService {\n    public async Task featureTraceCSharpAsync() => Task.CompletedTask;\n}\n",
             "featureTraceCSharpAsync"
+        ));
+        assert!(csharp.symbol_exists(
+            "internal class FeatureTraceService {\n    internal async Task featureTraceCSharpInternalAsync() => Task.CompletedTask;\n}\n",
+            "featureTraceCSharpInternalAsync"
+        ));
+        assert!(csharp.symbol_exists(
+            "private protected class FeatureTraceService {\n    private protected string TraceSecret { get; } = \"ok\";\n}\n",
+            "TraceSecret"
+        ));
+        assert!(csharp.symbol_exists(
+            "public class FeatureTraceService {\n    private const string HiddenTraceLabel = \"ok\";\n}\n",
+            "HiddenTraceLabel"
         ));
     }
 
