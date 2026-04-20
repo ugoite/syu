@@ -421,6 +421,38 @@ description: "Generated reference for docs/syu/requirements/core/workspace.yaml"
       - **file**: src/command/log.rs
         - **symbols**:
           - *
+- **id**: REQ-CORE-025
+  - **title**: Provide a focused explain command for one ID, path, or symbol
+  - **description**:
+    - |
+      The CLI MUST provide an `explain` command that accepts a definition ID,
+      repository-relative path, or traced source symbol and returns a focused
+      explanation of the connected philosophy/policy/requirement/feature chain.
+      The command MUST include the traces currently in scope, SHOULD summarize
+      obvious gaps that still need review, and SHOULD emit both text and JSON
+      output so the same explanation can support interactive review and
+      automation.
+  - **priority**: medium
+  - **status**: implemented
+  - **linked_policies**:
+    - POL-003
+    - POL-004
+  - **linked_features**:
+    - FEAT-EXPLAIN-001
+  - **tests**:
+    - **rust**:
+      - **file**: tests/explain_command.rs
+        - **symbols**:
+          - *
+      - **file**: tests/help_command.rs
+        - **symbols**:
+          - explain_help_mentions_ids_paths_symbols_and_json_output
+      - **file**: src/lib.rs
+        - **symbols**:
+          - dispatches_lookup_subcommands_without_rewriting_them
+      - **file**: src/command/explain.rs
+        - **symbols**:
+          - assessment_labels_stay_stable
 
 ## Source YAML
 
@@ -822,4 +854,35 @@ requirements:
         - file: src/command/log.rs
           symbols:
             - '*'
+  - id: REQ-CORE-025
+    title: Provide a focused explain command for one ID, path, or symbol
+    description: |
+      The CLI MUST provide an `explain` command that accepts a definition ID,
+      repository-relative path, or traced source symbol and returns a focused
+      explanation of the connected philosophy/policy/requirement/feature chain.
+      The command MUST include the traces currently in scope, SHOULD summarize
+      obvious gaps that still need review, and SHOULD emit both text and JSON
+      output so the same explanation can support interactive review and
+      automation.
+    priority: medium
+    status: implemented
+    linked_policies:
+      - POL-003
+      - POL-004
+    linked_features:
+      - FEAT-EXPLAIN-001
+    tests:
+      rust:
+        - file: tests/explain_command.rs
+          symbols:
+            - '*'
+        - file: tests/help_command.rs
+          symbols:
+            - explain_help_mentions_ids_paths_symbols_and_json_output
+        - file: src/lib.rs
+          symbols:
+            - dispatches_lookup_subcommands_without_rewriting_them
+        - file: src/command/explain.rs
+          symbols:
+            - assessment_labels_stay_stable
 ```

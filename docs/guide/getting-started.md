@@ -441,6 +441,7 @@ If you only remember the task and not the command name yet, use this chooser:
 | search when you only know a keyword or partial ID | `syu search QUERY` | searches titles, summaries, descriptions, and IDs across the spec |
 | start from a traced file or symbol during review | `syu trace path --symbol name` | works code-first instead of spec-first |
 | inspect everything connected to one ID, file, or symbol | `syu relate TARGET` | expands nearby links, traced files, and symbols to show the surrounding context |
+| explain one ID, file, or symbol against the connected chain | `syu explain TARGET` | summarizes the connected chain, traces, and obvious gaps in one focused view |
 | review change history for one requirement or feature | `syu log ID` | follows the checked-in definition plus traced evidence through Git history |
 | switch to a browser-first workflow | `syu app .` | shows the same workspace graph in the local browser UI |
 

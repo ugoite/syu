@@ -36,7 +36,7 @@ fn root_help_includes_start_here_guidance() {
 fn workspace_help_uses_current_directory_default_consistently() {
     for command in [
         "browse", "show", "search", "trace", "app", "validate", "check", "report", "add", "relate",
-        "log",
+        "log", "explain",
     ] {
         let output = Command::cargo_bin("syu")
             .expect("binary should build")
@@ -97,6 +97,23 @@ fn relate_help_mentions_ids_paths_symbols_and_json_output() {
     assert!(stdout.contains("syu relate REQ-CORE-018"));
     assert!(stdout.contains("syu relate src/command/search.rs"));
     assert!(stdout.contains("syu relate run_search_command"));
+}
+
+#[test]
+fn explain_help_mentions_ids_paths_symbols_and_json_output() {
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .args(["explain", "--help"])
+        .output()
+        .expect("help should render");
+
+    assert!(output.status.success(), "explain help should succeed");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("--format"));
+    assert!(stdout.contains("syu explain REQ-CORE-018"));
+    assert!(stdout.contains("syu explain src/command/search.rs"));
+    assert!(stdout.contains("syu explain run_search_command"));
 }
 
 #[test]
