@@ -435,6 +435,7 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("--template docs-first"));
     assert!(readme.contains("--template rust-only"));
     assert!(readme.contains("--template go-only"));
+    assert!(readme.contains("--template java-only"));
     assert!(readme.contains("syu templates"));
     assert!(readme.contains("starter-only"));
     assert!(readme.contains("syu validate"));
@@ -453,6 +454,7 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("syu app"));
     assert!(readme.contains("examples/csharp-fallback"));
     assert!(readme.contains("examples/go-only"));
+    assert!(readme.contains("examples/java-only"));
     assert!(readme.contains("examples/polyglot"));
     assert!(readme.contains("examples/team-scale"));
     assert!(readme.contains("examples-and-templates.md"));
@@ -525,6 +527,7 @@ fn repository_declares_documentation_guides() {
     assert!(getting_started.contains("--template docs-first"));
     assert!(getting_started.contains("--template rust-only"));
     assert!(getting_started.contains("--template go-only"));
+    assert!(getting_started.contains("--template java-only"));
     assert!(getting_started.contains("syu templates"));
     assert!(getting_started.contains("--id-prefix"));
     assert!(getting_started.contains("syu validate . --fix"));
@@ -562,6 +565,7 @@ fn repository_declares_documentation_guides() {
     assert!(getting_started.contains("examples/python-only"));
     assert!(getting_started.contains("examples/csharp-fallback"));
     assert!(getting_started.contains("examples/go-only"));
+    assert!(getting_started.contains("examples/java-only"));
     assert!(getting_started.contains("examples/polyglot"));
     assert!(
         getting_started.contains("[examples and templates guide](./examples-and-templates.md)")
@@ -601,7 +605,9 @@ fn repository_declares_documentation_guides() {
     assert!(examples_and_templates.contains("`syu init . --template docs-first`"));
     assert!(examples_and_templates.contains("`syu init . --template rust-only`"));
     assert!(examples_and_templates.contains("`syu init . --template go-only`"));
+    assert!(examples_and_templates.contains("`syu init . --template java-only`"));
     assert!(examples_and_templates.contains("examples/go-only"));
+    assert!(examples_and_templates.contains("examples/java-only"));
     assert!(examples_and_templates.contains("examples/polyglot"));
     assert!(examples_and_templates.contains("examples/team-scale"));
     assert!(merge_queue_playbook.contains("merge_group"));
@@ -712,15 +718,20 @@ fn repository_ships_vscode_extension() {
     assert!(extension_lock.contains("\"yaml\""));
     assert!(extension_readme.contains("Problems panel"));
     assert!(extension_readme.contains("syu Context"));
+    assert!(extension_readme.contains("inline CodeLens actions"));
     assert!(extension_readme.contains("Extension Development Host"));
     assert!(extension_launch.contains("\"extensionHost\""));
     assert!(extension_entry.contains("FEAT-VSCODE-001"));
     assert!(extension_entry.contains("SyuContextTreeProvider"));
     assert!(extension_entry.contains("refreshDiagnostics"));
+    assert!(extension_entry.contains("registerCodeLensProvider"));
+    assert!(extension_entry.contains("collectInlineNavigationTargets"));
     assert!(extension_model.contains("lookupTrace"));
     assert!(extension_model.contains("loadDiagnostics"));
+    assert!(extension_model.contains("collectInlineNavigationTargets"));
     assert!(extension_tests.contains("REQ-CORE-022"));
     assert!(extension_tests.contains("lookupTrace"));
+    assert!(extension_tests.contains("collectInlineNavigationTargets finds spec IDs"));
     assert!(gitignore.contains("editors/vscode/node_modules"));
     assert!(readme.contains("## VS Code extension"));
 }
@@ -764,6 +775,11 @@ fn repository_ships_example_workspaces() {
     let docs_first_readme = read_file("examples/docs-first/README.md");
     let go_example_requirement = read_file("examples/go-only/docs/syu/requirements/core/go.yaml");
     let go_example_readme = read_file("examples/go-only/README.md");
+    let java_example_config = read_file("examples/java-only/syu.yaml");
+    let java_example_requirement =
+        read_file("examples/java-only/docs/syu/requirements/core/java.yaml");
+    let java_example_readme = read_file("examples/java-only/README.md");
+    let polyglot_config = read_file("examples/polyglot/syu.yaml");
     let polyglot_feature = read_file("examples/polyglot/docs/syu/features/languages/polyglot.yaml");
     let example_tests = read_file("tests/example_workspaces.rs");
 
@@ -800,6 +816,11 @@ fn repository_ships_example_workspaces() {
     assert!(go_example_requirement.contains("REQ-GO-001"));
     assert!(go_example_readme.contains("TestGoRequirement"));
     assert!(go_example_readme.contains("GoFeatureImpl"));
+    assert!(java_example_config.contains(&format!("version: {current_version}")));
+    assert!(java_example_requirement.contains("REQ-JAVA-001"));
+    assert!(java_example_readme.contains("JavaRequirementTest"));
+    assert!(java_example_readme.contains("JavaFeatureImpl"));
+    assert!(polyglot_config.contains(&format!("version: {current_version}")));
     assert!(polyglot_feature.contains("FEAT-MIX-001"));
     assert!(polyglot_feature.contains("status: implemented"));
 }
@@ -1078,10 +1099,28 @@ fn repository_ships_browser_app() {
     assert!(pinned_npm.contains("npm install --global"));
     assert!(pinned_npm.contains("Run 'scripts/ci/pinned-npm.sh install"));
     assert!(readme.contains("generates the embedded"));
+    assert!(readme.contains("scripts/ci/pinned-npm.sh install app"));
+    assert!(readme.contains("Cargo no longer runs `npm ci` for you during normal builds."));
+    assert!(readme.contains("offline, hermetic, and security-sensitive environments"));
     assert!(readme.contains("check-browser-app-freshness.sh"));
     assert!(readme.contains("regenerates the local"));
     assert!(readme.contains("app/dist"));
     assert!(shared_core.contains("FEAT-APP-001"));
+}
+
+#[test]
+// REQ-CORE-004
+fn repository_generates_spec_coverage_without_relaunching_the_cli() {
+    let report_command = read_file("src/command/report.rs");
+
+    assert!(report_command.contains("FEAT-REPORT-001"));
+    assert!(report_command.contains("load_workspace(&args.workspace)"));
+    assert!(report_command.contains("collect_check_result_from_workspace(&workspace)"));
+    assert!(report_command.contains("render_spec_coverage_summary(&workspace"));
+    assert!(report_command.contains("if let Some(spec_coverage_summary) = spec_coverage_summary"));
+    assert!(!report_command.contains("cargo run -- list"));
+    assert!(!report_command.contains("cargo run -- show"));
+    assert!(!report_command.contains("run_syu_json"));
 }
 
 #[test]

@@ -296,7 +296,7 @@ That renders `PHIL-STORE-001`, `POL-STORE-001`, `REQ-STORE-001`, and
 `--feature-prefix`.
 
 Want a closer starting point for a repository that is already clearly
-docs-first, Rust-first, Python-first, Go-first, or polyglot? Start with a
+docs-first, Rust-first, Python-first, Go-first, Java-first, or polyglot? Start with a
 lightweight template:
 
 ```bash
@@ -304,6 +304,7 @@ syu templates
 syu init . --template docs-first
 syu init . --template rust-only
 syu init . --template go-only
+syu init . --template java-only
 syu init . --template python-only
 syu init . --template polyglot
 ```
@@ -332,6 +333,7 @@ syu init . --id-prefix store
 syu init . --template docs-first
 syu init . --template rust-only
 syu init . --template go-only
+syu init . --template java-only
 syu init . --spec-root docs/spec
 syu init . --requirement-prefix REQ-STORE --feature-prefix FEAT-STORE
 ```
@@ -662,16 +664,17 @@ The repository ships working example projects:
 - [`examples/csharp-fallback`](examples/csharp-fallback)
 - [`examples/docs-first`](examples/docs-first)
 - [`examples/go-only`](examples/go-only)
+- [`examples/java-only`](examples/java-only)
 - [`examples/rust-only`](examples/rust-only)
 - [`examples/python-only`](examples/python-only)
 - [`examples/polyglot`](examples/polyglot)
 - [`examples/team-scale`](examples/team-scale)
 
-`docs-first`, `rust-only`, `python-only`, `go-only`, and `polyglot` match
-`syu init --template ...` starters directly. `csharp-fallback` remains the
-reference-only example for repositories whose main implementation language is
-still unsupported, and `team-scale` remains a reference-only example for
-studying a larger split-by-area repository shape.
+`docs-first`, `rust-only`, `python-only`, `go-only`, `java-only`, and
+`polyglot` match `syu init --template ...` starters directly.
+`csharp-fallback` remains the reference-only example for repositories whose
+main implementation language is still unsupported, and `team-scale` remains a
+reference-only example for studying a larger split-by-area repository shape.
 
 Each one is validated in the automated test suite. If you are deciding between a
 checked-in example and a scaffold template, start with
@@ -726,18 +729,32 @@ binaries without checking `app/dist/` into `main`.
 
 Use the checked-in Node 25 version from `app/package.json` and `app/.nvmrc`
 when working in `app/`; that is the local contributor expectation, not only a
-CI matrix detail.
+CI matrix detail. Before you run the install commands below, switch your shell
+to that Node major with a version manager such as `nvm`, `fnm`, or `Volta`
+using the checked-in `app/.nvmrc`.
+Before you run Cargo commands that embed the browser app, provision the app
+dependencies intentionally from the repository root:
+
+```bash
+scripts/ci/pinned-npm.sh install app
+npm --prefix app ci
+```
+
+Cargo no longer runs `npm ci` for you during normal builds. If `app/node_modules`
+is missing or stale, `build.rs` stops and points back to the commands above so
+offline, hermetic, and security-sensitive environments do not hide a networked
+package-manager install inside an ordinary Rust build.
+
 When contributors change browser app sources or build inputs, they should run
 `scripts/ci/check-browser-app-freshness.sh`. That flow regenerates the local
 `app/src/wasm` bridge, typechecks the browser app, and builds a fresh local
 `app/dist/` artifact the same way CI does before uploading it.
 
 ```bash
-cd app
-npm ci
-npm run build:wasm
-npm run build
-cd ..
+scripts/ci/pinned-npm.sh install app
+npm --prefix app ci
+npm --prefix app run build:wasm
+npm --prefix app run build
 cargo run -- app .
 ```
 
