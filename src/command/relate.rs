@@ -1141,7 +1141,10 @@ mod tests {
         ));
         assert!(trace_is_direct_match(
             &SelectionSource::RangePaths {
-                paths: vec!["src/command/relate.rs".to_string(), "src/other.rs".to_string()],
+                paths: vec![
+                    "src/command/relate.rs".to_string(),
+                    "src/other.rs".to_string()
+                ],
             },
             "feature",
             "FEAT-RELATE-001",
