@@ -43,6 +43,7 @@ description: "Generated reference for docs/syu/requirements/core/documentation.y
           - root_help_includes_start_here_guidance
           - workspace_help_uses_current_directory_default_consistently
           - init_help_lists_starter_templates
+          - init_help_lists_typescript_template_in_prose_description
           - init_help_mentions_custom_spec_roots
           - init_help_mentions_id_prefix_options
           - completion_command_emits_shell_scripts
@@ -109,6 +110,7 @@ requirements:
             - root_help_includes_start_here_guidance
             - workspace_help_uses_current_directory_default_consistently
             - init_help_lists_starter_templates
+            - init_help_lists_typescript_template_in_prose_description
             - init_help_mentions_custom_spec_roots
             - init_help_mentions_id_prefix_options
             - completion_command_emits_shell_scripts

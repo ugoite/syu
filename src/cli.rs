@@ -650,7 +650,7 @@ pub struct InitArgs {
     pub spec_root: Option<PathBuf>,
 
     #[arg(
-        help = "Starter layout to scaffold (generic, docs-first, rust-only, python-only, ruby-only, go-only, java-only, or polyglot)"
+        help = "Starter layout to scaffold (generic, docs-first, rust-only, python-only, ruby-only, go-only, java-only, typescript-only, or polyglot)"
     )]
     #[arg(long, value_enum, default_value_t = StarterTemplate::Generic)]
     pub template: StarterTemplate,

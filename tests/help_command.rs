@@ -245,6 +245,23 @@ fn add_help_mentions_explicit_file_and_feature_kind() {
 }
 
 #[test]
+// REQ-CORE-009
+fn init_help_lists_typescript_template_in_prose_description() {
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .args(["init", "--help"])
+        .output()
+        .expect("help should render");
+
+    assert!(output.status.success(), "init help should succeed");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains(
+        "Starter layout to scaffold (generic, docs-first, rust-only, python-only, ruby-only, go-only, java-only, typescript-only, or polyglot)"
+    ));
+}
+
+#[test]
 // REQ-CORE-024
 fn validate_help_mentions_warning_exit_code_for_automation() {
     let output = Command::cargo_bin("syu")
