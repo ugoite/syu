@@ -18,6 +18,7 @@ This section is generated from the YAML source under `docs/syu/`.
 - [Audit CLI / Audit](features/cli/audit)
 - [Interactive CLI / Browse](features/cli/browse)
 - [Validate Command / Check](features/cli/check)
+- [Doctor Command / Doctor](features/cli/doctor)
 - [Init Command / Init](features/cli/init)
 - [Git History CLI / Log](features/cli/log)
 - [Relation Inspection CLI / Relate](features/cli/relate)

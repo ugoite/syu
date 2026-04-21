@@ -61,6 +61,10 @@ Pick the newcomer path that matches what you need next:
   [`docs/guide/node-workflow.md`](docs/guide/node-workflow.md) when you are
   contributing to this repository and need one place to see which Node major
   the browser app, docs site, and VS Code extension expect today.
+<!-- FEAT-DOCTOR-001 -->
+- **Local readiness check**: run `syu doctor .` when you want one CLI summary of
+  the current Rust toolchain, Node/npm expectations, optional dependency
+  installs, and Playwright browser readiness before the contributor checks.
 - **Trace adapter matrix**: open
   [`docs/guide/trace-adapter-support.md`](docs/guide/trace-adapter-support.md)
   when you already have a workspace and need a capability reference for which
@@ -774,6 +778,13 @@ scripts/ci/pinned-npm.sh install app
 npm --prefix app ci
 ```
 
+If you prefer the checked-in bootstrap entrypoint for the same app-only setup,
+switch to Node 25 first and use:
+
+```bash
+scripts/ci/bootstrap-contributor-tooling.sh --app
+```
+
 Cargo no longer runs `npm ci` for you during normal builds. If you are in a
 fresh clone or fresh worktree and `app/node_modules` is missing or stale,
 `build.rs` stops and points back to the commands above so offline, hermetic, and security-sensitive environments do not hide a networked package-manager install inside an ordinary Rust build.
@@ -807,6 +818,18 @@ local installs follow the same pinned npm flow CI uses:
 bash scripts/ci/install-docs-site-deps.sh
 npm --prefix website run start
 ```
+
+If you want the bootstrap entrypoint instead of the raw docs-site commands,
+switch to Node 20 first and use:
+
+```bash
+scripts/ci/bootstrap-contributor-tooling.sh
+```
+
+Without flags, the bootstrap only installs the surfaces that match the current
+shell major from the checked-in `.nvmrc` files. In this repository that means
+Node 25 selects the browser app, while Node 20 selects the docs site plus the
+VS Code extension.
 
 The install script removes `website/node_modules` first so repeated docs-site
 setup stays deterministic across branch switches and reused worktrees.

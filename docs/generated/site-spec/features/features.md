@@ -39,6 +39,8 @@ description: "Generated reference for docs/syu/features/features.yaml"
   - **file**: cli/init.yaml
 - **kind**: add
   - **file**: cli/add.yaml
+- **kind**: doctor
+  - **file**: cli/doctor.yaml
 - **kind**: report
   - **file**: cli/report.yaml
 - **kind**: vscode
@@ -85,6 +87,8 @@ files:
     file: cli/init.yaml
   - kind: add
     file: cli/add.yaml
+  - kind: doctor
+    file: cli/doctor.yaml
   - kind: report
     file: cli/report.yaml
   - kind: vscode

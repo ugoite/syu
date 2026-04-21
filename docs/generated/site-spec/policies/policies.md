@@ -69,6 +69,7 @@ description: "Generated reference for docs/syu/policies/policies.yaml"
     - REQ-CORE-023
     - REQ-CORE-024
     - REQ-CORE-025
+    - REQ-CORE-026
 - **id**: POL-003
   - **title**: Traceability should prove ownership from specification to code and tests
   - **summary**: Declared traces should map to real files, real symbols, optional full-file ownership, and derivable repository history.
@@ -118,6 +119,7 @@ description: "Generated reference for docs/syu/policies/policies.yaml"
     - REQ-CORE-023
     - REQ-CORE-024
     - REQ-CORE-025
+    - REQ-CORE-026
 - **id**: POL-005
   - **title**: Documentation and examples must lower adoption friction
   - **summary**: Guides, reports, sites, and examples are part of the product surface.
@@ -156,6 +158,7 @@ description: "Generated reference for docs/syu/policies/policies.yaml"
     - REQ-CORE-013
     - REQ-CORE-014
     - REQ-CORE-016
+    - REQ-CORE-026
 - **id**: POL-007
   - **title**: Delivery automation must remain trustworthy, secure, and reviewable
   - **summary**: Quality gates, release flow, packaging, and installation are part of the product contract.
@@ -246,6 +249,7 @@ policies:
       - REQ-CORE-023
       - REQ-CORE-024
       - REQ-CORE-025
+      - REQ-CORE-026
 
   - id: POL-003
     title: Traceability should prove ownership from specification to code and tests
@@ -295,6 +299,7 @@ policies:
       - REQ-CORE-023
       - REQ-CORE-024
       - REQ-CORE-025
+      - REQ-CORE-026
 
   - id: POL-005
     title: Documentation and examples must lower adoption friction
@@ -333,6 +338,7 @@ policies:
       - REQ-CORE-013
       - REQ-CORE-014
       - REQ-CORE-016
+      - REQ-CORE-026
 
   - id: POL-007
     title: Delivery automation must remain trustworthy, secure, and reviewable
