@@ -480,25 +480,27 @@ mod tests {
             config: crate::config::SyuConfig::default(),
             philosophies: vec![Philosophy {
                 id: "PHIL-001".to_string(),
-                title: "Support both surfaces".to_string(),
-                product_design_principle: "Keep browser and terminal workflows equally explorable."
-                    .to_string(),
-                coding_guideline: "Prefer explicit surface hand-offs.".to_string(),
+                title: "Keep automation choices explicit".to_string(),
+                product_design_principle:
+                    "Manual and automatic workflows should stay easy to compare."
+                        .to_string(),
+                coding_guideline: "Prefer explicit workflow trade-offs.".to_string(),
                 linked_policies: vec!["POL-001".to_string()],
             }],
             policies: vec![Policy {
                 id: "POL-001".to_string(),
-                title: "Keep the terminal review flow healthy".to_string(),
-                summary: "Terminal review flow should stay easy to navigate.".to_string(),
-                description: "Terminal review flow should remain a first-class surface.".to_string(),
+                title: "Prefer automatic checks".to_string(),
+                summary: "Automatic checks should stay trustworthy.".to_string(),
+                description: "Automatic checks should remain the default repository path."
+                    .to_string(),
                 linked_philosophies: vec!["PHIL-001".to_string()],
                 linked_requirements: vec!["REQ-001".to_string()],
             }],
             requirements: vec![Requirement {
                 id: "REQ-001".to_string(),
-                title: "Bridge browser and terminal review workflows".to_string(),
+                title: "Clarify manual and automatic review workflows".to_string(),
                 description:
-                    "Reviewers should be able to move between browser and terminal workflows without losing context."
+                    "Reviewers should be able to compare manual and automatic review workflows without losing context."
                         .to_string(),
                 priority: "medium".to_string(),
                 status: "implemented".to_string(),
@@ -508,8 +510,8 @@ mod tests {
             }],
             features: vec![Feature {
                 id: "FEAT-001".to_string(),
-                title: "Browser review overview".to_string(),
-                summary: "Browser review overview keeps linked context visible.".to_string(),
+                title: "Manual review overview".to_string(),
+                summary: "Manual review overview keeps linked context visible.".to_string(),
                 status: "implemented".to_string(),
                 linked_requirements: vec!["REQ-001".to_string()],
                 implementations: BTreeMap::new(),
