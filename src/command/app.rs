@@ -2239,6 +2239,7 @@ mod tests {
         );
 
         let nested = router
+            .clone()
             .oneshot(
                 Request::builder()
                     .uri("/requirements/REQ-CORE-017")
@@ -2248,6 +2249,31 @@ mod tests {
             .await
             .expect("response");
         assert_eq!(nested.status(), StatusCode::OK);
+
+        let favicon = router
+            .oneshot(
+                Request::builder()
+                    .uri("/favicon.svg")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(favicon.status(), StatusCode::OK);
+        assert_eq!(
+            favicon.headers().get(header::CONTENT_TYPE),
+            Some(&HeaderValue::from_static("image/svg+xml"))
+        );
+        assert_eq!(
+            favicon.headers().get(header::CONTENT_SECURITY_POLICY),
+            Some(&HeaderValue::from_static(
+                "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+            ))
+        );
+        assert_eq!(
+            favicon.headers().get(header::X_CONTENT_TYPE_OPTIONS),
+            Some(&HeaderValue::from_static("nosniff"))
+        );
     }
 
     #[tokio::test]
