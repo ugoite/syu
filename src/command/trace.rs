@@ -110,7 +110,7 @@ struct TraceRangeOutput {
 
 #[derive(Debug, Clone, Serialize)]
 struct TraceRangeSummary {
-    total_files: usize,
+    inspected_files: usize,
     owned_files: usize,
     partial_files: usize,
     unowned_files: usize,
@@ -187,7 +187,7 @@ fn run_trace_range(workspace: &Workspace, range: &str, format: OutputFormat) -> 
                         range: range.to_string(),
                         files: Vec::new(),
                         summary: TraceRangeSummary {
-                            total_files: 0,
+                            inspected_files: 0,
                             owned_files: 0,
                             partial_files: 0,
                             unowned_files: 0,
@@ -259,7 +259,7 @@ fn compute_range_summary(results: &[TraceLookupOutput]) -> TraceRangeSummary {
     }
 
     TraceRangeSummary {
-        total_files: results.len(),
+        inspected_files: results.len(),
         owned_files: owned,
         partial_files: partial,
         unowned_files: unowned,
@@ -1246,7 +1246,7 @@ mod tests {
             },
         ]);
 
-        assert_eq!(summary.total_files, 3);
+        assert_eq!(summary.inspected_files, 3);
         assert_eq!(summary.owned_files, 1);
         assert_eq!(summary.partial_files, 1);
         assert_eq!(summary.unowned_files, 1);
@@ -1296,7 +1296,7 @@ mod tests {
                 },
             ],
             &super::TraceRangeSummary {
-                total_files: 2,
+                inspected_files: 2,
                 owned_files: 1,
                 partial_files: 0,
                 unowned_files: 1,
@@ -1320,7 +1320,7 @@ mod tests {
             1,
             &[],
             &super::TraceRangeSummary {
-                total_files: 0,
+                inspected_files: 0,
                 owned_files: 0,
                 partial_files: 0,
                 unowned_files: 0,
