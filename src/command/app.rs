@@ -1297,6 +1297,7 @@ mod tests {
     use axum::{
         body::{Body, to_bytes},
         http::{HeaderValue, Request, StatusCode, header},
+        response::IntoResponse,
     };
     use tempfile::tempdir;
     use tower::util::ServiceExt;
@@ -1307,18 +1308,18 @@ mod tests {
     };
 
     use super::{
-        APP_DATA_REFRESH_FAILED_MESSAGE, APP_DEV_SERVER_ORIGIN, AppDataErrorResponse, AppPayload,
-        AppServerSettings, AppState, AppVersion, SectionKind, Severity, SnapshotDependency,
-        app_dev_server_origin, app_router, app_server, bind_failure_message, browser_root_labels,
-        build_app_payload, canonical_workspace_root, collect_feature_sources,
-        collect_snapshot_files_with_extensions, collect_yaml_sources_recursive,
-        content_type_for_path, dev_server_probe_request_sent, dev_server_probe_succeeds,
-        is_asset_like, load_current_snapshot, non_loopback_warning_lines, normalized_asset_path,
-        normalized_trace_snapshot_path, readiness_probe_request_sent, readiness_probe_succeeds,
-        redacted_relative_label, redacted_root_label, refresh_current_once, relative_display,
-        require_remote_bind_opt_in, resolve_app_server_settings, spec_snapshot, startup_lines,
-        trailing_path_components_label, validation_snapshot, wait_for_dev_server_with_retry,
-        wait_for_ready_with_retry,
+        APP_DATA_REFRESH_FAILED_MESSAGE, APP_DEV_SERVER_ORIGIN, AppDataErrorResponse, AppError,
+        AppPayload, AppRefreshFailure, AppServerSettings, AppState, AppVersion, SectionKind,
+        Severity, SnapshotDependency, app_dev_server_origin, app_router, app_server,
+        bind_failure_message, browser_root_labels, build_app_payload, canonical_workspace_root,
+        collect_feature_sources, collect_snapshot_files_with_extensions,
+        collect_yaml_sources_recursive, content_type_for_path, dev_server_probe_request_sent,
+        dev_server_probe_succeeds, is_asset_like, load_current_snapshot,
+        non_loopback_warning_lines, normalized_asset_path, normalized_trace_snapshot_path,
+        readiness_probe_request_sent, readiness_probe_succeeds, redacted_relative_label,
+        redacted_root_label, refresh_current_once, relative_display, require_remote_bind_opt_in,
+        resolve_app_server_settings, spec_snapshot, startup_lines, trailing_path_components_label,
+        validation_snapshot, wait_for_dev_server_with_retry, wait_for_ready_with_retry,
     };
 
     fn fixture_root(name: &str) -> PathBuf {
@@ -2581,6 +2582,30 @@ mod tests {
             !serialized.contains("failed to read spec root"),
             "safe responses must not leak internal refresh details: {serialized}"
         );
+    }
+
+    #[test]
+    fn server_refresh_failures_use_safe_server_error_payload() {
+        let failure = AppRefreshFailure::server(anyhow::anyhow!("backend exploded"));
+
+        let payload = failure.client_error();
+
+        assert_eq!(payload.error.code, "server-unavailable");
+        assert_eq!(
+            payload.error.summary,
+            "syu app could not complete the refresh request."
+        );
+        assert_eq!(
+            payload.error.guidance,
+            "Keep this tab open and check the syu app terminal if refreshes keep failing."
+        );
+    }
+
+    #[test]
+    fn app_error_from_anyhow_returns_plain_fallback_body() {
+        let response = AppError::from(anyhow::anyhow!("backend exploded")).into_response();
+
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
     }
 
     #[tokio::test]
