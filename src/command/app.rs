@@ -2017,6 +2017,16 @@ mod tests {
     }
 
     #[test]
+    fn dev_server_probe_returns_true_for_ok_responses() {
+        let mut stream = SyntheticProbeStream::ok();
+        assert!(dev_server_probe_succeeds(
+            &mut stream,
+            "127.0.0.1:4173".parse().expect("socket address")
+        ));
+        assert!(stream.wrote, "probe should send the dev-server request");
+    }
+
+    #[test]
     fn wait_for_dev_server_with_retry_retries_after_unsuccessful_probe() {
         let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).expect("listener");
         let local_addr = listener.local_addr().expect("local addr");
