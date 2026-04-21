@@ -14,6 +14,24 @@ fn read_json(path: &str) -> Value {
     serde_json::from_str(&read_file(path)).expect("repository JSON should parse")
 }
 
+fn assert_newcomer_template_examples(document: &str) {
+    for template in [
+        "docs-first",
+        "rust-only",
+        "python-only",
+        "ruby-only",
+        "go-only",
+        "java-only",
+        "typescript-only",
+        "polyglot",
+    ] {
+        assert!(
+            document.contains(&format!("--template {template}")),
+            "expected newcomer-facing docs to mention `{template}`"
+        );
+    }
+}
+
 fn checked_in_example_configs() -> Vec<PathBuf> {
     let mut configs: Vec<_> = fs::read_dir(repo_root().join("examples"))
         .expect("examples directory should be readable")
@@ -447,11 +465,7 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("syu init ."));
     assert!(readme.contains("syu add"));
     assert!(readme.contains("--id-prefix"));
-    assert!(readme.contains("--template docs-first"));
-    assert!(readme.contains("--template rust-only"));
-    assert!(readme.contains("--template go-only"));
-    assert!(readme.contains("--template java-only"));
-    assert!(readme.contains("--template typescript-only"));
+    assert_newcomer_template_examples(&readme);
     assert!(readme.contains("syu templates"));
     assert!(readme.contains("starter-only"));
     assert!(readme.contains("syu validate"));
@@ -545,11 +559,7 @@ fn repository_declares_documentation_guides() {
     assert!(!getting_started.contains("$asset.sha256"));
     assert!(getting_started.contains("current checked-in release"));
     assert!(getting_started.contains("latest published alpha"));
-    assert!(getting_started.contains("--template docs-first"));
-    assert!(getting_started.contains("--template rust-only"));
-    assert!(getting_started.contains("--template go-only"));
-    assert!(getting_started.contains("--template java-only"));
-    assert!(getting_started.contains("--template typescript-only"));
+    assert_newcomer_template_examples(&getting_started);
     assert!(getting_started.contains("syu templates"));
     assert!(getting_started.contains("--id-prefix"));
     assert!(getting_started.contains("syu validate . --fix"));
