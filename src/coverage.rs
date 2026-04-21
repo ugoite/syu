@@ -281,10 +281,7 @@ fn discover_rust_targets(
             ))
         })?;
 
-        let relative = path
-            .strip_prefix(root)
-            .expect("scanned file should remain under the workspace root")
-            .to_path_buf();
+        let relative = scanned_file_relative_to_workspace(root, &path)?;
         collect_rust_targets(&file.items, &relative, false, &mut targets);
     }
 
@@ -457,10 +454,7 @@ fn discover_python_targets(
             Ok(symbols) => symbols,
             Err(_) => continue,
         };
-        let relative = path
-            .strip_prefix(root)
-            .expect("scanned file should remain under the workspace root")
-            .to_path_buf();
+        let relative = scanned_file_relative_to_workspace(root, path)?;
         for symbol in symbols {
             if !symbol.name.starts_with('_') {
                 targets.push(CoverageTarget {
@@ -477,10 +471,7 @@ fn discover_python_targets(
             Ok(symbols) => symbols,
             Err(_) => continue,
         };
-        let relative = path
-            .strip_prefix(root)
-            .expect("scanned file should remain under the workspace root")
-            .to_path_buf();
+        let relative = scanned_file_relative_to_workspace(root, path)?;
         for symbol in symbols {
             if symbol.name.starts_with("test_") || symbol.name.starts_with("Test") {
                 targets.push(CoverageTarget {
@@ -579,10 +570,7 @@ fn discover_typescript_targets(
             Err(_) => continue,
         };
         let symbols = inspect_typescript_file(path, &contents).unwrap_or_default();
-        let relative = path
-            .strip_prefix(root)
-            .expect("scanned file should remain under the workspace root")
-            .to_path_buf();
+        let relative = scanned_file_relative_to_workspace(root, path)?;
         for symbol in symbols {
             if symbol.is_exported {
                 targets.push(CoverageTarget {
@@ -600,10 +588,7 @@ fn discover_typescript_targets(
             Err(_) => continue,
         };
         let symbols = inspect_typescript_file(path, &contents).unwrap_or_default();
-        let relative = path
-            .strip_prefix(root)
-            .expect("scanned file should remain under the workspace root")
-            .to_path_buf();
+        let relative = scanned_file_relative_to_workspace(root, path)?;
         for symbol in symbols {
             if symbol.name.starts_with("test") || symbol.name.starts_with("Test") {
                 targets.push(CoverageTarget {
@@ -663,10 +648,7 @@ fn discover_go_targets(config: &SyuConfig, root: &Path) -> Result<Vec<CoverageTa
             ))
         })?;
 
-        let relative = path
-            .strip_prefix(root)
-            .expect("scanned file should remain under the workspace root")
-            .to_path_buf();
+        let relative = scanned_file_relative_to_workspace(root, &path)?;
 
         if is_go_test_file(&path) {
             for symbol in collect_go_test_symbols(&contents) {
@@ -838,10 +820,7 @@ fn discover_java_targets(
             Err(_) => continue,
         };
 
-        let relative = path
-            .strip_prefix(root)
-            .expect("scanned file should remain under the workspace root")
-            .to_path_buf();
+        let relative = scanned_file_relative_to_workspace(root, &path)?;
 
         if is_java_test_file(&path, &contents) {
             for symbol in collect_java_test_symbols(&contents) {
@@ -907,10 +886,7 @@ fn discover_csharp_targets(
             Err(_) => continue,
         };
 
-        let relative = path
-            .strip_prefix(root)
-            .expect("scanned file should remain under the workspace root")
-            .to_path_buf();
+        let relative = scanned_file_relative_to_workspace(root, &path)?;
 
         if is_csharp_test_file(&path) {
             for symbol in collect_csharp_test_symbols(&contents) {
@@ -1352,6 +1328,24 @@ fn should_skip_generated_directory(
         .is_some_and(|relative| path_matches_ignored_generated_directory(relative, ignored_paths))
 }
 
+fn scanned_file_relative_to_workspace(root: &Path, path: &Path) -> Result<PathBuf, Box<Issue>> {
+    path.strip_prefix(root)
+        .map(Path::to_path_buf)
+        .map_err(|_| {
+            Box::new(Issue::error(
+                "SYU-coverage-path-001",
+                "trace coverage inventory",
+                Some(path.display().to_string()),
+                format!(
+                    "Scanned file `{}` escaped workspace root `{}` while building trace coverage inventory.",
+                    path.display(),
+                    root.display()
+                ),
+                Some("Fix the directory layout or disable `validate.require_symbol_trace_coverage` until the workspace can be scanned.".to_string()),
+            ))
+        })
+}
+
 pub(crate) fn normalize_relative_path(path: &Path) -> PathBuf {
     let mut normalized = PathBuf::new();
     for component in path.components() {
@@ -1430,8 +1424,9 @@ mod tests {
         discover_python_targets, discover_rust_targets, discover_typescript_targets,
         go_files_under, java_files_under, normalize_relative_path,
         normalized_symbol_trace_coverage_ignored_paths, path_matches_ignored_generated_directory,
-        python_files_under, rust_files_under, typescript_files_under,
-        validate_symbol_trace_coverage, validate_symbol_trace_coverage_with,
+        python_files_under, rust_files_under, scanned_file_relative_to_workspace,
+        typescript_files_under, validate_symbol_trace_coverage,
+        validate_symbol_trace_coverage_with,
     };
     use crate::{
         config::SyuConfig,
@@ -1555,6 +1550,20 @@ mod tests {
                 .iter()
                 .any(|target| target.symbol == "hidden_in_test")
         );
+    }
+
+    #[test]
+    fn scanned_file_relative_to_workspace_reports_out_of_root_paths() {
+        let tempdir = tempdir().expect("tempdir");
+        let outside = tempdir.path().parent().expect("parent").join("outside.rs");
+        let outside_display = outside.display().to_string();
+
+        let issue = scanned_file_relative_to_workspace(tempdir.path(), &outside)
+            .expect_err("out-of-root files should fail");
+
+        assert_eq!(issue.code, "SYU-coverage-path-001");
+        assert!(issue.message.contains("escaped workspace root"));
+        assert_eq!(issue.location.as_deref(), Some(outside_display.as_str()));
     }
 
     #[test]
