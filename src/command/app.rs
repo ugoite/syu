@@ -40,12 +40,14 @@ use crate::{
 };
 
 static APP_DIST: Dir<'_> = include_dir!("$OUT_DIR/syu-app-dist");
+const APP_DEV_SERVER_ORIGIN: &str = "http://127.0.0.1:4173";
 
 #[derive(Clone)]
 struct AppState {
     workspace_root: PathBuf,
     config: SyuConfig,
     current: Arc<RwLock<CurrentAppState>>,
+    dev_server_origin: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -61,13 +63,14 @@ enum CurrentAppState {
 }
 
 impl AppState {
-    fn new(workspace_root: PathBuf, config: SyuConfig) -> Self {
+    fn new(workspace_root: PathBuf, config: SyuConfig, dev_server_origin: Option<String>) -> Self {
         Self {
             workspace_root,
             config,
             current: Arc::new(RwLock::new(CurrentAppState::Error(
                 "app data refresh failed".to_string(),
             ))),
+            dev_server_origin,
         }
     }
 
@@ -194,6 +197,7 @@ pub fn run_app_command(args: &AppArgs) -> Result<i32> {
     let workspace_root = canonical_workspace_root(&args.workspace)?;
     let loaded = load_config(&workspace_root)?;
     let settings = resolve_app_server_settings(args, &loaded.config);
+    let dev_server_origin = app_dev_server_origin(args);
     let bind = settings
         .bind
         .parse::<IpAddr>()
@@ -201,7 +205,11 @@ pub fn run_app_command(args: &AppArgs) -> Result<i32> {
     require_remote_bind_opt_in(bind, args.allow_remote)?;
     build_app_payload_from_config(&workspace_root, &loaded.config)?;
     println!("workspace: {}", workspace_root.display());
-    let state = AppState::new(workspace_root.clone(), loaded.config);
+    let state = AppState::new(
+        workspace_root.clone(),
+        loaded.config,
+        dev_server_origin.clone(),
+    );
     let _ = state.refresh_current();
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -234,7 +242,7 @@ pub fn run_app_command(args: &AppArgs) -> Result<i32> {
         tokio::task::spawn_blocking(move || wait_for_ready(local_addr))
             .await
             .context("local app readiness probe panicked")??;
-        emit_startup_lines(startup_lines(local_addr))?;
+        emit_startup_lines(startup_lines(local_addr, dev_server_origin.as_deref()))?;
 
         let result = server.await.context("local app server task panicked")?;
         refresher.abort();
@@ -244,13 +252,22 @@ pub fn run_app_command(args: &AppArgs) -> Result<i32> {
     Ok(0)
 }
 
-fn startup_lines(local_addr: SocketAddr) -> Vec<String> {
-    vec![
+fn startup_lines(local_addr: SocketAddr, dev_server_origin: Option<&str>) -> Vec<String> {
+    let mut lines = vec![
         format!("syu app listening on http://{local_addr}"),
         format!("syu app ready: http://{local_addr}"),
         format!("Open http://{local_addr} in your browser."),
         "Press Ctrl-C to stop.".to_string(),
-    ]
+    ];
+    if let Some(origin) = dev_server_origin {
+        lines.insert(
+            2,
+            format!(
+                "frontend dev mode: browser assets load from {origin} while /api stays on http://{local_addr}"
+            ),
+        );
+    }
+    lines
 }
 
 fn non_loopback_warning_lines(bind: IpAddr) -> Vec<String> {
@@ -275,6 +292,10 @@ fn emit_startup_lines(lines: Vec<String>) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn app_dev_server_origin(args: &AppArgs) -> Option<String> {
+    args.dev_server.then_some(APP_DEV_SERVER_ORIGIN.to_string())
 }
 
 fn resolve_app_server_settings(args: &AppArgs, config: &SyuConfig) -> AppServerSettings {
@@ -566,10 +587,14 @@ fn feature_sources(spec_root: &Path) -> Result<Vec<SourceDocument>> {
     collect_feature_sources(&spec_root.join("features"))
 }
 
-async fn serve_static(uri: Uri) -> Response {
+async fn serve_static(State(state): State<AppState>, uri: Uri) -> Response {
     let Some(path) = normalized_asset_path(uri.path()) else {
         return (StatusCode::NOT_FOUND, "asset not found").into_response();
     };
+
+    if let Some(dev_server_origin) = state.dev_server_origin.as_deref() {
+        return dev_server_response(dev_server_origin, &path);
+    }
 
     if let Some(file) = APP_DIST.get_file(&path) {
         return asset_response(&path, file.contents());
@@ -582,6 +607,51 @@ async fn serve_static(uri: Uri) -> Response {
     }
 
     (StatusCode::NOT_FOUND, "asset not found").into_response()
+}
+
+fn dev_server_response(dev_server_origin: &str, path: &str) -> Response {
+    if path != "index.html" && is_asset_like(path) {
+        let location = format!(
+            "{}/{}",
+            dev_server_origin.trim_end_matches('/'),
+            path.trim_start_matches('/')
+        );
+        let mut response = Response::new(Body::empty());
+        *response.status_mut() = StatusCode::TEMPORARY_REDIRECT;
+        response.headers_mut().insert(
+            header::LOCATION,
+            HeaderValue::from_str(&location).expect("dev server asset redirect should be valid"),
+        );
+        return response;
+    }
+
+    let origin = dev_server_origin.trim_end_matches('/');
+    let html = format!(
+        "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"UTF-8\" />\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n    <title>syu app (dev server)</title>\n    <link rel=\"icon\" type=\"image/svg+xml\" href=\"{origin}/favicon.svg\" />\n  </head>\n  <body>\n    <div id=\"root\"></div>\n    <script type=\"module\" src=\"{origin}/@vite/client\"></script>\n    <script type=\"module\" src=\"{origin}/src/main.tsx\"></script>\n  </body>\n</html>\n"
+    );
+    let mut response = Response::new(Body::from(html));
+    let headers = response.headers_mut();
+    headers.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("text/html; charset=utf-8"),
+    );
+    headers.insert(
+        header::CONTENT_SECURITY_POLICY,
+        HeaderValue::from_str(&format!(
+            "default-src 'self'; script-src 'self' {origin} 'wasm-unsafe-eval'; style-src 'self' {origin} 'unsafe-inline'; img-src 'self' {origin} data:; connect-src 'self' {origin} ws://127.0.0.1:4173; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+        ))
+        .expect("dev server csp should be valid"),
+    );
+    headers.insert(
+        header::X_CONTENT_TYPE_OPTIONS,
+        HeaderValue::from_static("nosniff"),
+    );
+    headers.insert(header::X_FRAME_OPTIONS, HeaderValue::from_static("DENY"));
+    headers.insert(
+        header::REFERRER_POLICY,
+        HeaderValue::from_static("no-referrer"),
+    );
+    response
 }
 
 fn normalized_asset_path(path: &str) -> Option<String> {
@@ -991,9 +1061,9 @@ mod tests {
     };
 
     use super::{
-        AppPayload, AppServerSettings, AppState, AppVersion, SectionKind, Severity,
-        SnapshotDependency, app_router, bind_failure_message, browser_root_labels,
-        build_app_payload, canonical_workspace_root, collect_feature_sources,
+        APP_DEV_SERVER_ORIGIN, AppPayload, AppServerSettings, AppState, AppVersion, SectionKind,
+        Severity, SnapshotDependency, app_dev_server_origin, app_router, bind_failure_message,
+        browser_root_labels, build_app_payload, canonical_workspace_root, collect_feature_sources,
         collect_snapshot_files_with_extensions, collect_yaml_sources_recursive,
         content_type_for_path, is_asset_like, load_current_snapshot, non_loopback_warning_lines,
         normalized_asset_path, normalized_trace_snapshot_path, readiness_probe_request_sent,
@@ -1035,7 +1105,7 @@ mod tests {
 
     fn app_state(root: &Path) -> AppState {
         let config = load_config(root).expect("config should load").config;
-        let state = AppState::new(root.to_path_buf(), config);
+        let state = AppState::new(root.to_path_buf(), config, None);
         let _ = state.refresh_current();
         state
     }
@@ -1151,6 +1221,7 @@ mod tests {
                 bind: None,
                 port: None,
                 allow_remote: false,
+                dev_server: false,
             },
             &config,
         );
@@ -1179,6 +1250,7 @@ mod tests {
                 bind: None,
                 port: None,
                 allow_remote: false,
+                dev_server: false,
             },
             &config,
         );
@@ -1207,6 +1279,7 @@ mod tests {
                 bind: Some("127.0.0.1".to_string()),
                 port: Some(5123),
                 allow_remote: false,
+                dev_server: false,
             },
             &config,
         );
@@ -1247,7 +1320,7 @@ mod tests {
 
     #[test]
     fn startup_lines_keep_ready_messages_on_stdout() {
-        let lines = startup_lines("0.0.0.0:4123".parse().expect("valid socket"));
+        let lines = startup_lines("0.0.0.0:4123".parse().expect("valid socket"), None);
         assert_eq!(
             lines,
             vec![
@@ -1257,6 +1330,18 @@ mod tests {
                 "Press Ctrl-C to stop.".to_string(),
             ]
         );
+    }
+
+    #[test]
+    fn startup_lines_describe_dev_server_mode() {
+        let lines = startup_lines(
+            "127.0.0.1:3000".parse().expect("valid socket"),
+            Some(APP_DEV_SERVER_ORIGIN),
+        );
+        assert!(lines.contains(&"syu app listening on http://127.0.0.1:3000".to_string()));
+        assert!(lines.contains(
+            &"frontend dev mode: browser assets load from http://127.0.0.1:4173 while /api stays on http://127.0.0.1:3000".to_string()
+        ));
     }
 
     #[test]
@@ -1293,6 +1378,30 @@ mod tests {
     fn require_remote_bind_opt_in_allows_non_loopback_with_flag() {
         require_remote_bind_opt_in("0.0.0.0".parse().expect("valid ip"), true)
             .expect("explicit opt-in should allow non-loopback binds");
+    }
+
+    #[test]
+    fn app_dev_server_origin_is_disabled_by_default() {
+        assert_eq!(
+            app_dev_server_origin(&AppArgs {
+                workspace: PathBuf::from("."),
+                bind: None,
+                port: None,
+                allow_remote: false,
+                dev_server: false,
+            }),
+            None
+        );
+        assert_eq!(
+            app_dev_server_origin(&AppArgs {
+                workspace: PathBuf::from("."),
+                bind: None,
+                port: None,
+                allow_remote: false,
+                dev_server: true,
+            }),
+            Some(APP_DEV_SERVER_ORIGIN.to_string())
+        );
     }
 
     #[test]
@@ -2032,6 +2141,7 @@ mod tests {
             load_config(tempdir.path())
                 .expect("config should load")
                 .config,
+            None,
         );
         let payload_loads = AtomicUsize::new(0);
 
@@ -2069,6 +2179,7 @@ mod tests {
             load_config(tempdir.path())
                 .expect("config should load")
                 .config,
+            None,
         );
 
         let error = state
@@ -2214,6 +2325,30 @@ mod tests {
             .await
             .expect("response");
         assert_eq!(nested.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn static_routes_can_serve_dev_server_shell() {
+        let mut state = app_state(&fixture_root("passing"));
+        state.dev_server_origin = Some(APP_DEV_SERVER_ORIGIN.to_string());
+        let router = app_router(state);
+
+        let response = router
+            .oneshot(
+                Request::builder()
+                    .uri("/")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body");
+        let rendered = String::from_utf8(body.to_vec()).expect("utf8");
+        assert!(rendered.contains("http://127.0.0.1:4173/@vite/client"));
+        assert!(rendered.contains("http://127.0.0.1:4173/src/main.tsx"));
     }
 
     #[tokio::test]

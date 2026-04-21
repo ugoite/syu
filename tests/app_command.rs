@@ -234,6 +234,7 @@ fn app_command_help_mentions_browser_and_stop_instructions() {
     assert!(stdout.contains("After startup, open the printed URL in your browser."));
     assert!(stdout.contains("Press Ctrl-C to stop the local app server."));
     assert!(stdout.contains("--allow-remote"));
+    assert!(stdout.contains("--dev-server"));
 }
 
 #[test]
@@ -296,6 +297,38 @@ fn app_command_warns_on_non_loopback_binds_after_explicit_opt_in() {
         stderr.trim().is_empty(),
         "startup warnings should stay on stdout"
     );
+}
+
+#[test]
+fn app_command_can_serve_a_dev_server_shell() {
+    let port = reserve_port();
+    let mut child = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .arg("app")
+        .arg(fixture_path("passing"))
+        .arg("--bind")
+        .arg("127.0.0.1")
+        .arg("--port")
+        .arg(port.to_string())
+        .arg("--dev-server")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("app command should start");
+
+    wait_for_server(port);
+
+    let index = http_get(port, "/").expect("index should load");
+    assert!(index.contains("200 OK"));
+    assert!(index.contains("http://127.0.0.1:4173/@vite/client"));
+    assert!(index.contains("http://127.0.0.1:4173/src/main.tsx"));
+
+    let payload = http_get(port, "/api/app-data.json").expect("payload should load");
+    assert!(payload.contains("200 OK"));
+    assert!(payload.contains("REQ-TRACE-001"));
+
+    shutdown_child(&mut child);
 }
 
 #[test]
