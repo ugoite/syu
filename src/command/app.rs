@@ -2352,6 +2352,30 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn static_asset_requests_redirect_to_dev_server_in_dev_mode() {
+        let mut state = app_state(&fixture_root("passing"));
+        state.dev_server_origin = Some(APP_DEV_SERVER_ORIGIN.to_string());
+        let router = app_router(state);
+
+        let response = router
+            .oneshot(
+                Request::builder()
+                    .uri("/favicon.svg")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::TEMPORARY_REDIRECT);
+        assert_eq!(
+            response.headers().get(header::LOCATION),
+            Some(&HeaderValue::from_static(
+                "http://127.0.0.1:4173/favicon.svg"
+            ))
+        );
+    }
+
+    #[tokio::test]
     async fn unknown_assets_return_not_found() {
         let router = app_router(app_state(&fixture_root("passing")));
 
