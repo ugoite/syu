@@ -55,6 +55,14 @@ export interface AppPayload {
   validation: ValidationSnapshot;
 }
 
+export interface AppDataErrorResponse {
+  error: {
+    code: "workspace-invalid" | "server-unavailable";
+    summary: string;
+    guidance: string;
+  };
+}
+
 export interface BrowserTraceReference {
   file: string;
   symbols: string[];
