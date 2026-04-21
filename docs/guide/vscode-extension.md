@@ -38,7 +38,8 @@ Current split:
   replace the extension's current diagnostics and navigation pipeline
 
 If you want the server contract itself, start from `syu lsp --help` and the
-checked-in `src/lsp/` implementation until the dedicated guide lands.
+checked-in `src/lsp/` implementation for the current transport and capability
+surface.
 
 ## Short-term contributor roadmap
 
