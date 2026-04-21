@@ -5,7 +5,7 @@ set -euo pipefail
 
 usage() {
   echo "Usage: scripts/ci/pinned-npm.sh <check|install> <package-dir>" >&2
-  echo "       scripts/ci/pinned-npm.sh exec <package-dir> <npm-args...>" >&2
+  echo "       scripts/ci/pinned-npm.sh exec <package-dir> -- <npm-args...>" >&2
 }
 
 repo_root() {
@@ -40,29 +40,25 @@ main() {
 
   local mode=$1
   local package_dir=$2
-  local -a npm_args=()
   local root
   local package_json
   local required
   local current
+  local npm_path
 
   if [[ $mode != "check" && $mode != "install" && $mode != "exec" ]]; then
     usage
     exit 1
   fi
 
-  if [[ $mode == "exec" && $# -lt 3 ]]; then
-    usage
-    exit 1
-  fi
-
-  if [[ $mode != "exec" && $# -ne 2 ]]; then
-    usage
-    exit 1
-  fi
-
   if [[ $mode == "exec" ]]; then
-    npm_args=("${@:3}")
+    if [[ $# -lt 4 || $3 != "--" ]]; then
+      usage
+      exit 1
+    fi
+  elif [[ $# -ne 2 ]]; then
+    usage
+    exit 1
   fi
 
   root="$(repo_root)"
@@ -73,13 +69,15 @@ main() {
     exit 1
   fi
 
+  npm_path="$(command -v npm)"
   required="$(required_npm_version "$package_dir" "$package_json")"
-  current="$(npm --version)"
+  current="$("$npm_path" --version)"
 
   if [[ $mode == "install" && $current != "$required" ]]; then
     echo "Installing npm@${required} to match ${package_dir}/package.json." >&2
     npm install --global "npm@${required}"
-    current="$(npm --version)"
+    npm_path="$(command -v npm)"
+    current="$("$npm_path" --version)"
   fi
 
   if [[ $current != "$required" ]]; then
@@ -89,7 +87,8 @@ main() {
   fi
 
   if [[ $mode == "exec" ]]; then
-    npm --prefix "$package_dir" "${npm_args[@]}"
+    shift 3
+    exec "$npm_path" "$@"
   fi
 }
 

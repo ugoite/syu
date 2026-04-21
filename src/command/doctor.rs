@@ -121,13 +121,13 @@ fn build_doctor_report(workspace: &Path) -> Result<DoctorReport> {
         &workspace_root,
         "app",
         "Browser app",
-        "scripts/ci/pinned-npm.sh install app && scripts/ci/pinned-npm.sh exec app ci",
+        "scripts/ci/pinned-npm.sh install app && scripts/ci/pinned-npm.sh exec app -- ci",
     ));
     checks.extend(surface_checks(
         &workspace_root,
         "website",
         "Docs site",
-        "scripts/ci/pinned-npm.sh install website && scripts/ci/pinned-npm.sh exec website ci",
+        "scripts/ci/pinned-npm.sh install website && scripts/ci/pinned-npm.sh exec website -- ci",
     ));
     checks.push(playwright_check(&workspace_root));
 
@@ -686,7 +686,7 @@ fn build_playwright_check(app_root: &Path, chromium_path: Option<&Path>) -> Doct
             message: "app dependencies are missing, so browser readiness cannot be checked yet"
                 .to_string(),
             fix: Some(
-                "Run `scripts/ci/pinned-npm.sh install app && scripts/ci/pinned-npm.sh exec app ci` first."
+                "Run `scripts/ci/pinned-npm.sh install app && scripts/ci/pinned-npm.sh exec app -- ci` first."
                     .to_string(),
             ),
         };
@@ -712,7 +712,7 @@ fn build_playwright_check(app_root: &Path, chromium_path: Option<&Path>) -> Doct
                 "no installed Playwright Chromium bundle was found in the standard cache locations"
                     .to_string(),
             fix: Some(
-                "Run `scripts/ci/pinned-npm.sh install app && scripts/ci/pinned-npm.sh exec app exec playwright install --with-deps chromium`.".to_string(),
+                "Run `scripts/ci/pinned-npm.sh install app && scripts/ci/pinned-npm.sh exec app -- exec playwright install --with-deps chromium`.".to_string(),
             ),
         }
     }
@@ -1154,7 +1154,7 @@ mod tests {
             warning
                 .fix
                 .as_deref()
-                .is_some_and(|fix| fix.contains("pinned-npm.sh exec app ci"))
+                .is_some_and(|fix| fix.contains("pinned-npm.sh exec app -- ci"))
         );
 
         fs::create_dir_all(app_root.join("node_modules")).expect("node_modules");
@@ -1169,7 +1169,7 @@ mod tests {
             no_cache
                 .fix
                 .as_deref()
-                .is_some_and(|fix| fix.contains("pinned-npm.sh exec app exec playwright"))
+                .is_some_and(|fix| fix.contains("pinned-npm.sh exec app -- exec playwright"))
         );
 
         let chromium = tempdir.path().join("pw-cache/chromium-1000");

@@ -24,9 +24,13 @@ syn = { version = "2.0.117", features = ["full"] }
 tokio = { version = "1.51.1", features = ["macros", "net", "rt-multi-thread", "signal"] }
 tree-sitter = "0.26.8"
 tree-sitter-typescript = "0.23.2"
+url = "2.5.7"
 
 [dev-dependencies]
 assert_cmd = "2.1.1"
 libc = "0.2.184"
 tempfile = "3.23.0"
 tower = { version = "0.5.2", features = ["util"] }
+
+[build-dependencies]
+serde_json = "1.0.145"
