@@ -105,11 +105,15 @@ struct TraceLookupOutput {
 struct TraceRangeOutput {
     range: String,
     files: Vec<TraceLookupOutput>,
+    skipped_files: Vec<TraceSkippedFile>,
     summary: TraceRangeSummary,
 }
 
 #[derive(Debug, Clone, Serialize)]
 struct TraceRangeSummary {
+    changed_files_total: usize,
+    inspected_files: usize,
+    skipped_files: usize,
     total_files: usize,
     owned_files: usize,
     partial_files: usize,
@@ -118,6 +122,12 @@ struct TraceRangeSummary {
     total_features: usize,
     total_policies: usize,
     total_philosophies: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct TraceSkippedFile {
+    file: String,
+    reason: String,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -180,7 +190,11 @@ fn run_trace_range(workspace: &Workspace, range: &str, format: OutputFormat) -> 
                     serde_json::to_string_pretty(&TraceRangeOutput {
                         range: range.to_string(),
                         files: Vec::new(),
+                        skipped_files: Vec::new(),
                         summary: TraceRangeSummary {
+                            changed_files_total: 0,
+                            inspected_files: 0,
+                            skipped_files: 0,
                             total_files: 0,
                             owned_files: 0,
                             partial_files: 0,
@@ -198,29 +212,18 @@ fn run_trace_range(workspace: &Workspace, range: &str, format: OutputFormat) -> 
         return Ok(0);
     }
 
-    let mut results = Vec::new();
-    for file in &changed_files {
-        match normalize_lookup_file(workspace, file) {
-            Ok(normalized) => {
-                let output = lookup_trace(workspace, &normalized, None);
-                results.push(output);
-            }
-            Err(_) => {
-                // Skip files outside workspace or with invalid paths
-                continue;
-            }
-        }
-    }
+    let (results, skipped) = collect_trace_range_outputs(workspace, &changed_files);
 
-    let summary = compute_range_summary(&results);
+    let summary = compute_range_summary(changed_files.len(), &results, &skipped);
 
     match format {
-        OutputFormat::Text => print!("{}", render_range_text(range, &results, &summary)),
+        OutputFormat::Text => print!("{}", render_range_text(range, &results, &skipped, &summary)),
         OutputFormat::Json => println!(
             "{}",
             serde_json::to_string_pretty(&TraceRangeOutput {
                 range: range.to_string(),
                 files: results,
+                skipped_files: skipped,
                 summary,
             })
             .expect("serializing trace range output to JSON should succeed")
@@ -230,7 +233,11 @@ fn run_trace_range(workspace: &Workspace, range: &str, format: OutputFormat) -> 
     Ok(0)
 }
 
-fn compute_range_summary(results: &[TraceLookupOutput]) -> TraceRangeSummary {
+fn compute_range_summary(
+    changed_files_total: usize,
+    results: &[TraceLookupOutput],
+    skipped: &[TraceSkippedFile],
+) -> TraceRangeSummary {
     let mut requirements = std::collections::BTreeSet::new();
     let mut features = std::collections::BTreeSet::new();
     let mut policies = std::collections::BTreeSet::new();
@@ -262,6 +269,9 @@ fn compute_range_summary(results: &[TraceLookupOutput]) -> TraceRangeSummary {
     }
 
     TraceRangeSummary {
+        changed_files_total,
+        inspected_files: results.len(),
+        skipped_files: skipped.len(),
         total_files: results.len(),
         owned_files: owned,
         partial_files: partial,
@@ -273,14 +283,40 @@ fn compute_range_summary(results: &[TraceLookupOutput]) -> TraceRangeSummary {
     }
 }
 
+fn collect_trace_range_outputs(
+    workspace: &Workspace,
+    changed_files: &[PathBuf],
+) -> (Vec<TraceLookupOutput>, Vec<TraceSkippedFile>) {
+    let mut results = Vec::new();
+    let mut skipped = Vec::new();
+    for file in changed_files {
+        match normalize_lookup_file(workspace, file) {
+            Ok(normalized) => {
+                let output = lookup_trace(workspace, &normalized, None);
+                results.push(output);
+            }
+            Err(error) => {
+                skipped.push(TraceSkippedFile {
+                    file: file.display().to_string(),
+                    reason: error.to_string(),
+                });
+            }
+        }
+    }
+    (results, skipped)
+}
+
 fn render_range_text(
     range: &str,
     results: &[TraceLookupOutput],
+    skipped: &[TraceSkippedFile],
     summary: &TraceRangeSummary,
 ) -> String {
     let mut output = String::new();
     writeln!(output, "Git range: {range}").unwrap();
-    writeln!(output, "Changed files: {}", summary.total_files).unwrap();
+    writeln!(output, "Changed files: {}", summary.changed_files_total).unwrap();
+    writeln!(output, "Inspected files: {}", summary.inspected_files).unwrap();
+    writeln!(output, "Skipped files: {}", summary.skipped_files).unwrap();
     writeln!(
         output,
         "Coverage: {} owned, {} partial, {} unowned\n",
@@ -314,6 +350,19 @@ fn render_range_text(
         writeln!(output, "{owner}:").unwrap();
         for file in files {
             writeln!(output, "  - {}", file.file).unwrap();
+        }
+        writeln!(output).unwrap();
+    }
+
+    if !skipped.is_empty() {
+        writeln!(output, "Skipped file details:").unwrap();
+        for skipped_file in skipped {
+            writeln!(
+                output,
+                "  - {} — {}",
+                skipped_file.file, skipped_file.reason
+            )
+            .unwrap();
         }
         writeln!(output).unwrap();
     }
@@ -1159,58 +1208,68 @@ mod tests {
 
     #[test]
     fn compute_range_summary_counts_partial_results() {
-        let summary = super::compute_range_summary(&[
-            TraceLookupOutput {
-                file: "owned.rs".to_string(),
-                symbol: None,
-                status: TraceLookupStatus::Owned,
-                matched_owners: Vec::new(),
-                file_only_owners: Vec::new(),
-                requirements: vec![EntitySummary {
-                    id: "REQ-1".to_string(),
-                    title: "Req".to_string(),
-                    document_path: None,
-                }],
-                features: Vec::new(),
-                policies: Vec::new(),
-                philosophies: Vec::new(),
-            },
-            TraceLookupOutput {
-                file: "partial.rs".to_string(),
-                symbol: None,
-                status: TraceLookupStatus::Partial,
-                matched_owners: Vec::new(),
-                file_only_owners: Vec::new(),
-                requirements: Vec::new(),
-                features: vec![EntitySummary {
-                    id: "FEAT-1".to_string(),
-                    title: "Feat".to_string(),
-                    document_path: None,
-                }],
-                policies: Vec::new(),
-                philosophies: Vec::new(),
-            },
-            TraceLookupOutput {
-                file: "unowned.rs".to_string(),
-                symbol: None,
-                status: TraceLookupStatus::Unowned,
-                matched_owners: Vec::new(),
-                file_only_owners: Vec::new(),
-                requirements: Vec::new(),
-                features: Vec::new(),
-                policies: vec![EntitySummary {
-                    id: "POL-1".to_string(),
-                    title: "Pol".to_string(),
-                    document_path: None,
-                }],
-                philosophies: vec![EntitySummary {
-                    id: "PHIL-1".to_string(),
-                    title: "Phil".to_string(),
-                    document_path: None,
-                }],
-            },
-        ]);
+        let summary = super::compute_range_summary(
+            4,
+            &[
+                TraceLookupOutput {
+                    file: "owned.rs".to_string(),
+                    symbol: None,
+                    status: TraceLookupStatus::Owned,
+                    matched_owners: Vec::new(),
+                    file_only_owners: Vec::new(),
+                    requirements: vec![EntitySummary {
+                        id: "REQ-1".to_string(),
+                        title: "Req".to_string(),
+                        document_path: None,
+                    }],
+                    features: Vec::new(),
+                    policies: Vec::new(),
+                    philosophies: Vec::new(),
+                },
+                TraceLookupOutput {
+                    file: "partial.rs".to_string(),
+                    symbol: None,
+                    status: TraceLookupStatus::Partial,
+                    matched_owners: Vec::new(),
+                    file_only_owners: Vec::new(),
+                    requirements: Vec::new(),
+                    features: vec![EntitySummary {
+                        id: "FEAT-1".to_string(),
+                        title: "Feat".to_string(),
+                        document_path: None,
+                    }],
+                    policies: Vec::new(),
+                    philosophies: Vec::new(),
+                },
+                TraceLookupOutput {
+                    file: "unowned.rs".to_string(),
+                    symbol: None,
+                    status: TraceLookupStatus::Unowned,
+                    matched_owners: Vec::new(),
+                    file_only_owners: Vec::new(),
+                    requirements: Vec::new(),
+                    features: Vec::new(),
+                    policies: vec![EntitySummary {
+                        id: "POL-1".to_string(),
+                        title: "Pol".to_string(),
+                        document_path: None,
+                    }],
+                    philosophies: vec![EntitySummary {
+                        id: "PHIL-1".to_string(),
+                        title: "Phil".to_string(),
+                        document_path: None,
+                    }],
+                },
+            ],
+            &[super::TraceSkippedFile {
+                file: "../outside.rs".to_string(),
+                reason: "must stay under workspace".to_string(),
+            }],
+        );
 
+        assert_eq!(summary.changed_files_total, 4);
+        assert_eq!(summary.inspected_files, 3);
+        assert_eq!(summary.skipped_files, 1);
         assert_eq!(summary.total_files, 3);
         assert_eq!(summary.owned_files, 1);
         assert_eq!(summary.partial_files, 1);
@@ -1259,7 +1318,11 @@ mod tests {
                     philosophies: Vec::new(),
                 },
             ],
+            &[],
             &super::TraceRangeSummary {
+                changed_files_total: 2,
+                inspected_files: 2,
+                skipped_files: 0,
                 total_files: 2,
                 owned_files: 1,
                 partial_files: 0,
@@ -1273,6 +1336,64 @@ mod tests {
 
         assert!(rendered.contains("feature FEAT-1:"));
         assert!(rendered.contains("UNOWNED:"));
+        assert!(rendered.contains("Inspected files: 2"));
+        assert!(rendered.contains("Skipped files: 0"));
         assert!(rendered.contains("Features: 1"));
+    }
+
+    #[test]
+    fn render_range_text_reports_skipped_file_details() {
+        let rendered = super::render_range_text(
+            "HEAD~1..HEAD",
+            &[],
+            &[super::TraceSkippedFile {
+                file: "../outside.rs".to_string(),
+                reason: "must stay under workspace".to_string(),
+            }],
+            &super::TraceRangeSummary {
+                changed_files_total: 1,
+                inspected_files: 0,
+                skipped_files: 1,
+                total_files: 0,
+                owned_files: 0,
+                partial_files: 0,
+                unowned_files: 0,
+                total_requirements: 0,
+                total_features: 0,
+                total_policies: 0,
+                total_philosophies: 0,
+            },
+        );
+
+        assert!(rendered.contains("Skipped files: 1"));
+        assert!(rendered.contains("Skipped file details:"));
+        assert!(rendered.contains("../outside.rs"));
+    }
+
+    #[test]
+    fn collect_trace_range_outputs_reports_skipped_paths() {
+        let tempdir = tempdir().expect("tempdir should exist");
+        let workspace = Workspace {
+            root: tempdir.path().to_path_buf(),
+            spec_root: tempdir.path().join("docs/syu"),
+            config: SyuConfig::default(),
+            philosophies: Vec::new(),
+            policies: Vec::new(),
+            requirements: Vec::new(),
+            features: Vec::new(),
+        };
+        let (results, skipped) = super::collect_trace_range_outputs(
+            &workspace,
+            &[
+                PathBuf::from("../outside.rs"),
+                PathBuf::from("src/rust_feature.rs"),
+            ],
+        );
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].file, "src/rust_feature.rs");
+        assert_eq!(skipped.len(), 1);
+        assert_eq!(skipped[0].file, "../outside.rs");
+        assert!(skipped[0].reason.contains("must stay under workspace"));
     }
 }
