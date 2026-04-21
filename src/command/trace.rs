@@ -1327,6 +1327,7 @@ mod tests {
                 total_policies: 0,
                 total_philosophies: 0,
             },
+            &[],
         );
 
         assert!(rendered.contains("feature FEAT-1:"));
@@ -1362,6 +1363,7 @@ mod tests {
         assert!(rendered.contains("Skipped files: 1"));
         assert!(rendered.contains("Skipped file details:"));
         assert!(rendered.contains("../outside.rs"));
+        assert!(rendered.contains("must stay under workspace"));
     }
 
     #[test]
