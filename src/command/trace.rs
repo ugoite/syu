@@ -114,7 +114,6 @@ struct TraceRangeSummary {
     changed_files_total: usize,
     inspected_files: usize,
     skipped_files: usize,
-    total_files: usize,
     owned_files: usize,
     partial_files: usize,
     unowned_files: usize,
@@ -195,7 +194,6 @@ fn run_trace_range(workspace: &Workspace, range: &str, format: OutputFormat) -> 
                             changed_files_total: 0,
                             inspected_files: 0,
                             skipped_files: 0,
-                            total_files: 0,
                             owned_files: 0,
                             partial_files: 0,
                             unowned_files: 0,
@@ -272,7 +270,6 @@ fn compute_range_summary(
         changed_files_total,
         inspected_files: results.len(),
         skipped_files: skipped.len(),
-        total_files: results.len(),
         owned_files: owned,
         partial_files: partial,
         unowned_files: unowned,
@@ -1270,7 +1267,6 @@ mod tests {
         assert_eq!(summary.changed_files_total, 4);
         assert_eq!(summary.inspected_files, 3);
         assert_eq!(summary.skipped_files, 1);
-        assert_eq!(summary.total_files, 3);
         assert_eq!(summary.owned_files, 1);
         assert_eq!(summary.partial_files, 1);
         assert_eq!(summary.unowned_files, 1);
@@ -1323,7 +1319,6 @@ mod tests {
                 changed_files_total: 2,
                 inspected_files: 2,
                 skipped_files: 0,
-                total_files: 2,
                 owned_files: 1,
                 partial_files: 0,
                 unowned_files: 1,
@@ -1354,7 +1349,6 @@ mod tests {
                 changed_files_total: 1,
                 inspected_files: 0,
                 skipped_files: 1,
-                total_files: 0,
                 owned_files: 0,
                 partial_files: 0,
                 unowned_files: 0,

@@ -264,7 +264,6 @@ fn trace_command_reports_empty_git_ranges_as_json() {
     assert_eq!(json["summary"]["changed_files_total"], 0);
     assert_eq!(json["summary"]["inspected_files"], 0);
     assert_eq!(json["summary"]["skipped_files"], 0);
-    assert_eq!(json["summary"]["total_files"], 0);
     assert!(json["files"].as_array().expect("files array").is_empty());
     assert!(
         json["skipped_files"]
@@ -305,7 +304,6 @@ fn trace_command_supports_git_range_json_output() {
     assert_eq!(json["summary"]["changed_files_total"], 2);
     assert_eq!(json["summary"]["inspected_files"], 2);
     assert_eq!(json["summary"]["skipped_files"], 0);
-    assert_eq!(json["summary"]["total_files"], 2);
     assert_eq!(json["summary"]["owned_files"], 1);
     assert_eq!(json["summary"]["unowned_files"], 1);
     assert!(
@@ -377,7 +375,6 @@ fn trace_command_skips_invalid_git_diff_paths() {
     assert_eq!(json["summary"]["changed_files_total"], 2);
     assert_eq!(json["summary"]["inspected_files"], 1);
     assert_eq!(json["summary"]["skipped_files"], 1);
-    assert_eq!(json["summary"]["total_files"], 1);
     assert_eq!(json["files"][0]["file"], "src/rust_feature.rs");
     assert_eq!(json["skipped_files"][0]["file"], "../outside.rs");
     assert!(
