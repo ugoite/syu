@@ -40,6 +40,9 @@ struct RustAdapter;
 struct PythonAdapter;
 
 #[derive(Debug)]
+struct RubyAdapter;
+
+#[derive(Debug)]
 struct TypeScriptAdapter;
 
 #[derive(Debug)]
@@ -47,6 +50,9 @@ struct GoAdapter;
 
 #[derive(Debug)]
 struct JavaAdapter;
+
+#[derive(Debug)]
+struct CSharpAdapter;
 
 #[derive(Debug)]
 struct ShellAdapter;
@@ -65,9 +71,11 @@ struct GitignoreAdapter;
 
 static RUST_ADAPTER: RustAdapter = RustAdapter;
 static PYTHON_ADAPTER: PythonAdapter = PythonAdapter;
+static RUBY_ADAPTER: RubyAdapter = RubyAdapter;
 static TYPESCRIPT_ADAPTER: TypeScriptAdapter = TypeScriptAdapter;
 static GO_ADAPTER: GoAdapter = GoAdapter;
 static JAVA_ADAPTER: JavaAdapter = JavaAdapter;
+static CSHARP_ADAPTER: CSharpAdapter = CSharpAdapter;
 static SHELL_ADAPTER: ShellAdapter = ShellAdapter;
 static YAML_ADAPTER: YamlAdapter = YamlAdapter;
 static JSON_ADAPTER: JsonAdapter = JsonAdapter;
@@ -114,10 +122,32 @@ impl LanguageAdapter for PythonAdapter {
     fn patterns(&self, symbol: &str) -> Vec<String> {
         let escaped = regex::escape(symbol);
         vec![
-            format!(r"(?m)\bdef\s+{escaped}\b"),
-            format!(r"(?m)\bclass\s+{escaped}\b"),
+            format!(r"(?m)\bdef\s+(?:self\.)?{escaped}\b"),
+            format!(r"(?m)\b(?:class|module)\s+{escaped}\b"),
+            format!(r"(?m)^\s*(?:self\.)?{escaped}\s*="),
+        ]
+    }
+}
+
+impl LanguageAdapter for RubyAdapter {
+    fn canonical_name(&self) -> &'static str {
+        "ruby"
+    }
+
+    fn aliases(&self) -> &'static [&'static str] {
+        &["ruby", "rb", "minitest", "rspec"]
+    }
+
+    fn extensions(&self) -> &'static [&'static str] {
+        &["rb"]
+    }
+
+    fn patterns(&self, symbol: &str) -> Vec<String> {
+        let escaped = regex::escape(symbol);
+        vec![
+            format!(r"(?m)\b(?:class|module)\s+{escaped}\b"),
+            format!(r"(?m)^\s*def\s+(?:self\.)?{escaped}\b"),
             format!(r"(?m)^\s*{escaped}\s*="),
-            format!(r"(?m)\b{escaped}\b"),
         ]
     }
 }
@@ -199,6 +229,40 @@ impl LanguageAdapter for JavaAdapter {
             format!(r"(?m)\b(?:class|interface|enum|record)\s+{escaped}\b"),
             format!(r"(?m)\b{escaped}\s*\("),
             format!(r"(?m)\b{escaped}\s*(?:=|;)"),
+            format!(r"(?m)\b{escaped}\b"),
+        ]
+    }
+}
+
+impl LanguageAdapter for CSharpAdapter {
+    fn canonical_name(&self) -> &'static str {
+        "csharp"
+    }
+
+    fn aliases(&self) -> &'static [&'static str] {
+        &["csharp", "cs", "dotnet", "xunit", "nunit", "mstest"]
+    }
+
+    fn extensions(&self) -> &'static [&'static str] {
+        &["cs"]
+    }
+
+    fn patterns(&self, symbol: &str) -> Vec<String> {
+        let escaped = regex::escape(symbol);
+        let visibility = r"(?:public|protected|internal|private)(?:\s+(?:protected|internal))?";
+        vec![
+            format!(
+                r"(?m)\b(?:{visibility}\s+)?(?:sealed\s+|abstract\s+|static\s+|partial\s+)*(?:class|interface|enum|record|struct)\s+{escaped}\b"
+            ),
+            format!(
+                r"(?m)\b{visibility}\s+(?:static\s+)?(?:sealed\s+|override\s+|virtual\s+|abstract\s+|async\s+|partial\s+|new\s+)*(?:<[^>{{}}]+>\s*)?(?:[\w<>\[\],?.]+\s+)+{escaped}\s*\("
+            ),
+            format!(
+                r"(?m)\b{visibility}\s+(?:static\s+)?(?:[\w<>\[\],?.]+\s+)+{escaped}\s*(?:\{{|=>)"
+            ),
+            format!(
+                r"(?m)\b{visibility}\s+(?:static\s+)?(?:readonly\s+|const\s+)?(?:[\w<>\[\],?.]+\s+)+{escaped}\s*(?:=|;)"
+            ),
             format!(r"(?m)\b{escaped}\b"),
         ]
     }
@@ -316,9 +380,11 @@ pub fn adapter_for_language(language: &str) -> Option<&'static dyn LanguageAdapt
     [
         &RUST_ADAPTER as &dyn LanguageAdapter,
         &PYTHON_ADAPTER as &dyn LanguageAdapter,
+        &RUBY_ADAPTER as &dyn LanguageAdapter,
         &TYPESCRIPT_ADAPTER as &dyn LanguageAdapter,
         &GO_ADAPTER as &dyn LanguageAdapter,
         &JAVA_ADAPTER as &dyn LanguageAdapter,
+        &CSHARP_ADAPTER as &dyn LanguageAdapter,
         &SHELL_ADAPTER as &dyn LanguageAdapter,
         &YAML_ADAPTER as &dyn LanguageAdapter,
         &JSON_ADAPTER as &dyn LanguageAdapter,
@@ -353,6 +419,10 @@ mod tests {
             Some("python")
         );
         assert_eq!(
+            adapter_for_language("rspec").map(LanguageAdapter::canonical_name),
+            Some("ruby")
+        );
+        assert_eq!(
             adapter_for_language("bun-test").map(LanguageAdapter::canonical_name),
             Some("typescript")
         );
@@ -380,6 +450,10 @@ mod tests {
             adapter_for_language("ignore").map(LanguageAdapter::canonical_name),
             Some("gitignore")
         );
+        assert_eq!(
+            adapter_for_language("mstest").map(LanguageAdapter::canonical_name),
+            Some("csharp")
+        );
         assert!(adapter_for_language("unknown").is_none());
     }
 
@@ -387,14 +461,17 @@ mod tests {
     fn adapters_match_supported_extensions() {
         let rust = adapter_for_language("rust").expect("rust adapter should exist");
         let go = adapter_for_language("go").expect("go adapter should exist");
+        let ruby = adapter_for_language("ruby").expect("ruby adapter should exist");
         let shell = adapter_for_language("shell").expect("shell adapter should exist");
         let yaml = adapter_for_language("yaml").expect("yaml adapter should exist");
         let json = adapter_for_language("json").expect("json adapter should exist");
         let markdown = adapter_for_language("markdown").expect("markdown adapter should exist");
         let gitignore = adapter_for_language("gitignore").expect("gitignore adapter should exist");
+        let csharp = adapter_for_language("csharp").expect("csharp adapter should exist");
 
         assert!(rust.supports_path(Path::new("src/lib.rs")));
         assert!(go.supports_path(Path::new("go/app.go")));
+        assert!(ruby.supports_path(Path::new("lib/order_summary.rb")));
         assert!(!rust.supports_path(Path::new("src/lib.py")));
         assert!(shell.supports_path(Path::new("scripts/install-syu.sh")));
         assert!(yaml.supports_path(Path::new(".github/workflows/ci.yml")));
@@ -402,6 +479,7 @@ mod tests {
         assert!(markdown.supports_path(Path::new("README.md")));
         assert!(gitignore.supports_path(Path::new(".gitignore")));
         assert!(gitignore.supports_path(Path::new("app/.gitignore")));
+        assert!(csharp.supports_path(Path::new("src/FeatureTrace.cs")));
         assert_eq!(gitignore.extensions(), &["gitignore"]);
         assert!(!yaml.supports_path(Path::new("README.md")));
         assert!(!gitignore.supports_path(Path::new("README.md")));
@@ -411,6 +489,7 @@ mod tests {
     fn adapters_find_symbols_in_source_text() {
         let rust = adapter_for_language("rust").expect("rust adapter should exist");
         let python = adapter_for_language("python").expect("python adapter should exist");
+        let ruby = adapter_for_language("ruby").expect("ruby adapter should exist");
         let typescript =
             adapter_for_language("typescript").expect("typescript adapter should exist");
         let go = adapter_for_language("go").expect("go adapter should exist");
@@ -419,9 +498,18 @@ mod tests {
         let json = adapter_for_language("json").expect("json adapter should exist");
         let markdown = adapter_for_language("markdown").expect("markdown adapter should exist");
         let gitignore = adapter_for_language("gitignore").expect("gitignore adapter should exist");
+        let csharp = adapter_for_language("csharp").expect("csharp adapter should exist");
 
         assert!(rust.symbol_exists("pub fn hello_world() {}", "hello_world"));
         assert!(python.symbol_exists("def test_trace():\n    return True\n", "test_trace"));
+        assert!(ruby.symbol_exists("class OrderSummary\nend\n", "OrderSummary"));
+        assert!(ruby.symbol_exists("def ruby_feature_impl\n  true\nend\n", "ruby_feature_impl"));
+        assert!(ruby.symbol_exists("def self.build\n  new\nend\n", "build"));
+        assert!(ruby.symbol_exists("module CheckoutFlow\nend\n", "CheckoutFlow"));
+        assert!(!ruby.symbol_exists(
+            "# no declaration here\nputs 'OrderSummary'\n",
+            "OrderSummary"
+        ));
         assert!(typescript.symbol_exists(
             "export function featureTraceTs(): boolean { return true; }",
             "featureTraceTs"
@@ -444,6 +532,30 @@ mod tests {
         assert!(gitignore.symbol_exists("# FEAT-CONTRIB-002\n/.worktrees/\n", "FEAT-CONTRIB-002"));
         assert!(gitignore.symbol_exists("# FEAT-CONTRIB-002\n/.worktrees/\n", "/.worktrees/"));
         assert!(gitignore.symbol_exists("worktree_helper\n", "worktree_helper"));
+        assert!(csharp.symbol_exists(
+            "public record FeatureTrace(string Value);\npublic async Task featureTraceCSharpAsync() => Task.CompletedTask;\n",
+            "FeatureTrace"
+        ));
+        assert!(csharp.symbol_exists(
+            "public class FeatureTraceService {\n    public string TraceLabel { get; } = \"ok\";\n}\n",
+            "TraceLabel"
+        ));
+        assert!(csharp.symbol_exists(
+            "public class FeatureTraceService {\n    public async Task featureTraceCSharpAsync() => Task.CompletedTask;\n}\n",
+            "featureTraceCSharpAsync"
+        ));
+        assert!(csharp.symbol_exists(
+            "internal class FeatureTraceService {\n    internal async Task featureTraceCSharpInternalAsync() => Task.CompletedTask;\n}\n",
+            "featureTraceCSharpInternalAsync"
+        ));
+        assert!(csharp.symbol_exists(
+            "private protected class FeatureTraceService {\n    private protected string TraceSecret { get; } = \"ok\";\n}\n",
+            "TraceSecret"
+        ));
+        assert!(csharp.symbol_exists(
+            "public class FeatureTraceService {\n    private const string HiddenTraceLabel = \"ok\";\n}\n",
+            "HiddenTraceLabel"
+        ));
     }
 
     #[test]

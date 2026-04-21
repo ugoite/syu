@@ -131,8 +131,10 @@ description: "Generated reference for docs/syu/requirements/core/workspace.yaml"
       browser-safe Rust logic through WebAssembly instead of reimplementing the
       layered model only in JavaScript. When `syu.yaml` defines app defaults,
       `syu app` MUST use `app.bind` and `app.port` unless CLI flags override
-      them. When the workspace argument (or default current directory) points
-      inside a workspace, `syu app` MUST walk parent directories until it finds
+      them. When `app.bind` or `--bind` selects a non-loopback address, `syu
+      app` MUST require an explicit `--allow-remote` opt-in before it starts.
+      When the workspace argument (or default current directory) points inside a
+      workspace, `syu app` MUST walk parent directories until it finds
       `syu.yaml`. The startup output MUST also tell users which workspace root
       was selected, which local URL to open in a browser, and how to stop the
       server cleanly.
@@ -155,6 +157,9 @@ description: "Generated reference for docs/syu/requirements/core/workspace.yaml"
       - **file**: tests/app_command.rs
         - **symbols**:
           - *
+      - **file**: tests/help_command.rs
+        - **symbols**:
+          - app_help_mentions_remote_bind_opt_in
       - **file**: src/command/app.rs
         - **symbols**:
           - *
@@ -345,11 +350,24 @@ description: "Generated reference for docs/syu/requirements/core/workspace.yaml"
     - POL-005
   - **linked_features**:
     - FEAT-VSCODE-001
+    - FEAT-VSCODE-002
   - **tests**:
     - **rust**:
       - **file**: tests/repository_quality.rs
         - **symbols**:
           - repository_ships_vscode_extension
+      - **file**: tests/lsp_tests.rs
+        - **symbols**:
+          - *
+      - **file**: src/lsp/server.rs
+        - **symbols**:
+          - *
+      - **file**: src/lsp/handlers.rs
+        - **symbols**:
+          - *
+      - **file**: src/lsp/protocol.rs
+        - **symbols**:
+          - *
     - **javascript**:
       - **file**: editors/vscode/test/model.test.js
         - **symbols**:
@@ -396,9 +414,12 @@ description: "Generated reference for docs/syu/requirements/core/workspace.yaml"
       test or implementation files from the workspace. The command MUST explain
       why each returned commit matched, SHOULD support narrowing the lookup to
       definition versus traced evidence and to one path subset, SHOULD offer
-      JSON output for audit or release automation, and SHOULD continue working
-      when validation issues exist so long as the workspace still loads and is
-      inside a Git repository.
+      a reviewer-oriented mode that can include related spec items and traced
+      files from the relation graph, SHOULD support scoping the returned history
+      to an explicit Git range or the current branch's merge-base with another
+      ref, SHOULD offer JSON output for audit or release automation, and SHOULD
+      continue working when validation issues exist so long as the workspace
+      still loads and is inside a Git repository.
   - **priority**: medium
   - **status**: implemented
   - **linked_policies**:
@@ -578,8 +599,10 @@ requirements:
       browser-safe Rust logic through WebAssembly instead of reimplementing the
       layered model only in JavaScript. When `syu.yaml` defines app defaults,
       `syu app` MUST use `app.bind` and `app.port` unless CLI flags override
-      them. When the workspace argument (or default current directory) points
-      inside a workspace, `syu app` MUST walk parent directories until it finds
+      them. When `app.bind` or `--bind` selects a non-loopback address, `syu
+      app` MUST require an explicit `--allow-remote` opt-in before it starts.
+      When the workspace argument (or default current directory) points inside a
+      workspace, `syu app` MUST walk parent directories until it finds
       `syu.yaml`. The startup output MUST also tell users which workspace root
       was selected, which local URL to open in a browser, and how to stop the
       server cleanly.
@@ -602,6 +625,9 @@ requirements:
         - file: tests/app_command.rs
           symbols:
             - '*'
+        - file: tests/help_command.rs
+          symbols:
+            - app_help_mentions_remote_bind_opt_in
         - file: src/command/app.rs
           symbols:
             - '*'
@@ -787,11 +813,24 @@ requirements:
       - POL-005
     linked_features:
       - FEAT-VSCODE-001
+      - FEAT-VSCODE-002
     tests:
       rust:
         - file: tests/repository_quality.rs
           symbols:
             - repository_ships_vscode_extension
+        - file: tests/lsp_tests.rs
+          symbols:
+            - '*'
+        - file: src/lsp/server.rs
+          symbols:
+            - '*'
+        - file: src/lsp/handlers.rs
+          symbols:
+            - '*'
+        - file: src/lsp/protocol.rs
+          symbols:
+            - '*'
       javascript:
         - file: editors/vscode/test/model.test.js
           symbols:
@@ -836,9 +875,12 @@ requirements:
       test or implementation files from the workspace. The command MUST explain
       why each returned commit matched, SHOULD support narrowing the lookup to
       definition versus traced evidence and to one path subset, SHOULD offer
-      JSON output for audit or release automation, and SHOULD continue working
-      when validation issues exist so long as the workspace still loads and is
-      inside a Git repository.
+      a reviewer-oriented mode that can include related spec items and traced
+      files from the relation graph, SHOULD support scoping the returned history
+      to an explicit Git range or the current branch's merge-base with another
+      ref, SHOULD offer JSON output for audit or release automation, and SHOULD
+      continue working when validation issues exist so long as the workspace
+      still loads and is inside a Git repository.
     priority: medium
     status: implemented
     linked_policies:

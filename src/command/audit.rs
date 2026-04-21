@@ -22,7 +22,6 @@ const OPPOSITE_TERMS: &[(&str, &str)] = &[
     ("always", "never"),
     ("required", "optional"),
     ("strict", "lightweight"),
-    ("browser", "terminal"),
     ("interactive", "noninteractive"),
     ("coupled", "decoupled"),
     ("opaque", "explainable"),

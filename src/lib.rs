@@ -4,6 +4,7 @@
 // FEAT-SEARCH-001
 // FEAT-TRACE-001
 // FEAT-BROWSE-001
+// FEAT-LSP-001
 // REQ-CORE-021
 // REQ-CORE-023
 // REQ-CORE-024
@@ -14,6 +15,7 @@ pub mod config;
 pub mod coverage;
 pub mod inspect;
 pub mod language;
+mod lsp;
 pub mod model;
 pub mod report;
 pub mod rules;
@@ -76,6 +78,7 @@ enum Dispatch {
     Init(cli::InitArgs),
     Templates(cli::TemplatesArgs),
     Add(cli::AddArgs),
+    Lsp,
 }
 
 fn dispatch(cli: cli::Cli, stdin_is_terminal: bool, stdout_is_terminal: bool) -> Dispatch {
@@ -98,6 +101,7 @@ fn dispatch(cli: cli::Cli, stdin_is_terminal: bool, stdout_is_terminal: bool) ->
         Some(cli::Commands::Init(args)) => Dispatch::Init(args),
         Some(cli::Commands::Templates(args)) => Dispatch::Templates(args),
         Some(cli::Commands::Add(args)) => Dispatch::Add(args),
+        Some(cli::Commands::Lsp) => Dispatch::Lsp,
     }
 }
 
@@ -123,6 +127,10 @@ fn run_dispatch(dispatch: Dispatch) -> Result<i32> {
         Dispatch::Init(args) => command::init::run_init_command(&args),
         Dispatch::Templates(args) => command::templates::run_templates_command(&args),
         Dispatch::Add(args) => command::add::run_add_command(&args),
+        Dispatch::Lsp => {
+            lsp::run_lsp_server()?;
+            Ok(0)
+        }
     }
 }
 
@@ -172,6 +180,7 @@ mod tests {
                     workspace: PathBuf::from("workspace"),
                     bind: Some("127.0.0.1".to_string()),
                     port: Some(4173),
+                    allow_remote: false,
                 })),
             },
             true,
@@ -248,9 +257,10 @@ mod tests {
         let trace = super::dispatch(
             Cli {
                 command: Some(Commands::Trace(TraceArgs {
-                    file: PathBuf::from("src/lib.rs"),
+                    file: Some(PathBuf::from("src/lib.rs")),
                     workspace: PathBuf::from("workspace"),
                     symbol: Some("run".to_string()),
+                    range: None,
                     format: OutputFormat::Json,
                 })),
             },
@@ -264,8 +274,9 @@ mod tests {
                 file,
                 workspace,
                 symbol,
-                format
-            }) if file == Path::new("src/lib.rs")
+                format,
+                ..
+            }) if file == Some(PathBuf::from("src/lib.rs"))
                 && workspace == Path::new("workspace")
                 && symbol.as_deref() == Some("run")
                 && format == OutputFormat::Json
@@ -329,6 +340,9 @@ mod tests {
                     workspace: PathBuf::from("workspace"),
                     kind: HistoryKind::Definition,
                     path: Some(PathBuf::from("docs/syu/requirements")),
+                    include_related: true,
+                    merge_base_ref: Some("origin/main".to_string()),
+                    range: None,
                     limit: 5,
                     format: OutputFormat::Json,
                 })),
@@ -344,6 +358,9 @@ mod tests {
                 workspace,
                 kind,
                 path,
+                include_related,
+                merge_base_ref,
+                range,
                 limit,
                 format
             })
@@ -351,6 +368,9 @@ mod tests {
                     && workspace == Path::new("workspace")
                     && kind == HistoryKind::Definition
                     && path == Some(PathBuf::from("docs/syu/requirements"))
+                    && include_related
+                    && merge_base_ref.as_deref() == Some("origin/main")
+                    && range.is_none()
                     && limit == 5
                     && format == OutputFormat::Json
         ));
@@ -362,8 +382,9 @@ mod tests {
         let relate = super::dispatch(
             Cli {
                 command: Some(Commands::Relate(RelateArgs {
-                    selector: "REQ-CORE-023".to_string(),
+                    selector: Some("REQ-CORE-023".to_string()),
                     workspace: PathBuf::from("workspace"),
+                    range: None,
                     format: OutputFormat::Json,
                 })),
             },
@@ -373,8 +394,8 @@ mod tests {
 
         assert!(matches!(
             relate,
-            super::Dispatch::Relate(crate::cli::RelateArgs { selector, workspace, format })
-                if selector == "REQ-CORE-023"
+            super::Dispatch::Relate(crate::cli::RelateArgs { selector, workspace, format, .. })
+                if selector.as_deref() == Some("REQ-CORE-023")
                     && workspace == Path::new("workspace")
                     && format == OutputFormat::Json
         ));

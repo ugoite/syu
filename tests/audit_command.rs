@@ -135,6 +135,91 @@ features:
     );
 }
 
+fn write_browser_terminal_workspace(root: &Path) {
+    write_file(
+        &root.join("syu.yaml"),
+        &format!(
+            "version: {version}\nspec:\n  root: docs/syu\nvalidate:\n  default_fix: false\n  allow_planned: true\n  require_non_orphaned_items: true\n  require_reciprocal_links: true\n  require_symbol_trace_coverage: false\n",
+            version = env!("CARGO_PKG_VERSION"),
+        ),
+    );
+    write_file(
+        &root.join("docs/syu/philosophy/foundation.yaml"),
+        r#"category: Philosophy
+version: 1
+language: en
+
+philosophies:
+  - id: PHIL-001
+    title: Keep navigation focused
+    product_design_principle: Browser and terminal flows should both stay focused on the spec.
+    coding_guideline: Keep navigation paths explicit.
+    linked_policies:
+      - POL-001
+"#,
+    );
+    write_file(
+        &root.join("docs/syu/policies/policies.yaml"),
+        r#"category: Policies
+version: 1
+language: en
+
+policies:
+  - id: POL-001
+    title: Keep terminal review paths concise
+    summary: Terminal review commands should stay concise.
+    description: Reviewers should be able to inspect traceability from the terminal without ceremony.
+    linked_philosophies:
+      - PHIL-001
+    linked_requirements:
+      - REQ-001
+"#,
+    );
+    write_file(
+        &root.join("docs/syu/requirements/core.yaml"),
+        r#"category: Core Requirements
+prefix: REQ
+
+requirements:
+  - id: REQ-001
+    title: Support focused reviewer navigation
+    description: Reviewer navigation should support both browser and terminal workflows without losing trace context.
+    priority: medium
+    status: implemented
+    linked_policies:
+      - POL-001
+    linked_features:
+      - FEAT-001
+    tests: {}
+"#,
+    );
+    write_file(
+        &root.join("docs/syu/features/features.yaml"),
+        r#"version: "1"
+updated: "2026-04"
+
+files:
+  - kind: audit
+    file: cli/audit.yaml
+"#,
+    );
+    write_file(
+        &root.join("docs/syu/features/cli/audit.yaml"),
+        r#"category: Audit CLI
+version: 1
+
+features:
+  - id: FEAT-001
+    title: Browser reviewer explorer
+    summary: Browser reviewer explorer helps maintainers follow traceability visually when needed.
+    status: implemented
+    linked_requirements:
+      - REQ-001
+    implementations: {}
+"#,
+    );
+}
+
 #[test]
 // REQ-CORE-025
 fn audit_command_reports_overlap_tension_and_orphaned_policies() {
@@ -193,4 +278,22 @@ fn audit_command_supports_json_output() {
             .iter()
             .any(|finding| finding["kind"] == "overlap")
     );
+}
+
+#[test]
+// REQ-CORE-025
+fn audit_command_does_not_flag_browser_terminal_pairs_as_tension() {
+    let tempdir = tempdir().expect("tempdir should exist");
+    write_browser_terminal_workspace(tempdir.path());
+
+    let output = std::process::Command::cargo_bin("syu")
+        .expect("binary should build")
+        .args(["audit", "--format", "json"])
+        .arg(tempdir.path())
+        .output()
+        .expect("command should run");
+
+    assert!(output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout).expect("output should be valid json");
+    assert_eq!(json["summary"]["tension_candidates"], 0);
 }

@@ -223,7 +223,7 @@ fn repository_declares_release_automation() {
     let readme = read_file("README.md");
 
     assert!(release_please.contains("FEAT-RELEASE-001"));
-    assert!(release_please.contains("googleapis/release-please-action@v4.4.0"));
+    assert!(release_please.contains("googleapis/release-please-action@v4.4.1"));
     assert!(release_please.contains("release-please:"));
     assert!(release_please.contains("target-branch: main"));
     assert!(release_please.contains("release-please skipped"));
@@ -371,6 +371,8 @@ fn repository_declares_documentation_guides() {
     let examples_and_templates = read_file("docs/guide/examples-and-templates.md");
     let merge_queue_playbook = read_file("docs/guide/merge-queue-playbook.md");
     let getting_started = read_file("docs/guide/getting-started.md");
+    let node_workflow = read_file("docs/guide/node-workflow.md");
+    let command_card = read_file("docs/guide/command-card.md");
     let trace_adapter_support = read_file("docs/guide/trace-adapter-support.md");
     let vscode_guide = read_file("docs/guide/vscode-extension.md");
     let configuration = read_file("docs/guide/configuration.md");
@@ -406,6 +408,7 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("docs/guide/migration.md"));
     assert!(readme.contains("docs/guide/app.md"));
     assert!(readme.contains("docs/guide/reviewer-workflow.md"));
+    assert!(readme.contains("docs/guide/node-workflow.md"));
     assert!(readme.contains("docs/guide/troubleshooting.md"));
     assert!(readme.contains("docs/guide/spec-antipatterns.md"));
     assert!(readme.contains("docs/guide/vscode-extension.md"));
@@ -415,6 +418,7 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("**Migration / upgrade**"));
     assert!(readme.contains("**Visual explorer**"));
     assert!(readme.contains("**Reviewer workflow**"));
+    assert!(readme.contains("**Contributor runtime setup**"));
     assert!(readme.contains("new to `syu`"));
     assert!(readme.contains("already have a workspace"));
     assert!(readme.contains("10-15 minutes"));
@@ -436,6 +440,7 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("--template rust-only"));
     assert!(readme.contains("--template go-only"));
     assert!(readme.contains("--template java-only"));
+    assert!(readme.contains("--template typescript-only"));
     assert!(readme.contains("syu templates"));
     assert!(readme.contains("starter-only"));
     assert!(readme.contains("syu validate"));
@@ -447,7 +452,7 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("review what changed for one spec item in Git history"));
     assert!(readme.contains("list-shaped output"));
     assert!(readme.contains("workspace metadata, per-layer"));
-    assert!(readme.contains("current validation errors in plain text"));
+    assert!(readme.contains("current validation errors in text or JSON"));
     assert!(readme.contains("syu show"));
     assert!(readme.contains("syu show REQ-001"));
     assert!(!readme.contains("syu show REQ-CORE-015"));
@@ -455,6 +460,7 @@ fn repository_declares_documentation_guides() {
     assert!(readme.contains("examples/csharp-fallback"));
     assert!(readme.contains("examples/go-only"));
     assert!(readme.contains("examples/java-only"));
+    assert!(readme.contains("examples/typescript-only"));
     assert!(readme.contains("examples/polyglot"));
     assert!(readme.contains("examples/team-scale"));
     assert!(readme.contains("examples-and-templates.md"));
@@ -488,12 +494,16 @@ fn repository_declares_documentation_guides() {
     assert!(app_guide.contains("ArrowDown"));
     assert!(app_guide.contains("Escape"));
     assert!(app_guide.contains("the item's YAML `status:` field"));
+    assert!(app_guide.contains("--allow-remote"));
     assert!(app_guide.contains("../../website/static/img/app-guide-overview.png"));
     assert!(!app_guide.contains("](/img/"));
     assert!(!app_guide.contains("`planned`, `implemented`, or `deprecated`"));
     assert!(getting_started.contains("New to `syu`?"));
     assert!(getting_started.contains("Need a different level of guidance?"));
+    assert!(getting_started.contains("[command card](./command-card.md)"));
     assert!(getting_started.contains("README quick start"));
+    assert!(getting_started.contains("## Quick start path"));
+    assert!(getting_started.contains("site-local route into `syu validate .`"));
     assert!(
         getting_started.contains("[trace adapter capability matrix](./trace-adapter-support.md)")
     );
@@ -528,6 +538,7 @@ fn repository_declares_documentation_guides() {
     assert!(getting_started.contains("--template rust-only"));
     assert!(getting_started.contains("--template go-only"));
     assert!(getting_started.contains("--template java-only"));
+    assert!(getting_started.contains("--template typescript-only"));
     assert!(getting_started.contains("syu templates"));
     assert!(getting_started.contains("--id-prefix"));
     assert!(getting_started.contains("syu validate . --fix"));
@@ -540,7 +551,7 @@ fn repository_declares_documentation_guides() {
     assert!(getting_started.contains("syu validate ."));
     assert!(getting_started.contains("emitted as JSON for automation"));
     assert!(getting_started.contains("workspace metadata, per-layer"));
-    assert!(getting_started.contains("current validation errors in plain text"));
+    assert!(getting_started.contains("current validation errors in text or JSON"));
     assert!(getting_started.contains("review change history for one requirement or feature"));
     assert!(getting_started.contains("syu list feature"));
     assert!(getting_started.contains("syu show REQ-001"));
@@ -566,6 +577,7 @@ fn repository_declares_documentation_guides() {
     assert!(getting_started.contains("examples/csharp-fallback"));
     assert!(getting_started.contains("examples/go-only"));
     assert!(getting_started.contains("examples/java-only"));
+    assert!(getting_started.contains("examples/typescript-only"));
     assert!(getting_started.contains("examples/polyglot"));
     assert!(
         getting_started.contains("[examples and templates guide](./examples-and-templates.md)")
@@ -578,12 +590,29 @@ fn repository_declares_documentation_guides() {
     );
     assert!(getting_started.contains("[troubleshooting](./troubleshooting.md)"));
     assert!(getting_started.contains("live [validation report]"));
+    assert!(node_workflow.contains("# Repository Node workflow"));
+    assert!(node_workflow.contains("| Browser app (`app/`) |"));
+    assert!(node_workflow.contains("| Docs site (`website/`) |"));
+    assert!(node_workflow.contains("| VS Code extension (`editors/vscode/`) |"));
+    assert!(node_workflow.contains("devcontainer installs `node:lts`"));
+    assert!(node_workflow.contains("nvm use \"$(cat app/.nvmrc)\""));
+    assert!(node_workflow.contains("scripts/ci/pinned-npm.sh install app"));
+    assert!(node_workflow.contains("bash scripts/ci/install-docs-site-deps.sh"));
+    assert!(node_workflow.contains("scripts/ci/pinned-npm.sh install editors/vscode"));
+    assert!(command_card.contains("# syu command card"));
+    assert!(command_card.contains("| Task | Command | Choose it when |"));
+    assert!(command_card.contains("syu templates"));
+    assert!(command_card.contains("syu validate . --id FEAT-CHECK-001"));
+    assert!(command_card.contains("syu app ."));
+    assert!(command_card.contains("[reviewer workflow](./reviewer-workflow.md)"));
+    assert!(command_card.contains("[configuration](./configuration.md)"));
     assert!(vscode_guide.contains("syu Context"));
     assert!(vscode_guide.contains("syu validate . --format json"));
     assert!(vscode_guide.contains("Trace active file"));
     assert!(vscode_guide.contains("syu.binaryPath"));
     assert!(vscode_guide.contains("editors/vscode/.nvmrc"));
     assert!(vscode_guide.contains("nvm use"));
+    assert!(vscode_guide.contains("[repository Node workflow guide](./node-workflow.md)"));
     assert!(vscode_guide.contains("scripts/ci/pinned-npm.sh install editors/vscode"));
     assert!(vscode_guide.contains("npm --prefix editors/vscode ci"));
     let tutorial = read_file("docs/guide/tutorial.md");
@@ -594,6 +623,7 @@ fn repository_declares_documentation_guides() {
     assert!(tutorial.contains("starter registry entry"));
     assert!(tutorial.contains("Only add another `files` entry"));
     let reviewer_workflow = read_file("docs/guide/reviewer-workflow.md");
+    assert!(reviewer_workflow.contains("[command card](./command-card.md)"));
     assert!(reviewer_workflow.contains("currently traced"));
     assert!(reviewer_workflow.contains("the whole PR diff is covered"));
     assert!(reviewer_workflow.contains("too-small log result with the PR diff"));
@@ -612,8 +642,10 @@ fn repository_declares_documentation_guides() {
     assert!(examples_and_templates.contains("`syu init . --template rust-only`"));
     assert!(examples_and_templates.contains("`syu init . --template go-only`"));
     assert!(examples_and_templates.contains("`syu init . --template java-only`"));
+    assert!(examples_and_templates.contains("`syu init . --template typescript-only`"));
     assert!(examples_and_templates.contains("examples/go-only"));
     assert!(examples_and_templates.contains("examples/java-only"));
+    assert!(examples_and_templates.contains("examples/typescript-only"));
     assert!(examples_and_templates.contains("examples/polyglot"));
     assert!(examples_and_templates.contains("examples/team-scale"));
     assert!(merge_queue_playbook.contains("merge_group"));
@@ -625,9 +657,10 @@ fn repository_declares_documentation_guides() {
     assert!(merge_queue_playbook.contains("gh pr merge 123 --auto --squash"));
     assert!(merge_queue_playbook.contains("gh-readonly-queue/main/pr-123-<sha>"));
     assert!(configuration.contains("validate.default_fix"));
+    assert!(configuration.contains("--allow-remote"));
     assert!(configuration.contains("trace-adapter-support.md"));
     assert!(configuration.contains("validate.allow_planned"));
-    assert!(configuration.contains("Rust, Python, Go, Java, and TypeScript/JavaScript"));
+    assert!(configuration.contains("Rust, Python, Go, Java, C#, and TypeScript/JavaScript"));
     assert!(configuration.contains("--spec-root"));
     assert!(configuration.contains(&format!("version: {current_version}")));
     assert!(configuration.contains("docs/syu/config/overview.yaml"));
@@ -637,14 +670,14 @@ fn repository_declares_documentation_guides() {
     assert!(config_spec.contains("spec.root"));
     assert!(config_validate.contains("validate.default_fix"));
     assert!(config_validate.contains("validate.require_symbol_trace_coverage"));
-    assert!(config_validate.contains("Rust, Python, Go, Java, and TypeScript/JavaScript"));
+    assert!(config_validate.contains("Rust, Python, Go, Java, C#, and TypeScript/JavaScript"));
     assert!(config_runtimes.contains("runtimes.python.command"));
     assert!(generated_config_overview.contains("docs/syu/config/overview.yaml"));
     assert!(generated_config_overview.contains("current CLI version"));
     assert!(generated_config_spec.contains("docs/syu/config/spec.yaml"));
     assert!(generated_config_validate.contains("validate.default_fix"));
     assert!(
-        generated_config_validate.contains("Rust, Python, Go, Java, and TypeScript/JavaScript")
+        generated_config_validate.contains("Rust, Python, Go, Java, C#, and TypeScript/JavaScript")
     );
     assert!(generated_config_validate.contains("array&lt;path&gt;"));
     assert!(generated_config_runtimes.contains("docs/syu/config/runtimes.yaml"));
@@ -654,8 +687,9 @@ fn repository_declares_documentation_guides() {
     assert!(generated_validation.contains("docs/syu/features/validation/validation.yaml"));
     assert!(generated_validation.contains("SYU-graph-reference-001"));
     assert!(
-        generated_validation
-            .contains("Rust, Python, Go, Java, and TypeScript/JavaScript source and test files")
+        generated_validation.contains(
+            "Rust, Python, Go, Java, C#, and TypeScript/JavaScript source and test files"
+        )
     );
     assert!(generated_docs_freshness.contains("FEAT-QUALITY-001"));
     assert!(generated_docs_freshness.contains("check_generated_docs_freshness"));
@@ -675,7 +709,7 @@ fn repository_declares_documentation_guides() {
     assert!(docs_deploy_workflow.contains("permissions:"));
     assert!(docs_deploy_workflow.contains("./.github/actions/build-docs-site"));
     assert!(docs_deploy_workflow.contains("actions/configure-pages@v6"));
-    assert!(docs_deploy_workflow.contains("actions/upload-pages-artifact@v4"));
+    assert!(docs_deploy_workflow.contains("actions/upload-pages-artifact@v5"));
     assert!(docs_deploy_workflow.contains("actions/deploy-pages@v5"));
     assert!(docs_deploy_workflow.contains("github-pages"));
     assert!(docs_config.contains("FEAT-DOCS-002"));
@@ -687,9 +721,18 @@ fn repository_declares_documentation_guides() {
     assert!(docs_home.contains("Four specification layers"));
     assert!(docs_home.contains("Common journeys"));
     assert!(docs_home.contains("Stay close to checked-in source"));
+    assert!(docs_home.contains("Choose your path"));
+    assert!(docs_home.contains("Getting started"));
+    assert!(docs_home.contains("/docs/guide/getting-started#quick-start-commands"));
+    assert!(docs_home.contains("Reviewer workflow"));
+    assert!(docs_home.contains("Troubleshooting"));
+    assert!(docs_home.contains("Keep a command card open"));
+    assert!(docs_home.contains("/docs/guide/command-card"));
     assert!(docs_home.contains("Follow a full tutorial"));
     assert!(docs_home.contains("Troubleshoot a broken workspace"));
     assert!(docs_home.contains("Stay in VS Code"));
+    assert!(!docs_home.contains("https://github.com/ugoite/syu#quick-start"));
+    assert!(!docs_home.contains("https://github.com/ugoite/syu/blob/main/README.md#quick-start"));
     assert!(docs_css.contains(".siteHero"));
     assert!(docs_css.contains(".siteCardGrid"));
     assert!(docs_sidebars.contains("autogenerated"));
@@ -791,6 +834,12 @@ fn repository_ships_example_workspaces() {
     let java_example_requirement =
         read_file("examples/java-only/docs/syu/requirements/core/java.yaml");
     let java_example_readme = read_file("examples/java-only/README.md");
+    let typescript_example_config = read_file("examples/typescript-only/syu.yaml");
+    let typescript_example_requirement =
+        read_file("examples/typescript-only/docs/syu/requirements/core/typescript.yaml");
+    let typescript_example_nvmrc = read_file("examples/typescript-only/.nvmrc");
+    let typescript_example_package = read_file("examples/typescript-only/package.json");
+    let typescript_example_readme = read_file("examples/typescript-only/README.md");
     let polyglot_config = read_file("examples/polyglot/syu.yaml");
     let polyglot_feature = read_file("examples/polyglot/docs/syu/features/languages/polyglot.yaml");
     let example_tests = read_file("tests/example_workspaces.rs");
@@ -821,7 +870,7 @@ fn repository_ships_example_workspaces() {
     assert!(python_example_requirement.contains("REQ-PY-001"));
     assert!(csharp_fallback_requirement.contains("REQ-CSHARP-001"));
     assert!(csharp_fallback_readme.contains("CsharpFallbackAcceptanceChecklist"));
-    assert!(csharp_fallback_readme.contains("SYU-trace-language-001"));
+    assert!(csharp_fallback_readme.contains("staged adoption pattern"));
     assert!(docs_first_requirement.contains("REQ-DOCS-001"));
     assert!(docs_first_requirement.contains("DocsFirstAcceptanceChecklist"));
     assert!(docs_first_readme.contains("syu init --template docs-first"));
@@ -832,9 +881,27 @@ fn repository_ships_example_workspaces() {
     assert!(java_example_requirement.contains("REQ-JAVA-001"));
     assert!(java_example_readme.contains("JavaRequirementTest"));
     assert!(java_example_readme.contains("JavaFeatureImpl"));
+    assert!(typescript_example_config.contains(&format!("version: {current_version}")));
+    assert!(typescript_example_requirement.contains("REQ-TS-001"));
+    assert_eq!(typescript_example_nvmrc.trim(), "20");
+    assert!(typescript_example_package.contains("TypeScript-first starter workspace for Node 20."));
+    assert!(typescript_example_package.contains("\"node\": \">=20 <21\""));
+    assert!(typescript_example_package.contains("\"@types/node\""));
+    assert!(typescript_example_readme.contains("typescriptRequirementTest"));
+    assert!(typescript_example_readme.contains("typescriptFeature"));
+    assert!(typescript_example_readme.contains("nvm use \"$(cat .nvmrc)\""));
     assert!(polyglot_config.contains(&format!("version: {current_version}")));
     assert!(polyglot_feature.contains("FEAT-MIX-001"));
     assert!(polyglot_feature.contains("status: implemented"));
+    assert!(example_tests.contains("docs_first_example_validates"));
+    assert!(example_tests.contains("csharp_fallback_example_validates"));
+    assert!(example_tests.contains("rust_only_example_validates"));
+    assert!(example_tests.contains("python_only_example_validates"));
+    assert!(example_tests.contains("typescript_only_example_validates"));
+    assert!(example_tests.contains("go_only_example_validates"));
+    assert!(example_tests.contains("java_only_example_validates"));
+    assert!(example_tests.contains("polyglot_example_validates"));
+    assert!(example_tests.contains("team_scale_example_validates"));
 }
 
 #[test]
@@ -860,6 +927,7 @@ fn repository_declares_contribution_workflow_assets() {
     assert!(contributing.contains("Docs-only edits outside"));
     assert!(contributing.contains("README.md"));
     assert!(contributing.contains("docs/guide/"));
+    assert!(contributing.contains("docs/guide/node-workflow.md"));
     assert!(contributing.contains("docs/generated/site-spec/"));
     assert!(contributing.contains(".worktrees/"));
     assert!(contributing.contains("scripts/ci/quality-gates.sh"));
@@ -941,11 +1009,13 @@ fn repository_declares_dependency_hygiene_and_ci_caching() {
     let ci_workflow = read_file(".github/workflows/ci.yml");
     let setup_rust_action = read_file(".github/actions/setup-rust/action.yml");
     let codeql_workflow = read_file(".github/workflows/codeql.yml");
+    let merge_queue_reenroll_workflow = read_file(".github/workflows/merge-queue-reenroll.yml");
     let merge_queue_checks = read_file(".github/merge-queue-checks.json");
     let docs_build_action = read_file(".github/actions/build-docs-site/action.yml");
     let docs_lock = read_file("website/package-lock.json");
     let release_artifacts = read_file(".github/workflows/release-artifacts.yml");
     let browser_app_freshness = read_file("scripts/ci/check-browser-app-freshness.sh");
+    let merge_queue_reenroll = read_file("scripts/ci/requeue-dropped-merge-queue-prs.sh");
     let dependabot = read_file(".github/dependabot.yml");
 
     assert!(ci_workflow.contains("concurrency:"));
@@ -987,6 +1057,23 @@ fn repository_declares_dependency_hygiene_and_ci_caching() {
     assert!(codeql_workflow.contains("github/codeql-action/init@v4"));
     assert!(codeql_workflow.contains("github/codeql-action/autobuild@v4"));
     assert!(codeql_workflow.contains("github/codeql-action/analyze@v4"));
+    assert!(merge_queue_reenroll_workflow.contains("schedule:"));
+    assert!(merge_queue_reenroll_workflow.contains("workflow_dispatch:"));
+    assert!(merge_queue_reenroll_workflow.contains("pull-requests: write"));
+    assert!(merge_queue_reenroll_workflow.contains("MERGE_QUEUE_REQUEUE_DRY_RUN"));
+    assert!(
+        merge_queue_reenroll_workflow
+            .contains("bash scripts/ci/requeue-dropped-merge-queue-prs.sh")
+    );
+    assert!(
+        merge_queue_reenroll.contains("mergeStateStatus")
+            && merge_queue_reenroll.contains("reviewDecision")
+    );
+    assert!(
+        merge_queue_reenroll.contains("gh pr merge")
+            && merge_queue_reenroll.contains("--auto --squash")
+    );
+    assert!(merge_queue_reenroll.contains("MERGE_QUEUE_REQUEUE_DRY_RUN"));
     let merge_queue_manifest: serde_json::Value = serde_json::from_str(&merge_queue_checks)
         .expect("merge queue manifest should be valid JSON");
     let required_checks = merge_queue_manifest["required_checks"]
@@ -1077,6 +1164,8 @@ fn repository_ships_browser_app() {
     assert!(build_script.contains("syu-app-dist"));
     assert!(build_script.contains("scripts/ci/pinned-npm.sh install app"));
     assert!(build_script.contains("browser app dependencies are not ready"));
+    assert!(build_script.contains("fresh clone or fresh worktree"));
+    assert!(build_script.contains("Cargo intentionally does not run a networked npm install"));
     assert!(build_script.contains("build:wasm"));
     assert!(build_script.contains("--outDir"));
     assert!(build_script.contains("shared_core_dir"));
@@ -1113,6 +1202,7 @@ fn repository_ships_browser_app() {
     assert!(readme.contains("generates the embedded"));
     assert!(readme.contains("scripts/ci/pinned-npm.sh install app"));
     assert!(readme.contains("Cargo no longer runs `npm ci` for you during normal builds."));
+    assert!(readme.contains("fresh clone or fresh worktree"));
     assert!(readme.contains("offline, hermetic, and security-sensitive environments"));
     assert!(readme.contains("check-browser-app-freshness.sh"));
     assert!(readme.contains("regenerates the local"));
