@@ -61,6 +61,12 @@ extension. Add `--vscode` when you are working on `editors/vscode/`,
 when you intentionally want every checked-in optional npm surface ready at
 once.
 
+<!-- FEAT-DOCTOR-001 -->
+
+Before you choose a branch below, run `syu doctor .` when you want one quick
+summary of the current Rust toolchain, Node/npm expectations, optional
+dependency installs, and Playwright browser readiness for this checkout.
+
 1. **Every change**
 
    ```bash
