@@ -274,6 +274,7 @@ syu add feature FEAT-AUTH-LOGIN-001 --kind auth
 syu list requirement
 syu show REQ-001
 syu search traceability --kind requirement
+syu audit .
 syu log REQ-CORE-002
 syu relate REQ-001
 syu trace src/command/check.rs --symbol run_check_command
@@ -436,6 +437,7 @@ Use this quick chooser when you know the task but not yet the subcommand:
 | render one layer or emit automation-friendly lists | `syu list ...` | keeps the output list-shaped instead of opening the browser-style explorer |
 | open one specific philosophy, policy, requirement, or feature by ID | `syu show ID` | jumps straight to the matched definition |
 | look up IDs or keywords when you do not know the exact item yet | `syu search QUERY` | searches IDs, titles, summaries, and descriptions across layers |
+| scan for overlap or policy drift before reviewing a bigger spec change | `syu audit` | summarizes heuristic overlap, tension, and orphaned-policy candidates |
 | start from code or a test file and walk back to the owning spec item | `syu trace path/to/file --symbol name` | begins from traced implementation or test evidence instead of from YAML |
 | inspect everything connected to one ID, symbol, or file | `syu relate TARGET` | expands upstream/downstream links plus traced files and symbols for review |
 | review what changed for one spec item in Git history | `syu log ID` | projects the traced definition and implementation paths onto checked-in commits |
@@ -484,6 +486,21 @@ syu search audit
 syu search traceability --kind requirement
 syu search FEAT-CHECK-001 --format json
 ```
+
+### `syu audit`
+
+Audit the four-layer graph for review-oriented semantic drift candidates:
+
+```bash
+syu audit
+syu audit path/to/workspace
+syu audit . --format json
+```
+
+`syu audit` keeps the result heuristic on purpose. It does not fail validation;
+instead it summarizes likely overlapping requirements, feature wording that may
+pull against linked policy or philosophy language, and policies that no longer
+lead to concrete downstream requirements.
 
 ### `syu log`
 
@@ -761,6 +778,13 @@ scripts/ci/pinned-npm.sh install app
 npm --prefix app ci
 ```
 
+If you prefer the checked-in bootstrap entrypoint for the same app-only setup,
+switch to Node 25 first and use:
+
+```bash
+scripts/ci/bootstrap-contributor-tooling.sh --app
+```
+
 Cargo no longer runs `npm ci` for you during normal builds. If you are in a
 fresh clone or fresh worktree and `app/node_modules` is missing or stale,
 `build.rs` stops and points back to the commands above so offline, hermetic, and security-sensitive environments do not hide a networked package-manager install inside an ordinary Rust build.
@@ -794,6 +818,18 @@ local installs follow the same pinned npm flow CI uses:
 bash scripts/ci/install-docs-site-deps.sh
 npm --prefix website run start
 ```
+
+If you want the bootstrap entrypoint instead of the raw docs-site commands,
+switch to Node 20 first and use:
+
+```bash
+scripts/ci/bootstrap-contributor-tooling.sh
+```
+
+Without flags, the bootstrap only installs the surfaces that match the current
+shell major from the checked-in `.nvmrc` files. In this repository that means
+Node 25 selects the browser app, while Node 20 selects the docs site plus the
+VS Code extension.
 
 The install script removes `website/node_modules` first so repeated docs-site
 setup stays deterministic across branch switches and reused worktrees.
