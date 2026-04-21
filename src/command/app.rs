@@ -1137,12 +1137,13 @@ mod tests {
         Severity, SnapshotDependency, app_dev_server_origin, app_router, bind_failure_message,
         browser_root_labels, build_app_payload, canonical_workspace_root, collect_feature_sources,
         collect_snapshot_files_with_extensions, collect_yaml_sources_recursive,
-        content_type_for_path, is_asset_like, load_current_snapshot, non_loopback_warning_lines,
-        normalized_asset_path, normalized_trace_snapshot_path, readiness_probe_request_sent,
-        readiness_probe_succeeds, redacted_relative_label, redacted_root_label,
-        refresh_current_once, relative_display, require_remote_bind_opt_in,
-        resolve_app_server_settings, spec_snapshot, startup_lines, trailing_path_components_label,
-        validation_snapshot, wait_for_ready_with_retry,
+        content_type_for_path, dev_server_probe_request_sent, dev_server_probe_succeeds,
+        is_asset_like, load_current_snapshot, non_loopback_warning_lines, normalized_asset_path,
+        normalized_trace_snapshot_path, readiness_probe_request_sent, readiness_probe_succeeds,
+        redacted_relative_label, redacted_root_label, refresh_current_once, relative_display,
+        require_remote_bind_opt_in, resolve_app_server_settings, spec_snapshot, startup_lines,
+        trailing_path_components_label, validation_snapshot, wait_for_dev_server_with_retry,
+        wait_for_ready_with_retry,
     };
 
     fn fixture_root(name: &str) -> PathBuf {
@@ -1927,6 +1928,81 @@ mod tests {
             "127.0.0.1:3000".parse().expect("socket address")
         ));
         assert!(stream.wrote, "probe should send the readiness request");
+    }
+
+    #[test]
+    fn dev_server_probe_returns_false_when_write_fails() {
+        let mut stream = SyntheticProbeStream::new(ProbeFailure::Write);
+        assert!(!dev_server_probe_succeeds(
+            &mut stream,
+            "127.0.0.1:4173".parse().expect("socket address")
+        ));
+    }
+
+    #[test]
+    fn dev_server_probe_returns_false_when_flush_fails() {
+        let mut writer = SyntheticProbeStream::new(ProbeFailure::Flush);
+        assert!(!dev_server_probe_request_sent(
+            &mut writer,
+            "127.0.0.1:4173".parse().expect("socket address")
+        ));
+        assert!(
+            writer.wrote,
+            "probe should write the request before flush fails"
+        );
+    }
+
+    #[test]
+    fn wait_for_dev_server_with_retry_accepts_ok_probe() {
+        let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let local_addr = listener.local_addr().expect("local addr");
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("client");
+            let mut request = [0_u8; 512];
+            let _ = stream.read(&mut request);
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+            )
+            .expect("response");
+            stream.flush().expect("flush");
+        });
+
+        wait_for_dev_server_with_retry(
+            local_addr,
+            10,
+            Duration::from_secs(1),
+            Duration::from_millis(20),
+        )
+        .expect("dev server probe should succeed");
+        server.join().expect("server thread");
+    }
+
+    #[test]
+    fn wait_for_dev_server_with_retry_retries_after_unsuccessful_probe() {
+        let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let local_addr = listener.local_addr().expect("local addr");
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("client");
+            let mut request = [0_u8; 512];
+            let _ = stream.read(&mut request);
+            write!(
+                stream,
+                "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+            )
+            .expect("response");
+            stream.flush().expect("flush");
+        });
+
+        let error = wait_for_dev_server_with_retry(
+            local_addr,
+            1,
+            Duration::from_secs(1),
+            Duration::from_millis(20),
+        )
+        .expect_err("non-200 probe should fail");
+        assert!(error.to_string().contains("did not become ready"));
+        server.join().expect("server thread");
     }
 
     #[tokio::test]

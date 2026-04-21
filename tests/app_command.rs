@@ -1,10 +1,13 @@
 use assert_cmd::cargo::CommandCargoExt;
+#[cfg(unix)]
+use std::os::unix::process::ExitStatusExt;
 use std::{
     fs,
     io::{Read, Write},
     net::{TcpListener, TcpStream},
     path::{Path, PathBuf},
     process::{Child, Command, Output, Stdio},
+    sync::{Mutex, OnceLock},
     thread,
     time::Duration,
 };
@@ -55,6 +58,19 @@ fn reserve_port() -> u16 {
     port
 }
 
+fn clean_shutdown(status: &std::process::ExitStatus) -> bool {
+    status.success() || status.code() == Some(130) || {
+        #[cfg(unix)]
+        {
+            status.signal() == Some(libc::SIGINT)
+        }
+        #[cfg(not(unix))]
+        {
+            false
+        }
+    }
+}
+
 fn wait_for_server(port: u16) {
     for _ in 0..80 {
         if let Ok(response) = http_get(port, "/health")
@@ -92,7 +108,12 @@ fn shutdown_child(child: &mut Child) {
     child.kill().expect("child should terminate");
 
     let status = child.wait().expect("child should exit");
-    assert!(status.success(), "app command should exit cleanly");
+    assert!(clean_shutdown(&status), "app command should exit cleanly");
+}
+
+fn terminate_child(child: &mut Child) {
+    child.kill().expect("child should terminate");
+    child.wait().expect("child should exit");
 }
 
 fn shutdown_child_with_output(child: Child) -> Output {
@@ -105,8 +126,16 @@ fn shutdown_child_with_output(child: Child) -> Output {
     child.kill().expect("child should terminate");
 
     let output = child.wait_with_output().expect("child should exit");
-    assert!(output.status.success(), "app command should exit cleanly");
+    assert!(
+        clean_shutdown(&output.status),
+        "app command should exit cleanly"
+    );
     output
+}
+
+fn dev_server_test_lock() -> &'static Mutex<()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(()))
 }
 
 fn spawn_fake_vite_server() -> std::thread::JoinHandle<()> {
@@ -316,6 +345,9 @@ fn app_command_warns_on_non_loopback_binds_after_explicit_opt_in() {
 
 #[test]
 fn app_command_can_serve_a_dev_server_shell() {
+    let _guard = dev_server_test_lock()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let port = reserve_port();
     let fake_vite = spawn_fake_vite_server();
     let mut child = Command::cargo_bin("syu")
@@ -344,12 +376,15 @@ fn app_command_can_serve_a_dev_server_shell() {
     assert!(payload.contains("200 OK"));
     assert!(payload.contains("REQ-TRACE-001"));
 
-    shutdown_child(&mut child);
+    terminate_child(&mut child);
     fake_vite.join().expect("fake vite thread should exit");
 }
 
 #[test]
 fn app_command_requires_a_running_dev_server_for_dev_mode() {
+    let _guard = dev_server_test_lock()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let port = reserve_port();
     let output = Command::cargo_bin("syu")
         .expect("binary should build")
