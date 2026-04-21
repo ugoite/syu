@@ -1327,7 +1327,6 @@ mod tests {
                 total_policies: 0,
                 total_philosophies: 0,
             },
-            &[],
         );
 
         assert!(rendered.contains("feature FEAT-1:"));
