@@ -109,6 +109,22 @@ fn shutdown_child_with_output(child: Child) -> Output {
     output
 }
 
+fn spawn_fake_vite_server() -> std::thread::JoinHandle<()> {
+    thread::spawn(|| {
+        let listener =
+            TcpListener::bind(("127.0.0.1", 4173)).expect("fake vite listener should bind");
+        let (mut stream, _) = listener.accept().expect("fake vite client should connect");
+        let mut request = [0_u8; 512];
+        let _ = stream.read(&mut request);
+        write!(
+            stream,
+            "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+        )
+        .expect("fake vite response should write");
+        stream.flush().expect("fake vite response should flush");
+    })
+}
+
 fn wait_for_output_fragment(path: &Path, fragment: &str) {
     for _ in 0..80 {
         if fs::read_to_string(path)
@@ -302,6 +318,7 @@ fn app_command_warns_on_non_loopback_binds_after_explicit_opt_in() {
 #[test]
 fn app_command_can_serve_a_dev_server_shell() {
     let port = reserve_port();
+    let fake_vite = spawn_fake_vite_server();
     let mut child = Command::cargo_bin("syu")
         .expect("binary should build")
         .arg("app")
@@ -329,6 +346,34 @@ fn app_command_can_serve_a_dev_server_shell() {
     assert!(payload.contains("REQ-TRACE-001"));
 
     shutdown_child(&mut child);
+    fake_vite.join().expect("fake vite thread should exit");
+}
+
+#[test]
+fn app_command_requires_a_running_dev_server_for_dev_mode() {
+    let port = reserve_port();
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .arg("app")
+        .arg(fixture_path("passing"))
+        .arg("--bind")
+        .arg("127.0.0.1")
+        .arg("--port")
+        .arg(port.to_string())
+        .arg("--dev-server")
+        .output()
+        .expect("app command should run");
+
+    assert!(
+        !output.status.success(),
+        "dev-server mode should fail when Vite is absent"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stderr.contains("frontend dev server did not become ready")
+            || stdout.contains("frontend dev server did not become ready")
+    );
 }
 
 #[test]

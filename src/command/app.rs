@@ -242,6 +242,11 @@ pub fn run_app_command(args: &AppArgs) -> Result<i32> {
         tokio::task::spawn_blocking(move || wait_for_ready(local_addr))
             .await
             .context("local app readiness probe panicked")??;
+        if let Some(origin) = dev_server_origin.clone() {
+            tokio::task::spawn_blocking(move || wait_for_dev_server_ready(&origin))
+                .await
+                .context("dev-server readiness probe panicked")??;
+        }
         emit_startup_lines(startup_lines(local_addr, dev_server_origin.as_deref()))?;
 
         let result = server.await.context("local app server task panicked")?;
@@ -711,6 +716,17 @@ fn wait_for_ready(local_addr: SocketAddr) -> Result<()> {
     )
 }
 
+fn wait_for_dev_server_ready(dev_server_origin: &str) -> Result<()> {
+    let local_addr = dev_server_socket_addr(dev_server_origin)?;
+    wait_for_dev_server_with_retry(
+        local_addr,
+        50,
+        Duration::from_millis(100),
+        Duration::from_millis(50),
+    )
+    .with_context(|| format!("frontend dev server did not become ready at {dev_server_origin}"))
+}
+
 fn wait_for_ready_with_retry(
     local_addr: SocketAddr,
     attempts: usize,
@@ -736,8 +752,50 @@ fn wait_for_ready_with_retry(
     bail!("local app server did not become ready at http://{local_addr}")
 }
 
+fn wait_for_dev_server_with_retry(
+    local_addr: SocketAddr,
+    attempts: usize,
+    connect_timeout: Duration,
+    retry_delay: Duration,
+) -> Result<()> {
+    for _ in 0..attempts {
+        if let Ok(mut stream) = std::net::TcpStream::connect_timeout(&local_addr, connect_timeout) {
+            stream
+                .set_read_timeout(Some(connect_timeout))
+                .context("failed to configure dev-server probe read timeout")?;
+            stream
+                .set_write_timeout(Some(connect_timeout))
+                .context("failed to configure dev-server probe write timeout")?;
+            if dev_server_probe_succeeds(&mut stream, local_addr) {
+                return Ok(());
+            }
+        }
+
+        std::thread::sleep(retry_delay);
+    }
+
+    bail!("frontend dev server did not become ready at http://{local_addr}")
+}
+
+fn dev_server_socket_addr(dev_server_origin: &str) -> Result<SocketAddr> {
+    dev_server_origin
+        .strip_prefix("http://")
+        .context("frontend dev server origin must start with http://")?
+        .parse::<SocketAddr>()
+        .with_context(|| format!("invalid frontend dev server origin `{dev_server_origin}`"))
+}
+
 fn readiness_probe_succeeds(stream: &mut (impl Read + Write), local_addr: SocketAddr) -> bool {
     if !readiness_probe_request_sent(stream, local_addr) {
+        return false;
+    }
+
+    let mut response = String::new();
+    stream.read_to_string(&mut response).is_ok() && response.contains("200 OK")
+}
+
+fn dev_server_probe_succeeds(stream: &mut (impl Read + Write), local_addr: SocketAddr) -> bool {
+    if !dev_server_probe_request_sent(stream, local_addr) {
         return false;
     }
 
@@ -749,6 +807,20 @@ fn readiness_probe_request_sent(stream: &mut impl Write, local_addr: SocketAddr)
     if write!(
         stream,
         "GET /health HTTP/1.1\r\nHost: {local_addr}\r\nConnection: close\r\n\r\n"
+    )
+    .is_err()
+        || stream.flush().is_err()
+    {
+        return false;
+    }
+
+    true
+}
+
+fn dev_server_probe_request_sent(stream: &mut impl Write, local_addr: SocketAddr) -> bool {
+    if write!(
+        stream,
+        "GET /@vite/client HTTP/1.1\r\nHost: {local_addr}\r\nConnection: close\r\n\r\n"
     )
     .is_err()
         || stream.flush().is_err()
