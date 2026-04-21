@@ -74,9 +74,23 @@ fn pinned_npm_script(manifest_dir: &Path) -> PathBuf {
         .join("pinned-npm.sh")
 }
 
+fn git_bash_executable() -> Option<PathBuf> {
+    [
+        env::var_os("ProgramW6432"),
+        env::var_os("ProgramFiles"),
+        env::var_os("ProgramFiles(x86)"),
+    ]
+    .into_iter()
+    .flatten()
+    .map(PathBuf::from)
+    .map(|root| root.join("Git").join("bin").join("bash.exe"))
+    .find(|path| path.is_file())
+}
+
 fn pinned_npm_command(script: &Path) -> Command {
     if cfg!(windows) {
-        let mut command = Command::new("bash");
+        let mut command =
+            Command::new(git_bash_executable().unwrap_or_else(|| PathBuf::from("bash")));
         command.arg(script);
         command
     } else {
