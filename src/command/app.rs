@@ -23,7 +23,7 @@ use axum::{
 };
 use include_dir::{Dir, include_dir};
 use syu_core::{
-    AppPayload, DefinitionCounts, ReferencedRule, SectionKind, Severity, SourceDocument,
+    AppPayload, AppServer, DefinitionCounts, ReferencedRule, SectionKind, Severity, SourceDocument,
     TraceCount, TraceSummary, ValidationIssue, ValidationSnapshot,
 };
 
@@ -39,14 +39,25 @@ use crate::{
     },
 };
 
+macro_rules! return_ok_if {
+    ($condition:expr) => {
+        if $condition {
+            return Ok(());
+        }
+    };
+}
+
 static APP_DIST: Dir<'_> = include_dir!("$OUT_DIR/syu-app-dist");
 const APP_DATA_REFRESH_FAILED_MESSAGE: &str = "app data refresh failed";
+const APP_DEV_SERVER_ORIGIN: &str = "http://127.0.0.1:4173";
 
 #[derive(Clone)]
 struct AppState {
     workspace_root: PathBuf,
     config: SyuConfig,
+    app_server: AppServer,
     current: Arc<RwLock<CurrentAppState>>,
+    dev_server_origin: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -131,19 +142,26 @@ impl AppRefreshFailureKind {
 
 #[derive(Debug, Clone)]
 enum CurrentAppState {
-    Ready(CurrentAppData),
+    Ready(Box<CurrentAppData>),
     Error(AppRefreshFailure),
 }
 
 impl AppState {
-    fn new(workspace_root: PathBuf, config: SyuConfig) -> Self {
+    fn new(
+        workspace_root: PathBuf,
+        config: SyuConfig,
+        app_server: AppServer,
+        dev_server_origin: Option<String>,
+    ) -> Self {
         Self {
             workspace_root,
             config,
+            app_server,
             current: Arc::new(RwLock::new(CurrentAppState::Error(AppRefreshFailure {
                 kind: AppRefreshFailureKind::Server,
                 internal_message: APP_DATA_REFRESH_FAILED_MESSAGE.to_string(),
             }))),
+            dev_server_origin,
         }
     }
 
@@ -154,7 +172,7 @@ impl AppState {
             .map_err(|_| AppRefreshFailure::server(anyhow!("app refresh state lock poisoned")))?
             .clone()
         {
-            CurrentAppState::Ready(data) => Ok(data),
+            CurrentAppState::Ready(data) => Ok(*data),
             CurrentAppState::Error(error) => Err(error),
         }
     }
@@ -181,7 +199,7 @@ impl AppState {
     fn refresh_current(&self) -> std::result::Result<(), AppRefreshFailure> {
         self.refresh_current_with(
             || load_current_snapshot(&self.workspace_root, &self.config),
-            || load_current_payload(&self.workspace_root, &self.config),
+            || load_current_payload(&self.workspace_root, &self.config, &self.app_server),
         )
     }
 
@@ -202,7 +220,9 @@ impl AppState {
                 }
 
                 match load_payload() {
-                    Ok(payload) => CurrentAppState::Ready(CurrentAppData { snapshot, payload }),
+                    Ok(payload) => {
+                        CurrentAppState::Ready(Box::new(CurrentAppData { snapshot, payload }))
+                    }
                     Err(error) => CurrentAppState::Error(AppRefreshFailure::workspace(error)),
                 }
             }
@@ -282,6 +302,7 @@ pub fn run_app_command(args: &AppArgs) -> Result<i32> {
     let workspace_root = canonical_workspace_root(&args.workspace)?;
     let loaded = load_config(&workspace_root)?;
     let settings = resolve_app_server_settings(args, &loaded.config);
+    let dev_server_origin = app_dev_server_origin(args);
     let bind = settings
         .bind
         .parse::<IpAddr>()
@@ -289,16 +310,12 @@ pub fn run_app_command(args: &AppArgs) -> Result<i32> {
     require_remote_bind_opt_in(bind, args.allow_remote)?;
     build_app_payload_from_config(&workspace_root, &loaded.config)?;
     println!("workspace: {}", workspace_root.display());
-    let state = AppState::new(workspace_root.clone(), loaded.config);
-    let _ = state.refresh_current();
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
         .context("failed to create runtime for `syu app`")?;
 
     runtime.block_on(async move {
-        let router = app_router(state.clone());
-        let refresher = tokio::spawn(refresh_current_until_shutdown(state.clone()));
         let listener = tokio::net::TcpListener::bind((bind, settings.port))
             .await
             .map_err(|error| {
@@ -312,6 +329,15 @@ pub fn run_app_command(args: &AppArgs) -> Result<i32> {
         let local_addr = listener
             .local_addr()
             .context("failed to inspect bind address")?;
+        let state = AppState::new(
+            workspace_root.clone(),
+            loaded.config,
+            app_server(local_addr),
+            dev_server_origin.clone(),
+        );
+        let _ = state.refresh_current();
+        let router = app_router(state.clone());
+        let refresher = tokio::spawn(refresh_current_until_shutdown(state.clone()));
         let server = tokio::spawn(async move {
             axum::serve(listener, router)
                 .with_graceful_shutdown(shutdown_signal())
@@ -322,7 +348,12 @@ pub fn run_app_command(args: &AppArgs) -> Result<i32> {
         tokio::task::spawn_blocking(move || wait_for_ready(local_addr))
             .await
             .context("local app readiness probe panicked")??;
-        emit_startup_lines(startup_lines(local_addr))?;
+        if let Some(origin) = dev_server_origin.clone() {
+            tokio::task::spawn_blocking(move || wait_for_dev_server_ready(&origin))
+                .await
+                .context("dev-server readiness probe panicked")??;
+        }
+        emit_startup_lines(startup_lines(local_addr, dev_server_origin.as_deref()))?;
 
         let result = server.await.context("local app server task panicked")?;
         refresher.abort();
@@ -332,13 +363,22 @@ pub fn run_app_command(args: &AppArgs) -> Result<i32> {
     Ok(0)
 }
 
-fn startup_lines(local_addr: SocketAddr) -> Vec<String> {
-    vec![
+fn startup_lines(local_addr: SocketAddr, dev_server_origin: Option<&str>) -> Vec<String> {
+    let mut lines = vec![
         format!("syu app listening on http://{local_addr}"),
         format!("syu app ready: http://{local_addr}"),
         format!("Open http://{local_addr} in your browser."),
         "Press Ctrl-C to stop.".to_string(),
-    ]
+    ];
+    if let Some(origin) = dev_server_origin {
+        lines.insert(
+            2,
+            format!(
+                "frontend dev mode: browser assets load from {origin} while /api stays on http://{local_addr}"
+            ),
+        );
+    }
+    lines
 }
 
 fn non_loopback_warning_lines(bind: IpAddr) -> Vec<String> {
@@ -363,6 +403,10 @@ fn emit_startup_lines(lines: Vec<String>) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn app_dev_server_origin(args: &AppArgs) -> Option<String> {
+    args.dev_server.then_some(APP_DEV_SERVER_ORIGIN.to_string())
 }
 
 fn resolve_app_server_settings(args: &AppArgs, config: &SyuConfig) -> AppServerSettings {
@@ -434,8 +478,15 @@ fn refresh_current_once(state: &AppState) {
     }
 }
 
-fn load_current_payload(workspace_root: &Path, config: &SyuConfig) -> Result<AppPayload> {
-    build_app_payload_from_config(workspace_root, config)
+fn load_current_payload(
+    workspace_root: &Path,
+    config: &SyuConfig,
+    app_server: &AppServer,
+) -> Result<AppPayload> {
+    build_app_payload_from_config(workspace_root, config).map(|mut payload| {
+        payload.app_server = app_server.clone();
+        payload
+    })
 }
 
 fn load_current_snapshot(workspace_root: &Path, config: &SyuConfig) -> Result<String> {
@@ -656,10 +707,14 @@ fn feature_sources(spec_root: &Path) -> Result<Vec<SourceDocument>> {
     collect_feature_sources(&spec_root.join("features"))
 }
 
-async fn serve_static(uri: Uri) -> Response {
+async fn serve_static(State(state): State<AppState>, uri: Uri) -> Response {
     let Some(path) = normalized_asset_path(uri.path()) else {
         return (StatusCode::NOT_FOUND, "asset not found").into_response();
     };
+
+    if let Some(dev_server_origin) = state.dev_server_origin.as_deref() {
+        return dev_server_response(dev_server_origin, &path);
+    }
 
     if let Some(file) = APP_DIST.get_file(&path) {
         return asset_response(&path, file.contents());
@@ -672,6 +727,51 @@ async fn serve_static(uri: Uri) -> Response {
     }
 
     (StatusCode::NOT_FOUND, "asset not found").into_response()
+}
+
+fn dev_server_response(dev_server_origin: &str, path: &str) -> Response {
+    if path != "index.html" && is_asset_like(path) {
+        let location = format!(
+            "{}/{}",
+            dev_server_origin.trim_end_matches('/'),
+            path.trim_start_matches('/')
+        );
+        let mut response = Response::new(Body::empty());
+        *response.status_mut() = StatusCode::TEMPORARY_REDIRECT;
+        response.headers_mut().insert(
+            header::LOCATION,
+            HeaderValue::from_str(&location).expect("dev server asset redirect should be valid"),
+        );
+        return response;
+    }
+
+    let origin = dev_server_origin.trim_end_matches('/');
+    let html = format!(
+        "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"UTF-8\" />\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n    <title>syu app (dev server)</title>\n    <link rel=\"icon\" type=\"image/svg+xml\" href=\"{origin}/favicon.svg\" />\n  </head>\n  <body>\n    <div id=\"root\"></div>\n    <script type=\"module\" src=\"{origin}/@vite/client\"></script>\n    <script type=\"module\" src=\"{origin}/src/main.tsx\"></script>\n  </body>\n</html>\n"
+    );
+    let mut response = Response::new(Body::from(html));
+    let headers = response.headers_mut();
+    headers.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("text/html; charset=utf-8"),
+    );
+    headers.insert(
+        header::CONTENT_SECURITY_POLICY,
+        HeaderValue::from_str(&format!(
+            "default-src 'self'; script-src 'self' {origin} 'wasm-unsafe-eval'; style-src 'self' {origin} 'unsafe-inline'; img-src 'self' {origin} data:; connect-src 'self' {origin} ws://127.0.0.1:4173; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+        ))
+        .expect("dev server csp should be valid"),
+    );
+    headers.insert(
+        header::X_CONTENT_TYPE_OPTIONS,
+        HeaderValue::from_static("nosniff"),
+    );
+    headers.insert(header::X_FRAME_OPTIONS, HeaderValue::from_static("DENY"));
+    headers.insert(
+        header::REFERRER_POLICY,
+        HeaderValue::from_static("no-referrer"),
+    );
+    response
 }
 
 fn normalized_asset_path(path: &str) -> Option<String> {
@@ -695,9 +795,25 @@ fn is_asset_like(path: &str) -> bool {
 
 fn asset_response(path: &str, bytes: &'static [u8]) -> Response {
     let mut response = Response::new(Body::from(bytes.to_vec()));
-    response.headers_mut().insert(
+    let headers = response.headers_mut();
+    headers.insert(
         header::CONTENT_TYPE,
         HeaderValue::from_static(content_type_for_path(path)),
+    );
+    headers.insert(
+        header::CONTENT_SECURITY_POLICY,
+        HeaderValue::from_static(
+            "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
+        ),
+    );
+    headers.insert(
+        header::X_CONTENT_TYPE_OPTIONS,
+        HeaderValue::from_static("nosniff"),
+    );
+    headers.insert(header::X_FRAME_OPTIONS, HeaderValue::from_static("DENY"));
+    headers.insert(
+        header::REFERRER_POLICY,
+        HeaderValue::from_static("no-referrer"),
     );
     response
 }
@@ -731,6 +847,17 @@ fn wait_for_ready(local_addr: SocketAddr) -> Result<()> {
     )
 }
 
+fn wait_for_dev_server_ready(dev_server_origin: &str) -> Result<()> {
+    let local_addr = dev_server_socket_addr(dev_server_origin)?;
+    wait_for_dev_server_with_retry(
+        local_addr,
+        50,
+        Duration::from_millis(100),
+        Duration::from_millis(50),
+    )
+    .with_context(|| format!("frontend dev server did not become ready at {dev_server_origin}"))
+}
+
 fn wait_for_ready_with_retry(
     local_addr: SocketAddr,
     attempts: usize,
@@ -756,8 +883,48 @@ fn wait_for_ready_with_retry(
     bail!("local app server did not become ready at http://{local_addr}")
 }
 
+fn wait_for_dev_server_with_retry(
+    local_addr: SocketAddr,
+    attempts: usize,
+    connect_timeout: Duration,
+    retry_delay: Duration,
+) -> Result<()> {
+    for _ in 0..attempts {
+        if let Ok(mut stream) = std::net::TcpStream::connect_timeout(&local_addr, connect_timeout) {
+            stream
+                .set_read_timeout(Some(connect_timeout))
+                .context("failed to configure dev-server probe read timeout")?;
+            stream
+                .set_write_timeout(Some(connect_timeout))
+                .context("failed to configure dev-server probe write timeout")?;
+            return_ok_if!(dev_server_probe_succeeds(&mut stream, local_addr));
+        }
+
+        std::thread::sleep(retry_delay);
+    }
+
+    bail!("frontend dev server did not become ready at http://{local_addr}")
+}
+
+fn dev_server_socket_addr(dev_server_origin: &str) -> Result<SocketAddr> {
+    dev_server_origin
+        .strip_prefix("http://")
+        .context("frontend dev server origin must start with http://")?
+        .parse::<SocketAddr>()
+        .with_context(|| format!("invalid frontend dev server origin `{dev_server_origin}`"))
+}
+
 fn readiness_probe_succeeds(stream: &mut (impl Read + Write), local_addr: SocketAddr) -> bool {
     if !readiness_probe_request_sent(stream, local_addr) {
+        return false;
+    }
+
+    let mut response = String::new();
+    stream.read_to_string(&mut response).is_ok() && response.contains("200 OK")
+}
+
+fn dev_server_probe_succeeds(stream: &mut (impl Read + Write), local_addr: SocketAddr) -> bool {
+    if !dev_server_probe_request_sent(stream, local_addr) {
         return false;
     }
 
@@ -769,6 +936,20 @@ fn readiness_probe_request_sent(stream: &mut impl Write, local_addr: SocketAddr)
     if write!(
         stream,
         "GET /health HTTP/1.1\r\nHost: {local_addr}\r\nConnection: close\r\n\r\n"
+    )
+    .is_err()
+        || stream.flush().is_err()
+    {
+        return false;
+    }
+
+    true
+}
+
+fn dev_server_probe_request_sent(stream: &mut impl Write, local_addr: SocketAddr) -> bool {
+    if write!(
+        stream,
+        "GET /@vite/client HTTP/1.1\r\nHost: {local_addr}\r\nConnection: close\r\n\r\n"
     )
     .is_err()
         || stream.flush().is_err()
@@ -816,9 +997,18 @@ fn build_app_payload_from_config(workspace_root: &Path, config: &SyuConfig) -> R
     Ok(AppPayload {
         workspace_root: workspace_label,
         spec_root: spec_label,
+        app_server: AppServer::default(),
         source_documents,
         validation: validation_snapshot(collect_check_result(workspace_root)),
     })
+}
+
+fn app_server(local_addr: SocketAddr) -> AppServer {
+    AppServer {
+        bind: local_addr.ip().to_string(),
+        port: local_addr.port(),
+        remotely_reachable: !local_addr.ip().is_loopback(),
+    }
 }
 
 fn browser_root_labels(workspace_root: &Path, spec_root: &Path) -> (String, String) {
@@ -1117,16 +1307,19 @@ mod tests {
     };
 
     use super::{
-        APP_DATA_REFRESH_FAILED_MESSAGE, AppDataErrorResponse, AppPayload, AppServerSettings,
-        AppState, AppVersion, SectionKind, Severity, SnapshotDependency, app_router,
-        bind_failure_message, browser_root_labels, build_app_payload, canonical_workspace_root,
-        collect_feature_sources, collect_snapshot_files_with_extensions,
-        collect_yaml_sources_recursive, content_type_for_path, is_asset_like,
-        load_current_snapshot, non_loopback_warning_lines, normalized_asset_path,
-        normalized_trace_snapshot_path, readiness_probe_request_sent, readiness_probe_succeeds,
-        redacted_relative_label, redacted_root_label, refresh_current_once, relative_display,
-        require_remote_bind_opt_in, resolve_app_server_settings, spec_snapshot, startup_lines,
-        trailing_path_components_label, validation_snapshot, wait_for_ready_with_retry,
+        APP_DATA_REFRESH_FAILED_MESSAGE, APP_DEV_SERVER_ORIGIN, AppDataErrorResponse, AppPayload,
+        AppServerSettings, AppState, AppVersion, SectionKind, Severity, SnapshotDependency,
+        app_dev_server_origin, app_router, app_server, bind_failure_message, browser_root_labels,
+        build_app_payload, canonical_workspace_root, collect_feature_sources,
+        collect_snapshot_files_with_extensions, collect_yaml_sources_recursive,
+        content_type_for_path, dev_server_probe_request_sent, dev_server_probe_succeeds,
+        is_asset_like, load_current_snapshot, non_loopback_warning_lines,
+        normalized_asset_path, normalized_trace_snapshot_path, readiness_probe_request_sent,
+        readiness_probe_succeeds, redacted_relative_label, redacted_root_label,
+        refresh_current_once, relative_display, require_remote_bind_opt_in,
+        resolve_app_server_settings, spec_snapshot, startup_lines,
+        trailing_path_components_label, validation_snapshot, wait_for_dev_server_with_retry,
+        wait_for_ready_with_retry,
     };
 
     fn fixture_root(name: &str) -> PathBuf {
@@ -1161,7 +1354,12 @@ mod tests {
 
     fn app_state(root: &Path) -> AppState {
         let config = load_config(root).expect("config should load").config;
-        let state = AppState::new(root.to_path_buf(), config);
+        let state = AppState::new(
+            root.to_path_buf(),
+            config,
+            app_server("127.0.0.1:3000".parse().expect("socket addr")),
+            None,
+        );
         let _ = state.refresh_current();
         state
     }
@@ -1277,6 +1475,7 @@ mod tests {
                 bind: None,
                 port: None,
                 allow_remote: false,
+                dev_server: false,
             },
             &config,
         );
@@ -1305,6 +1504,7 @@ mod tests {
                 bind: None,
                 port: None,
                 allow_remote: false,
+                dev_server: false,
             },
             &config,
         );
@@ -1333,6 +1533,7 @@ mod tests {
                 bind: Some("127.0.0.1".to_string()),
                 port: Some(5123),
                 allow_remote: false,
+                dev_server: false,
             },
             &config,
         );
@@ -1373,7 +1574,7 @@ mod tests {
 
     #[test]
     fn startup_lines_keep_ready_messages_on_stdout() {
-        let lines = startup_lines("0.0.0.0:4123".parse().expect("valid socket"));
+        let lines = startup_lines("0.0.0.0:4123".parse().expect("valid socket"), None);
         assert_eq!(
             lines,
             vec![
@@ -1383,6 +1584,18 @@ mod tests {
                 "Press Ctrl-C to stop.".to_string(),
             ]
         );
+    }
+
+    #[test]
+    fn startup_lines_describe_dev_server_mode() {
+        let lines = startup_lines(
+            "127.0.0.1:3000".parse().expect("valid socket"),
+            Some(APP_DEV_SERVER_ORIGIN),
+        );
+        assert!(lines.contains(&"syu app listening on http://127.0.0.1:3000".to_string()));
+        assert!(lines.contains(
+            &"frontend dev mode: browser assets load from http://127.0.0.1:4173 while /api stays on http://127.0.0.1:3000".to_string()
+        ));
     }
 
     #[test]
@@ -1397,6 +1610,14 @@ mod tests {
                     .to_string(),
             ]
         );
+    }
+
+    #[test]
+    fn app_server_marks_non_loopback_sessions_as_remotely_reachable() {
+        let server = app_server("0.0.0.0:4312".parse().expect("valid socket addr"));
+        assert_eq!(server.bind, "0.0.0.0");
+        assert_eq!(server.port, 4312);
+        assert!(server.remotely_reachable);
     }
 
     #[test]
@@ -1419,6 +1640,30 @@ mod tests {
     fn require_remote_bind_opt_in_allows_non_loopback_with_flag() {
         require_remote_bind_opt_in("0.0.0.0".parse().expect("valid ip"), true)
             .expect("explicit opt-in should allow non-loopback binds");
+    }
+
+    #[test]
+    fn app_dev_server_origin_is_disabled_by_default() {
+        assert_eq!(
+            app_dev_server_origin(&AppArgs {
+                workspace: PathBuf::from("."),
+                bind: None,
+                port: None,
+                allow_remote: false,
+                dev_server: false,
+            }),
+            None
+        );
+        assert_eq!(
+            app_dev_server_origin(&AppArgs {
+                workspace: PathBuf::from("."),
+                bind: None,
+                port: None,
+                allow_remote: false,
+                dev_server: true,
+            }),
+            Some(APP_DEV_SERVER_ORIGIN.to_string())
+        );
     }
 
     #[test]
@@ -1456,6 +1701,9 @@ mod tests {
             "./tests/fixtures/workspaces/passing"
         );
         assert_eq!(payload.spec_root, "docs/syu");
+        assert_eq!(payload.app_server.bind, "");
+        assert_eq!(payload.app_server.port, 0);
+        assert!(!payload.app_server.remotely_reachable);
         assert!(
             payload
                 .source_documents
@@ -1874,6 +2122,53 @@ mod tests {
         assert!(stream.wrote, "probe should send the readiness request");
     }
 
+    #[test]
+    fn dev_server_probe_returns_false_when_write_fails() {
+        let mut stream = SyntheticProbeStream::new(ProbeFailure::Write);
+        assert!(!dev_server_probe_succeeds(
+            &mut stream,
+            "127.0.0.1:4173".parse().expect("socket address")
+        ));
+    }
+
+    #[test]
+    fn dev_server_probe_returns_false_when_flush_fails() {
+        let mut writer = SyntheticProbeStream::new(ProbeFailure::Flush);
+        assert!(!dev_server_probe_request_sent(
+            &mut writer,
+            "127.0.0.1:4173".parse().expect("socket address")
+        ));
+        assert!(
+            writer.wrote,
+            "probe should write the request before flush fails"
+        );
+    }
+
+    #[test]
+    fn wait_for_dev_server_with_retry_retries_after_unsuccessful_probe() {
+        let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let local_addr = listener.local_addr().expect("local addr");
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("client");
+            write!(
+                stream,
+                "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+            )
+            .expect("response");
+            stream.flush().expect("flush");
+        });
+
+        let error = wait_for_dev_server_with_retry(
+            local_addr,
+            1,
+            Duration::from_secs(1),
+            Duration::from_millis(20),
+        )
+        .expect_err("non-200 probe should fail");
+        assert!(error.to_string().contains("did not become ready"));
+        server.join().expect("server thread");
+    }
+
     #[tokio::test]
     async fn api_route_returns_payload_json() {
         let router = app_router(app_state(&fixture_root("passing")));
@@ -2158,6 +2453,8 @@ mod tests {
             load_config(tempdir.path())
                 .expect("config should load")
                 .config,
+            app_server("127.0.0.1:3000".parse().expect("socket addr")),
+            None,
         );
         let payload_loads = AtomicUsize::new(0);
 
@@ -2195,6 +2492,8 @@ mod tests {
             load_config(tempdir.path())
                 .expect("config should load")
                 .config,
+            app_server("127.0.0.1:3000".parse().expect("socket addr")),
+            None,
         );
 
         let error = state
@@ -2364,8 +2663,27 @@ mod tests {
             root.headers().get(header::CONTENT_TYPE),
             Some(&HeaderValue::from_static("text/html; charset=utf-8"))
         );
+        assert_eq!(
+            root.headers().get(header::CONTENT_SECURITY_POLICY),
+            Some(&HeaderValue::from_static(
+                "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+            ))
+        );
+        assert_eq!(
+            root.headers().get(header::X_CONTENT_TYPE_OPTIONS),
+            Some(&HeaderValue::from_static("nosniff"))
+        );
+        assert_eq!(
+            root.headers().get(header::X_FRAME_OPTIONS),
+            Some(&HeaderValue::from_static("DENY"))
+        );
+        assert_eq!(
+            root.headers().get(header::REFERRER_POLICY),
+            Some(&HeaderValue::from_static("no-referrer"))
+        );
 
         let nested = router
+            .clone()
             .oneshot(
                 Request::builder()
                     .uri("/requirements/REQ-CORE-017")
@@ -2375,6 +2693,79 @@ mod tests {
             .await
             .expect("response");
         assert_eq!(nested.status(), StatusCode::OK);
+
+        let favicon = router
+            .oneshot(
+                Request::builder()
+                    .uri("/favicon.svg")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(favicon.status(), StatusCode::OK);
+        assert_eq!(
+            favicon.headers().get(header::CONTENT_TYPE),
+            Some(&HeaderValue::from_static("image/svg+xml"))
+        );
+        assert_eq!(
+            favicon.headers().get(header::CONTENT_SECURITY_POLICY),
+            Some(&HeaderValue::from_static(
+                "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+            ))
+        );
+        assert_eq!(
+            favicon.headers().get(header::X_CONTENT_TYPE_OPTIONS),
+            Some(&HeaderValue::from_static("nosniff"))
+        );
+    }
+
+    #[tokio::test]
+    async fn static_routes_can_serve_dev_server_shell() {
+        let mut state = app_state(&fixture_root("passing"));
+        state.dev_server_origin = Some(APP_DEV_SERVER_ORIGIN.to_string());
+        let router = app_router(state);
+
+        let response = router
+            .oneshot(
+                Request::builder()
+                    .uri("/")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body");
+        let rendered = String::from_utf8(body.to_vec()).expect("utf8");
+        assert!(rendered.contains("http://127.0.0.1:4173/@vite/client"));
+        assert!(rendered.contains("http://127.0.0.1:4173/src/main.tsx"));
+    }
+
+    #[tokio::test]
+    async fn static_asset_requests_redirect_to_dev_server_in_dev_mode() {
+        let mut state = app_state(&fixture_root("passing"));
+        state.dev_server_origin = Some(APP_DEV_SERVER_ORIGIN.to_string());
+        let router = app_router(state);
+
+        let response = router
+            .oneshot(
+                Request::builder()
+                    .uri("/favicon.svg")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::TEMPORARY_REDIRECT);
+        assert_eq!(
+            response.headers().get(header::LOCATION),
+            Some(&HeaderValue::from_static(
+                "http://127.0.0.1:4173/favicon.svg"
+            ))
+        );
     }
 
     #[tokio::test]
