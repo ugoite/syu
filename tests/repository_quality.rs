@@ -1,6 +1,8 @@
 use std::{collections::HashSet, fs, path::PathBuf};
 
+use assert_cmd::cargo::CommandCargoExt;
 use serde_json::Value;
+use std::process::Command;
 
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -15,19 +17,31 @@ fn read_json(path: &str) -> Value {
 }
 
 fn assert_newcomer_template_examples(document: &str) {
-    for template in [
-        "docs-first",
-        "rust-only",
-        "python-only",
-        "ruby-only",
-        "go-only",
-        "java-only",
-        "typescript-only",
-        "polyglot",
-    ] {
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .args(["templates", "--format", "json"])
+        .output()
+        .expect("templates command should run");
+    assert!(
+        output.status.success(),
+        "stdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let json: Value = serde_json::from_slice(&output.stdout).expect("output should be valid JSON");
+    let templates = json["templates"]
+        .as_array()
+        .expect("templates should be an array");
+
+    for command in templates
+        .iter()
+        .filter(|template| template["name"] != "generic")
+        .map(|template| format!("--template {}", template["name"].as_str().expect("name")))
+    {
         assert!(
-            document.contains(&format!("--template {template}")),
-            "expected newcomer-facing docs to mention `{template}`"
+            document.contains(&command),
+            "expected newcomer-facing docs to mention `{command}`"
         );
     }
 }
