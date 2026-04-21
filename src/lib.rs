@@ -67,6 +67,7 @@ enum Dispatch {
     List(cli::ListArgs),
     Show(cli::ShowArgs),
     Search(cli::SearchArgs),
+    Audit(cli::AuditArgs),
     Log(cli::LogArgs),
     Relate(cli::RelateArgs),
     Trace(cli::TraceArgs),
@@ -88,6 +89,7 @@ fn dispatch(cli: cli::Cli, stdin_is_terminal: bool, stdout_is_terminal: bool) ->
         Some(cli::Commands::List(args)) => Dispatch::List(args),
         Some(cli::Commands::Show(args)) => Dispatch::Show(args),
         Some(cli::Commands::Search(args)) => Dispatch::Search(args),
+        Some(cli::Commands::Audit(args)) => Dispatch::Audit(args),
         Some(cli::Commands::Log(args)) => Dispatch::Log(args),
         Some(cli::Commands::Relate(args)) => Dispatch::Relate(args),
         Some(cli::Commands::Trace(args)) => Dispatch::Trace(args),
@@ -113,6 +115,7 @@ fn run_dispatch(dispatch: Dispatch) -> Result<i32> {
         Dispatch::List(args) => command::list::run_list_command(&args),
         Dispatch::Show(args) => command::show::run_show_command(&args),
         Dispatch::Search(args) => command::search::run_search_command(&args),
+        Dispatch::Audit(args) => command::audit::run_audit_command(&args),
         Dispatch::Log(args) => command::log::run_log_command(&args),
         Dispatch::Relate(args) => command::relate::run_relate_command(&args),
         Dispatch::Trace(args) => command::trace::run_trace_command(&args),
@@ -151,7 +154,7 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     use crate::cli::{
-        AddArgs, AppArgs, Cli, Commands, CompletionArgs, HistoryKind, ListArgs, LogArgs,
+        AddArgs, AppArgs, AuditArgs, Cli, Commands, CompletionArgs, HistoryKind, ListArgs, LogArgs,
         LookupKind, OutputFormat, RelateArgs, SearchArgs, ShowArgs, TemplatesArgs, TraceArgs,
     };
     use clap_complete::Shell;
@@ -323,6 +326,27 @@ mod tests {
                     && workspace == Path::new("workspace")
                     && kind == Some(LookupKind::Feature)
                     && format == OutputFormat::Json
+        ));
+    }
+
+    #[test]
+    // REQ-CORE-025
+    fn dispatches_audit_subcommands_without_rewriting_them() {
+        let audit = super::dispatch(
+            Cli {
+                command: Some(Commands::Audit(AuditArgs {
+                    workspace: PathBuf::from("workspace"),
+                    format: OutputFormat::Json,
+                })),
+            },
+            true,
+            true,
+        );
+
+        assert!(matches!(
+            audit,
+            super::Dispatch::Audit(crate::cli::AuditArgs { workspace, format })
+                if workspace == Path::new("workspace") && format == OutputFormat::Json
         ));
     }
 
