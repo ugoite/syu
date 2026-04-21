@@ -110,9 +110,8 @@ fn shutdown_child_with_output(child: Child) -> Output {
 }
 
 fn spawn_fake_vite_server() -> std::thread::JoinHandle<()> {
-    thread::spawn(|| {
-        let listener =
-            TcpListener::bind(("127.0.0.1", 4173)).expect("fake vite listener should bind");
+    let listener = TcpListener::bind(("127.0.0.1", 4173)).expect("fake vite listener should bind");
+    thread::spawn(move || {
         let (mut stream, _) = listener.accept().expect("fake vite client should connect");
         let mut request = [0_u8; 512];
         let _ = stream.read(&mut request);
