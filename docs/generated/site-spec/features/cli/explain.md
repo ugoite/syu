@@ -22,7 +22,7 @@ description: "Generated reference for docs/syu/features/cli/explain.yaml"
   - **summary**: Turn one spec ID, repository path, or traced symbol into a guided assessment with the connected chain, traces, and obvious gaps.
   - **status**: implemented
   - **linked_requirements**:
-    - REQ-CORE-025
+    - REQ-CORE-027
   - **implementations**:
     - **rust**:
       - **file**: src/command/explain.rs
@@ -49,7 +49,7 @@ features:
     summary: Turn one spec ID, repository path, or traced symbol into a guided assessment with the connected chain, traces, and obvious gaps.
     status: implemented
     linked_requirements:
-      - REQ-CORE-025
+      - REQ-CORE-027
     implementations:
       rust:
         - file: src/command/explain.rs

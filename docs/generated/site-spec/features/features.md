@@ -29,6 +29,8 @@ description: "Generated reference for docs/syu/features/features.yaml"
   - **file**: cli/explain.yaml
 - **kind**: search
   - **file**: cli/search.yaml
+- **kind**: audit
+  - **file**: cli/audit.yaml
 - **kind**: log
   - **file**: cli/log.yaml
 - **kind**: trace
@@ -39,6 +41,8 @@ description: "Generated reference for docs/syu/features/features.yaml"
   - **file**: cli/init.yaml
 - **kind**: add
   - **file**: cli/add.yaml
+- **kind**: doctor
+  - **file**: cli/doctor.yaml
 - **kind**: report
   - **file**: cli/report.yaml
 - **kind**: vscode
@@ -75,6 +79,8 @@ files:
     file: cli/explain.yaml
   - kind: search
     file: cli/search.yaml
+  - kind: audit
+    file: cli/audit.yaml
   - kind: log
     file: cli/log.yaml
   - kind: trace
@@ -85,6 +91,8 @@ files:
     file: cli/init.yaml
   - kind: add
     file: cli/add.yaml
+  - kind: doctor
+    file: cli/doctor.yaml
   - kind: report
     file: cli/report.yaml
   - kind: vscode

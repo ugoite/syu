@@ -417,6 +417,83 @@ requirements:
           symbols:
             - '*'
   - id: REQ-CORE-025
+    title: Provide a heuristic audit command for cross-layer overlap and tension review
+    description: |
+      The CLI MUST provide an `audit` command that loads the checked-in
+      philosophy, policy, requirement, and feature graph and emits review-ready
+      candidates for semantic overlap or tension without turning that heuristic
+      analysis into a hard validation failure. The command MUST summarize likely
+      overlapping requirements, SHOULD highlight features whose wording appears
+      to pull against linked policy or philosophy language, SHOULD call out
+      policies that no longer produce concrete downstream requirements, and
+      SHOULD offer JSON output so pull requests or release automation can record
+      the same audit summary.
+    priority: medium
+    status: implemented
+    linked_policies:
+      - POL-001
+      - POL-002
+      - POL-004
+      - POL-005
+    linked_features:
+      - FEAT-AUDIT-001
+    tests:
+      rust:
+        - file: tests/audit_command.rs
+          symbols:
+            - '*'
+        - file: tests/workspace_discovery_command.rs
+          symbols:
+            - audit_command_discovers_workspace_from_child_directory
+        - file: tests/help_command.rs
+          symbols:
+            - audit_help_mentions_overlap_tension_and_json_output
+        - file: src/lib.rs
+          symbols:
+            - dispatches_audit_subcommands_without_rewriting_them
+        - file: src/command/audit.rs
+          symbols:
+            - '*'
+  - id: REQ-CORE-026
+    title: Provide a local contributor readiness doctor command
+    description: |
+      The CLI MUST provide a `doctor` command that reports the current local
+      readiness state before contributors run repository checks. The command MUST
+      resolve the workspace root from the current directory or any child path,
+      MUST report whether `syu.yaml` is present, MUST summarize the available
+      Rust/Cargo toolchain, and SHOULD compare the current runtime versions
+      against checked-in expectations such as `Cargo.toml`, `.nvmrc`, and
+      `package.json#packageManager` where those files exist. For repository
+      surfaces that carry optional local setup state, such as the browser app,
+      docs site, or Playwright browser cache, the command SHOULD report whether
+      the local install looks missing or stale and SHOULD print the next command a
+      contributor should run to fix it. The command SHOULD offer JSON output for
+      automation and SHOULD keep working outside a fully valid workspace so long
+      as the starting path exists.
+    priority: medium
+    status: implemented
+    linked_policies:
+      - POL-002
+      - POL-004
+      - POL-006
+    linked_features:
+      - FEAT-DOCTOR-001
+    tests:
+      rust:
+        - file: tests/doctor_command.rs
+          symbols:
+            - '*'
+        - file: tests/help_command.rs
+          symbols:
+            - doctor_help_mentions_local_readiness_and_json_output
+        - file: src/lib.rs
+          symbols:
+            - run_dispatch
+            - dispatch
+        - file: src/command/doctor.rs
+          symbols:
+            - '*'
+  - id: REQ-CORE-027
     title: Provide a focused explain command for one ID, path, or symbol
     description: |
       The CLI MUST provide an `explain` command that accepts a definition ID,

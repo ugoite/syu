@@ -4,6 +4,9 @@
 // REQ-CORE-021
 // REQ-CORE-023
 // REQ-CORE-024
+// REQ-CORE-025
+// REQ-CORE-026
+// REQ-CORE-027
 
 use assert_cmd::cargo::CommandCargoExt;
 use std::process::Command;
@@ -50,8 +53,8 @@ fn app_help_mentions_remote_bind_opt_in() {
 #[test]
 fn workspace_help_uses_current_directory_default_consistently() {
     for command in [
-        "browse", "show", "search", "trace", "app", "validate", "check", "report", "add", "relate",
-        "log", "explain",
+        "browse", "show", "search", "trace", "app", "doctor", "validate", "check", "report",
+        "add", "relate", "log", "audit", "explain",
     ] {
         let output = Command::cargo_bin("syu")
             .expect("binary should build")
@@ -77,6 +80,23 @@ fn workspace_help_uses_current_directory_default_consistently() {
             "{command} help should not claim docs/syu is the workspace default",
         );
     }
+}
+
+#[test]
+fn doctor_help_mentions_local_readiness_and_json_output() {
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .args(["doctor", "--help"])
+        .output()
+        .expect("help should render");
+
+    assert!(output.status.success(), "doctor help should succeed");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("--format"));
+    assert!(stdout.contains("Inspect local contributor-tooling readiness"));
+    assert!(stdout.contains("syu doctor ."));
+    assert!(stdout.contains("syu doctor . --format json"));
 }
 
 #[test]
@@ -148,6 +168,22 @@ fn search_help_mentions_kind_scoping_and_json_output() {
     assert!(stdout.contains("--kind"));
     assert!(stdout.contains("--format"));
     assert!(stdout.contains("syu search traceability --kind requirement"));
+}
+
+#[test]
+fn audit_help_mentions_overlap_tension_and_json_output() {
+    let output = Command::cargo_bin("syu")
+        .expect("binary should build")
+        .args(["audit", "--help"])
+        .output()
+        .expect("help should render");
+
+    assert!(output.status.success(), "audit help should succeed");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("--format"));
+    assert!(stdout.contains("overlap, tension, and orphaned-policy candidates"));
+    assert!(stdout.contains("syu audit . --format json"));
 }
 
 #[test]

@@ -15,6 +15,7 @@
 // FEAT-TRACE-001
 // FEAT-REPORT-001
 // FEAT-INIT-002
+// FEAT-DOCTOR-001
 // REQ-CORE-001
 
 use clap::{ArgAction, Args, Parser, Subcommand, ValueEnum, builder::BoolishValueParser};
@@ -33,6 +34,15 @@ const APP_AFTER_HELP: &str = concat!(
     "Use GET /health for readiness checks once the app is serving.\n",
     "Press Ctrl-C to stop the local app server."
 );
+
+const DOCTOR_AFTER_HELP: &str = "\
+Examples:
+  syu doctor .
+  syu doctor . --format json
+
+Use this before local contributor checks when you want one summary of the current
+Rust toolchain, Node/npm expectations, optional package-surface dependency state,
+and Playwright browser readiness.";
 
 const INIT_AFTER_HELP: &str = "\
 Use `syu templates` first when you want to compare starter layouts before you scaffold.
@@ -106,6 +116,12 @@ Examples:
   syu search traceability --kind requirement
   syu search FEAT-CHECK-001 --format json";
 
+const AUDIT_AFTER_HELP: &str = "\
+Examples:
+  syu audit
+  syu audit path/to/workspace
+  syu audit . --format json";
+
 const LOG_AFTER_HELP: &str = "\
 Examples:
   syu log REQ-CORE-002
@@ -170,6 +186,11 @@ pub enum Commands {
     )]
     Search(SearchArgs),
     #[command(
+        about = "Audit the layered spec for overlap, tension, and orphaned-policy candidates",
+        after_help = AUDIT_AFTER_HELP
+    )]
+    Audit(AuditArgs),
+    #[command(
         about = "Show git history for one traced requirement or feature",
         after_help = LOG_AFTER_HELP
     )]
@@ -194,6 +215,11 @@ pub enum Commands {
         after_help = APP_AFTER_HELP
     )]
     App(AppArgs),
+    #[command(
+        about = "Inspect local contributor-tooling readiness for this workspace",
+        after_help = DOCTOR_AFTER_HELP
+    )]
+    Doctor(DoctorArgs),
     #[command(
         visible_alias = "check",
         about = "Validate the layered graph, traces, and optional autofixes"
@@ -320,6 +346,17 @@ pub struct SearchArgs {
     pub kind: Option<LookupKind>,
 
     #[arg(help = "Output format for matched items")]
+    #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
+    pub format: OutputFormat,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct AuditArgs {
+    #[arg(help = WORKSPACE_HELP)]
+    #[arg(default_value = ".")]
+    pub workspace: PathBuf,
+
+    #[arg(help = "Output format for audit findings")]
     #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
     pub format: OutputFormat,
 }
@@ -457,6 +494,17 @@ pub struct AppArgs {
     #[arg(help = "Allow syu app to bind to a non-loopback address such as 0.0.0.0")]
     #[arg(long, action = ArgAction::SetTrue)]
     pub allow_remote: bool,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct DoctorArgs {
+    #[arg(help = WORKSPACE_HELP)]
+    #[arg(default_value = ".")]
+    pub workspace: PathBuf,
+
+    #[arg(help = "Output format for doctor results")]
+    #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
+    pub format: OutputFormat,
 }
 
 #[derive(Debug, Clone, Args)]

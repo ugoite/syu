@@ -36,6 +36,7 @@ fn repository_declares_precommit_and_quality_gates() {
     let validate_app_script = read_file("scripts/ci/validate-app.sh");
     let validate_website_script = read_file("scripts/ci/validate-website.sh");
     let install_docs_site_deps_script = read_file("scripts/ci/install-docs-site-deps.sh");
+    let contributor_bootstrap_script = read_file("scripts/ci/bootstrap-contributor-tooling.sh");
     let ci_workflow = read_file(".github/workflows/ci.yml");
     let contributing = read_file("CONTRIBUTING.md");
     let repo_config = read_file("syu.yaml");
@@ -63,6 +64,16 @@ fn repository_declares_precommit_and_quality_gates() {
     assert!(validate_website_script.contains("scripts/ci/quality-gates.sh"));
     assert!(validate_website_script.contains("install-docs-site-deps.sh"));
     assert!(validate_website_script.contains("npm --prefix website run build"));
+    assert!(contributor_bootstrap_script.contains("FEAT-CONTRIB-004"));
+    assert!(contributor_bootstrap_script.contains("scripts/ci/pinned-npm.sh install app"));
+    assert!(contributor_bootstrap_script.contains("scripts/ci/pinned-npm.sh install website"));
+    assert!(contributor_bootstrap_script.contains("bash scripts/ci/install-docs-site-deps.sh"));
+    assert!(contributor_bootstrap_script.contains("npm --prefix editors/vscode ci"));
+    assert!(contributor_bootstrap_script.contains("playwright install --with-deps chromium"));
+    assert!(contributor_bootstrap_script.contains("current shell's Node major"));
+    assert!(contributor_bootstrap_script.contains("app/.nvmrc"));
+    assert!(contributor_bootstrap_script.contains("website/.nvmrc"));
+    assert!(contributor_bootstrap_script.contains("--all"));
     assert!(install_docs_site_deps_script.contains("Branch switches can leave behind"));
     assert!(install_docs_site_deps_script.contains("website/node_modules"));
     assert!(install_docs_site_deps_script.contains("shutil.rmtree"));
@@ -653,6 +664,8 @@ fn repository_declares_documentation_guides() {
     assert!(merge_queue_playbook.contains("autoMergeRequest"));
     assert!(merge_queue_playbook.contains("reviewDecision"));
     assert!(merge_queue_playbook.contains("AWAITING_CHECKS"));
+    assert!(merge_queue_playbook.contains("scripts/ci/check-merge-queue-health.sh"));
+    assert!(merge_queue_playbook.contains("merge-queue-watchdog.yml"));
     assert!(merge_queue_playbook.contains("All comments must be resolved"));
     assert!(merge_queue_playbook.contains("gh pr merge 123 --auto --squash"));
     assert!(merge_queue_playbook.contains("gh-readonly-queue/main/pr-123-<sha>"));
@@ -935,6 +948,11 @@ fn repository_declares_contribution_workflow_assets() {
     assert!(contributing.contains("docs/generated/"));
     assert!(contributing.contains("scripts/ci/check-browser-app-freshness.sh"));
     assert!(contributing.contains("scripts/ci/pinned-npm.sh install app"));
+    assert!(contributing.contains("scripts/ci/bootstrap-contributor-tooling.sh"));
+    assert!(contributing.contains("matches the current shell major"));
+    assert!(contributing.contains("--vscode"));
+    assert!(contributing.contains("--playwright"));
+    assert!(contributing.contains("--all"));
     assert!(contributing.contains("GitHub uses the PR title as the squash commit headline"));
     assert!(contributing.contains("requirement/feature coverage summary"));
     assert!(contributing.contains("Linked issue or specification"));
@@ -1009,12 +1027,14 @@ fn repository_declares_dependency_hygiene_and_ci_caching() {
     let ci_workflow = read_file(".github/workflows/ci.yml");
     let setup_rust_action = read_file(".github/actions/setup-rust/action.yml");
     let codeql_workflow = read_file(".github/workflows/codeql.yml");
+    let merge_queue_watchdog = read_file(".github/workflows/merge-queue-watchdog.yml");
     let merge_queue_reenroll_workflow = read_file(".github/workflows/merge-queue-reenroll.yml");
     let merge_queue_checks = read_file(".github/merge-queue-checks.json");
     let docs_build_action = read_file(".github/actions/build-docs-site/action.yml");
     let docs_lock = read_file("website/package-lock.json");
     let release_artifacts = read_file(".github/workflows/release-artifacts.yml");
     let browser_app_freshness = read_file("scripts/ci/check-browser-app-freshness.sh");
+    let merge_queue_watchdog_script = read_file("scripts/ci/check-merge-queue-health.sh");
     let merge_queue_reenroll = read_file("scripts/ci/requeue-dropped-merge-queue-prs.sh");
     let dependabot = read_file(".github/dependabot.yml");
 
@@ -1057,6 +1077,16 @@ fn repository_declares_dependency_hygiene_and_ci_caching() {
     assert!(codeql_workflow.contains("github/codeql-action/init@v4"));
     assert!(codeql_workflow.contains("github/codeql-action/autobuild@v4"));
     assert!(codeql_workflow.contains("github/codeql-action/analyze@v4"));
+    assert!(merge_queue_watchdog.contains("workflow_dispatch:"));
+    assert!(merge_queue_watchdog.contains("schedule:"));
+    assert!(merge_queue_watchdog.contains("scripts/ci/check-merge-queue-health.sh"));
+    assert!(merge_queue_watchdog.contains("GH_TOKEN"));
+    assert!(merge_queue_watchdog_script.contains("load_required_merge_queue_workflows"));
+    assert!(merge_queue_watchdog_script.contains("fetch_merge_queue_state"));
+    assert!(merge_queue_watchdog_script.contains("fetch_merge_group_runs"));
+    assert!(merge_queue_watchdog_script.contains("render_watchdog_report"));
+    assert!(merge_queue_watchdog_script.contains("gh run list --repo"));
+    assert!(merge_queue_watchdog_script.contains("--event merge_group"));
     assert!(merge_queue_reenroll_workflow.contains("schedule:"));
     assert!(merge_queue_reenroll_workflow.contains("workflow_dispatch:"));
     assert!(merge_queue_reenroll_workflow.contains("pull-requests: write"));
@@ -1163,6 +1193,8 @@ fn repository_ships_browser_app() {
     );
     assert!(build_script.contains("syu-app-dist"));
     assert!(build_script.contains("scripts/ci/pinned-npm.sh install app"));
+    assert!(build_script.contains("scripts/ci/pinned-npm.sh"));
+    assert!(build_script.contains(".arg(\"check\")"));
     assert!(build_script.contains("browser app dependencies are not ready"));
     assert!(build_script.contains("fresh clone or fresh worktree"));
     assert!(build_script.contains("Cargo intentionally does not run a networked npm install"));

@@ -72,6 +72,15 @@ When you want the same selector flexibility but a more opinionated summary, run
 relate`, then turns the result into a focused assessment with the connected
 chain, traces in scope, and obvious gaps that still need review.
 
+For bigger spec edits or cleanup PRs, add a quick heuristic audit pass:
+
+```bash
+syu audit .
+```
+
+That summary is useful when you want review notes about likely overlap,
+policy drift, or policy text that no longer turns into concrete requirements.
+
 ## 3. Jump from code back to the owning spec
 
 When review starts in a file diff instead of a spec ID, reverse the direction:
