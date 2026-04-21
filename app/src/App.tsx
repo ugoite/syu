@@ -1,6 +1,6 @@
 // FEAT-APP-001
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   AppPayload,
   BrowserDocument,
@@ -81,6 +81,9 @@ function App() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [lastSuccessfulRefreshAt, setLastSuccessfulRefreshAt] = useState<string | null>(null);
+  const activeLoadControllerRef = useRef<AbortController | null>(null);
+  const activeLoadRequestIdRef = useRef(0);
+  const activeVersionPollControllerRef = useRef<AbortController | null>(null);
 
   const applyWorkspace = useCallback((browserWorkspace: BrowserWorkspace) => {
     setWorkspace(browserWorkspace);
@@ -130,6 +133,11 @@ function App() {
   const loadWorkspace = useCallback(
     async (mode: "initial" | "refresh" = "initial") => {
       const refreshing = mode === "refresh";
+      const requestId = activeLoadRequestIdRef.current + 1;
+      activeLoadRequestIdRef.current = requestId;
+      activeLoadControllerRef.current?.abort();
+      const controller = new AbortController();
+      activeLoadControllerRef.current = controller;
       if (refreshing) {
         setIsRefreshing(true);
       }
@@ -137,7 +145,7 @@ function App() {
       try {
         const [wasmModule, dataResponse] = await Promise.all([
           import("./wasm/syu_app_wasm.js") as Promise<WasmModule>,
-          fetch("/api/app-data.json", { cache: "no-store" }),
+          fetch("/api/app-data.json", { cache: "no-store", signal: controller.signal }),
         ]);
 
         if (!dataResponse.ok) {
@@ -152,6 +160,9 @@ function App() {
 
         const payload = (await dataResponse.json()) as AppPayload;
         await wasmModule.default();
+        if (controller.signal.aborted || activeLoadRequestIdRef.current !== requestId) {
+          return;
+        }
         const browserWorkspace = wasmModule.build_browser_workspace_from_js(payload);
 
         setError(null);
@@ -160,6 +171,13 @@ function App() {
         setLastSuccessfulRefreshAt(new Date().toISOString());
         applyWorkspace(browserWorkspace);
       } catch (loadError) {
+        if (
+          controller.signal.aborted ||
+          activeLoadRequestIdRef.current !== requestId ||
+          isAbortError(loadError)
+        ) {
+          return;
+        }
         if (refreshing) {
           // eslint-disable-next-line no-console
           console.error("Failed to refresh syu app workspace", loadError);
@@ -168,9 +186,14 @@ function App() {
           setError(errorMessage(loadError, "Failed to load syu app"));
         }
       } finally {
-        setLoading(false);
-        if (refreshing) {
-          setIsRefreshing(false);
+        if (activeLoadControllerRef.current === controller) {
+          activeLoadControllerRef.current = null;
+        }
+        if (!controller.signal.aborted && activeLoadRequestIdRef.current === requestId) {
+          setLoading(false);
+          if (refreshing) {
+            setIsRefreshing(false);
+          }
         }
       }
     },
@@ -182,6 +205,15 @@ function App() {
   }, [loadWorkspace]);
 
   useEffect(() => {
+    return () => {
+      activeLoadControllerRef.current?.abort();
+      activeLoadControllerRef.current = null;
+      activeVersionPollControllerRef.current?.abort();
+      activeVersionPollControllerRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
     if (snapshotVersion == null) {
       return;
     }
@@ -189,6 +221,11 @@ function App() {
     let cancelled = false;
     let stablePollCount = 0;
     let timeoutId: number | null = null;
+
+    const abortVersionPoll = () => {
+      activeVersionPollControllerRef.current?.abort();
+      activeVersionPollControllerRef.current = null;
+    };
 
     const currentDelay = () =>
       Math.min(REFRESH_POLL_MAX_MS, REFRESH_POLL_MIN_MS * 2 ** stablePollCount);
@@ -214,16 +251,29 @@ function App() {
         return;
       }
 
+      abortVersionPoll();
+      const controller = new AbortController();
+      activeVersionPollControllerRef.current = controller;
+
       try {
-        const response = await fetch("/api/version", { cache: "no-store" });
+        const response = await fetch("/api/version", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
         if (!response.ok) {
           throw new Error(`Failed to poll app version: ${response.status} ${response.statusText}`);
         }
         const nextVersion = (await response.json()) as VersionPayload;
-        if (!cancelled) {
-          setRefreshError(null);
+        if (
+          controller.signal.aborted ||
+          cancelled ||
+          activeVersionPollControllerRef.current !== controller
+        ) {
+          return;
         }
-        if (!cancelled && nextVersion.snapshot !== snapshotVersion) {
+        activeVersionPollControllerRef.current = null;
+        setRefreshError(null);
+        if (nextVersion.snapshot !== snapshotVersion) {
           stablePollCount = 0;
           await loadWorkspace("refresh");
           schedulePoll(REFRESH_POLL_MIN_MS);
@@ -233,12 +283,19 @@ function App() {
         stablePollCount = Math.min(stablePollCount + 1, 3);
         schedulePoll(currentDelay());
       } catch (pollError) {
-        stablePollCount = 0;
-        if (!cancelled) {
-          // eslint-disable-next-line no-console
-          console.error("Failed to poll app version for refresh", pollError);
-          setRefreshError(formatRefreshFailure("check for workspace updates", pollError));
+        if (
+          controller.signal.aborted ||
+          cancelled ||
+          activeVersionPollControllerRef.current !== controller ||
+          isAbortError(pollError)
+        ) {
+          return;
         }
+        activeVersionPollControllerRef.current = null;
+        stablePollCount = 0;
+        // eslint-disable-next-line no-console
+        console.error("Failed to poll app version for refresh", pollError);
+        setRefreshError(formatRefreshFailure("check for workspace updates", pollError));
         schedulePoll(REFRESH_POLL_MIN_MS);
       }
     };
@@ -263,6 +320,7 @@ function App() {
         window.clearTimeout(timeoutId);
         timeoutId = null;
       }
+      abortVersionPoll();
     };
   }, [isRefreshing, loadWorkspace, snapshotVersion]);
 
@@ -1410,6 +1468,10 @@ function formatAppServerUrl(bind: string, port: number): string {
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "AbortError";
 }
 
 function formatRefreshFailure(action: string, error: unknown): string {
