@@ -622,6 +622,8 @@ fn repository_declares_documentation_guides() {
     assert!(command_card.contains("`syu lsp`"));
     assert!(lsp_guide.contains("JSON-RPC 2.0 over stdio"));
     assert!(lsp_guide.contains("textDocument/hover"));
+    assert!(lsp_guide.contains("workspaceFolders"));
+    assert!(lsp_guide.contains("rootPath"));
     assert!(lsp_guide.contains("[VS Code extension guide](./vscode-extension.md)"));
     assert!(command_card.contains("[configuration](./configuration.md)"));
     assert!(vscode_guide.contains("syu Context"));

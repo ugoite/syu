@@ -54,6 +54,11 @@ If `initialize` includes `rootUri`, `syu` loads the workspace from that path.
 If `rootUri` is omitted, it falls back to the current working directory of the
 server process.
 
+Today the server reads only `rootUri` from the initialize payload. It does not
+yet consume `workspaceFolders`, `rootPath`, or other alternate workspace-root
+fields, so clients should send `rootUri` explicitly when they do not want the
+server process working directory to decide the workspace.
+
 ## Current capabilities
 
 At the moment the server advertises:
@@ -101,7 +106,9 @@ the equivalent command is:
 ```
 
 Use the repository root as the workspace folder so `rootUri` points at the
-directory that contains `syu.yaml`.
+directory that contains `syu.yaml`. If your client only exposes
+`workspaceFolders`, add an explicit `rootUri` override until the server learns
+that alternate shape too.
 
 ## Relationship to the VS Code extension
 
