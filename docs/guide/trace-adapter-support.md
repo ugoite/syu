@@ -91,7 +91,11 @@ path instead of waiting for perfect adapter coverage:
    design connected in the meantime
 
 When you need a concrete fallback shape, start from the closest checked-in
-example instead of inventing a migration path from scratch.
+example instead of inventing a migration path from scratch. For Kotlin/JVM
+repositories, start from `examples/java-only` when you need a repository shape
+that already demonstrates JVM package layout and explicit symbol ownership, then
+keep the Kotlin source connected through philosophy, policy, requirement, and
+feature layers until Kotlin adapter support lands.
 If you need a Go-first starting point today, study the
 [`examples/go-only` workspace on GitHub](https://github.com/ugoite/syu/tree/main/examples/go-only)
 or scaffold `syu init . --template go-only`. Both keep real Go files in the

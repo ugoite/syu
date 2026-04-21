@@ -508,6 +508,8 @@ fn repository_declares_documentation_guides() {
     assert!(app_guide.contains("Escape"));
     assert!(app_guide.contains("the item's YAML `status:` field"));
     assert!(app_guide.contains("--allow-remote"));
+    assert!(app_guide.contains("--dev-server"));
+    assert!(app_guide.contains("npm --prefix app run dev"));
     assert!(app_guide.contains("../../website/static/img/app-guide-overview.png"));
     assert!(!app_guide.contains("](/img/"));
     assert!(!app_guide.contains("`planned`, `implemented`, or `deprecated`"));
@@ -618,6 +620,10 @@ fn repository_declares_documentation_guides() {
     assert!(command_card.contains("syu validate . --id FEAT-CHECK-001"));
     assert!(command_card.contains("syu app ."));
     assert!(command_card.contains("[reviewer workflow](./reviewer-workflow.md)"));
+    assert!(vscode_guide.contains("CLI-backed first"));
+    assert!(vscode_guide.contains("Still uses the CLI directly"));
+    assert!(vscode_guide.contains("Still reads checked-in YAML directly"));
+    assert!(vscode_guide.contains("hover is the first capability"));
     assert!(command_card.contains("[LSP guide](./lsp.md)"));
     assert!(command_card.contains("`syu lsp`"));
     assert!(lsp_guide.contains("JSON-RPC 2.0 over stdio"));
@@ -957,6 +963,7 @@ fn repository_declares_contribution_workflow_assets() {
     assert!(contributing.contains("docs/generated/"));
     assert!(contributing.contains("scripts/ci/check-browser-app-freshness.sh"));
     assert!(contributing.contains("scripts/ci/pinned-npm.sh install app"));
+    assert!(contributing.contains("cargo run -- app . --dev-server"));
     assert!(contributing.contains("scripts/ci/bootstrap-contributor-tooling.sh"));
     assert!(contributing.contains("matches the current shell major"));
     assert!(contributing.contains("--vscode"));
