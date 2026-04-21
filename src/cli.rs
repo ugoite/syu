@@ -53,11 +53,8 @@ Examples:
   syu init .
   syu init . --interactive
   syu init . --id-prefix store
-  syu init . --template rust-only
-  syu init . --template ruby-only
-  syu init . --template typescript-only
-  syu init . --template go-only
-  syu init . --template java-only
+  syu init . --template docs-first
+  syu init . --template polyglot
   syu init . --spec-root docs/spec
   syu init path/to/workspace --name my-project --spec-root spec/contracts --template polyglot --id-prefix store";
 
