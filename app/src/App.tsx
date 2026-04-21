@@ -74,7 +74,7 @@ function App() {
   const [selectedIssueKey, setSelectedIssueKey] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchFilter, setSearchFilter] = useState<SearchFilter>("all");
-  const [focusedResultIndex, setFocusedResultIndex] = useState(-1);
+  const [focusedResultId, setFocusedResultId] = useState<string | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(() => shouldShowOnboarding());
   const [navigationHistory, setNavigationHistory] = useState<string[]>([]);
   const [snapshotVersion, setSnapshotVersion] = useState<string | null>(null);
@@ -266,10 +266,6 @@ function App() {
     };
   }, [isRefreshing, loadWorkspace, snapshotVersion]);
 
-  useEffect(() => {
-    setFocusedResultIndex(-1);
-  }, [workspace, searchFilter, searchQuery]);
-
   const triggerRefresh = useCallback(() => {
     void loadWorkspace("refresh");
   }, [loadWorkspace]);
@@ -450,6 +446,13 @@ function App() {
     };
   }, [searchFilter, workspace, searchQuery]);
   const searchResults = searchState.results;
+  const focusedResultIndex = useMemo(() => {
+    if (!focusedResultId) {
+      return -1;
+    }
+
+    return searchResults.findIndex((result) => result.id === focusedResultId);
+  }, [focusedResultId, searchResults]);
   const activeSearchResultId = useMemo(() => {
     if (focusedResultIndex < 0 || focusedResultIndex >= searchResults.length) {
       return undefined;
@@ -594,6 +597,7 @@ function App() {
   };
 
   const handleSearchSelect = (id: string) => {
+    setFocusedResultId(id);
     setSearchQuery("");
     jumpToItem(id);
   };
@@ -885,7 +889,6 @@ function App() {
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
-                  setFocusedResultIndex(-1);
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "ArrowDown") {
@@ -893,13 +896,22 @@ function App() {
                       return;
                     }
                     e.preventDefault();
-                    setFocusedResultIndex((prev) => Math.min(prev + 1, searchResults.length - 1));
+                    const nextFocusedIndex =
+                      focusedResultIndex >= 0
+                        ? Math.min(focusedResultIndex + 1, searchResults.length - 1)
+                        : 0;
+                    setFocusedResultId(searchResults[nextFocusedIndex].id);
                   } else if (e.key === "ArrowUp") {
                     if (searchResults.length === 0) {
                       return;
                     }
                     e.preventDefault();
-                    setFocusedResultIndex((prev) => Math.max(prev - 1, -1));
+                    if (focusedResultIndex <= 0) {
+                      setFocusedResultId(null);
+                      return;
+                    }
+
+                    setFocusedResultId(searchResults[focusedResultIndex - 1].id);
                   } else if (e.key === "Enter") {
                     const focusedResult =
                       focusedResultIndex >= 0 && focusedResultIndex < searchResults.length
@@ -914,7 +926,7 @@ function App() {
                   } else if (e.key === "Escape") {
                     setSearchQuery("");
                     setSearchFilter("all");
-                    setFocusedResultIndex(-1);
+                    setFocusedResultId(null);
                   }
                 }}
                 className="w-full rounded-2xl border border-white/10 bg-slate-900/60 py-2 pl-9 pr-4 text-sm text-slate-100 placeholder-slate-500 focus:border-sky-400/60 focus:outline-none focus:ring-1 focus:ring-sky-400/40"
@@ -965,7 +977,6 @@ function App() {
                     aria-pressed={active}
                     onClick={() => {
                       setSearchFilter(option.value);
-                      setFocusedResultIndex(-1);
                     }}
                     className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
                       active
@@ -997,7 +1008,7 @@ function App() {
                         id={searchResultOptionId(result.id, index)}
                         role="option"
                         onMouseDown={(e) => e.preventDefault()}
-                        onMouseEnter={() => setFocusedResultIndex(index)}
+                        onMouseEnter={() => setFocusedResultId(result.id)}
                         onClick={() => handleSearchSelect(result.id)}
                         className={`flex cursor-pointer items-start gap-2 rounded-xl border px-3 py-2 text-left transition hover:border-sky-400/40 hover:bg-sky-400/10 ${
                           index === focusedResultIndex
