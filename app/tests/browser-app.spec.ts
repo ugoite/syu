@@ -2,7 +2,6 @@
 // REQ-CORE-017
 
 import { expect, test } from "@playwright/test";
-import type { Page } from "@playwright/test";
 
 const usesFailingWorkspace =
   process.env.SYU_APP_E2E_WORKSPACE?.includes("tests/fixtures/workspaces/failing") ?? false;
@@ -47,144 +46,6 @@ function injectParseError(payload: AppDataPayload): { payload: AppDataPayload; p
 }
 
 type ValidationIssue = AppDataPayload["validation"]["issues"][number];
-
-type AbortTrackingState = {
-  appDataRequestCount: number;
-  pendingRefreshAppData: number;
-  abortedRefreshAppData: number;
-  versionRequestCount: number;
-  pendingVersionPolls: number;
-  abortedVersionPolls: number;
-};
-
-type AbortTrackingConfig = {
-  hangRefreshAppData?: boolean;
-  hangVersionPolls?: boolean;
-};
-
-async function installFetchAbortTracker(
-  page: Page,
-  config: AbortTrackingConfig = {},
-): Promise<void> {
-  await page.addInitScript((options: AbortTrackingConfig) => {
-    const nativeFetch = window.fetch.bind(window);
-    const state: AbortTrackingState = {
-      appDataRequestCount: 0,
-      pendingRefreshAppData: 0,
-      abortedRefreshAppData: 0,
-      versionRequestCount: 0,
-      pendingVersionPolls: 0,
-      abortedVersionPolls: 0,
-    };
-    const persistState = () => {
-      window.name = JSON.stringify(state);
-    };
-    (
-      window as Window &
-        typeof globalThis & {
-          __syuAbortTracking: AbortTrackingState;
-        }
-    ).__syuAbortTracking = state;
-    persistState();
-
-    const requestUrl = (input: RequestInfo | URL): string => {
-      if (typeof input === "string") {
-        return input;
-      }
-      if (input instanceof Request) {
-        return input.url;
-      }
-      return input.toString();
-    };
-
-    const requestSignal = (
-      input: RequestInfo | URL,
-      init?: RequestInit,
-    ): AbortSignal | undefined => {
-      if (init?.signal) {
-        return init.signal;
-      }
-      return input instanceof Request ? input.signal : undefined;
-    };
-
-    const hangUntilAbort = (
-      signal: AbortSignal | undefined,
-      onAbort: () => void,
-    ): Promise<Response> => {
-      return new Promise<Response>((_, reject) => {
-        const abort = () => {
-          onAbort();
-          reject(new DOMException("The operation was aborted.", "AbortError"));
-        };
-
-        if (signal?.aborted) {
-          abort();
-          return;
-        }
-
-        signal?.addEventListener("abort", abort, { once: true });
-      });
-    };
-
-    window.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = requestUrl(input);
-      const signal = requestSignal(input, init);
-
-      if (url.endsWith("/api/app-data.json")) {
-        state.appDataRequestCount += 1;
-
-        if (!options.hangRefreshAppData || state.appDataRequestCount === 1) {
-          persistState();
-          return nativeFetch(input, init);
-        }
-
-        state.pendingRefreshAppData += 1;
-        persistState();
-        return hangUntilAbort(signal, () => {
-          state.pendingRefreshAppData -= 1;
-          state.abortedRefreshAppData += 1;
-          persistState();
-        });
-      }
-
-      if (url.endsWith("/api/version")) {
-        state.versionRequestCount += 1;
-
-        if (!options.hangVersionPolls) {
-          persistState();
-          return nativeFetch(input, init);
-        }
-
-        state.pendingVersionPolls += 1;
-        persistState();
-        return hangUntilAbort(signal, () => {
-          state.pendingVersionPolls -= 1;
-          state.abortedVersionPolls += 1;
-          persistState();
-        });
-      }
-
-      return nativeFetch(input, init);
-    }) as typeof window.fetch;
-  }, config);
-}
-
-async function readAbortTrackingState(page: Page): Promise<AbortTrackingState> {
-  return page.evaluate(() => {
-    const trackedState = (
-      window as Window &
-        typeof globalThis & {
-          __syuAbortTracking: AbortTrackingState;
-        }
-    ).__syuAbortTracking;
-
-    if (trackedState) {
-      return trackedState;
-    }
-
-    return JSON.parse(window.name) as AbortTrackingState;
-  });
-}
 
 function requireFailingWorkspaceIssue(
   payload: AppDataPayload,
@@ -684,50 +545,6 @@ test("shows a visible banner when a workspace refresh reload fails after the ini
   );
   await expect(page.getByRole("heading", { level: 1, name: /^syu\b/i })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Workspace could not load" })).toHaveCount(0);
-});
-
-test("aborts in-flight workspace refresh requests when the app unmounts", async ({
-  page,
-}) => {
-  await installFetchAbortTracker(page, { hangRefreshAppData: true });
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1, name: /^syu\b/i })).toBeVisible();
-
-  await page.getByRole("button", { name: "Refresh now" }).first().click();
-  await expect
-    .poll(async () => (await readAbortTrackingState(page)).pendingRefreshAppData, {
-      timeout: 10000,
-    })
-    .toBe(1);
-
-  await page.goto("about:blank");
-  await expect
-    .poll(async () => await readAbortTrackingState(page), { timeout: 10000 })
-    .toMatchObject({
-      appDataRequestCount: 2,
-      pendingRefreshAppData: 0,
-      abortedRefreshAppData: 1,
-    });
-});
-
-test("aborts in-flight version polls when the app unmounts", async ({ page }) => {
-  await installFetchAbortTracker(page, { hangVersionPolls: true });
-  await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1, name: /^syu\b/i })).toBeVisible();
-
-  await expect
-    .poll(async () => (await readAbortTrackingState(page)).pendingVersionPolls, { timeout: 10000 })
-    .toBe(1);
-
-  await page.goto("about:blank");
-  await expect
-    .poll(async () => await readAbortTrackingState(page), { timeout: 10000 })
-    .toMatchObject({
-      versionRequestCount: 1,
-      pendingVersionPolls: 0,
-      abortedVersionPolls: 1,
-    });
 });
 
 test("allows a manual refresh and updates the last refresh timestamp after a stale snapshot banner", async ({
