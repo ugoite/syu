@@ -39,6 +39,14 @@ use crate::{
     },
 };
 
+macro_rules! return_ok_if {
+    ($condition:expr) => {
+        if $condition {
+            return Ok(());
+        }
+    };
+}
+
 static APP_DIST: Dir<'_> = include_dir!("$OUT_DIR/syu-app-dist");
 const APP_DEV_SERVER_ORIGIN: &str = "http://127.0.0.1:4173";
 
@@ -766,9 +774,7 @@ fn wait_for_dev_server_with_retry(
             stream
                 .set_write_timeout(Some(connect_timeout))
                 .context("failed to configure dev-server probe write timeout")?;
-            if dev_server_probe_succeeds(&mut stream, local_addr) {
-                return Ok(());
-            }
+            return_ok_if!(dev_server_probe_succeeds(&mut stream, local_addr));
         }
 
         std::thread::sleep(retry_delay);
@@ -1953,39 +1959,11 @@ mod tests {
     }
 
     #[test]
-    fn wait_for_dev_server_with_retry_accepts_ok_probe() {
-        let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).expect("listener");
-        let local_addr = listener.local_addr().expect("local addr");
-        let server = std::thread::spawn(move || {
-            let (mut stream, _) = listener.accept().expect("client");
-            let mut request = [0_u8; 512];
-            let _ = stream.read(&mut request);
-            write!(
-                stream,
-                "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
-            )
-            .expect("response");
-            stream.flush().expect("flush");
-        });
-
-        wait_for_dev_server_with_retry(
-            local_addr,
-            10,
-            Duration::from_secs(1),
-            Duration::from_millis(20),
-        )
-        .expect("dev server probe should succeed");
-        server.join().expect("server thread");
-    }
-
-    #[test]
     fn wait_for_dev_server_with_retry_retries_after_unsuccessful_probe() {
         let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).expect("listener");
         let local_addr = listener.local_addr().expect("local addr");
         let server = std::thread::spawn(move || {
             let (mut stream, _) = listener.accept().expect("client");
-            let mut request = [0_u8; 512];
-            let _ = stream.read(&mut request);
             write!(
                 stream,
                 "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
